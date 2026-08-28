@@ -1,0 +1,43 @@
+import { desc, eq } from "drizzle-orm";
+import Link from "next/link";
+import { chatGPTSignOutPath, requireChatGPTUser } from "@/app/chatgpt-auth";
+import { getDb } from "@/db";
+import { orders, subscriptions, users } from "@/db/schema";
+
+export const dynamic = "force-dynamic";
+
+export default async function AccountPage() {
+  const user = await requireChatGPTUser("/account");
+  let account = { regenerationsRemaining: 0, subscriptionStatus: "No active subscription" };
+  let history: typeof orders.$inferSelect[] = [];
+
+  try {
+    const db = getDb();
+    const [profile, activeSubscription, pastOrders] = await Promise.all([
+      db.select().from(users).where(eq(users.email, user.email)).limit(1),
+      db.select().from(subscriptions).where(eq(subscriptions.email, user.email)).orderBy(desc(subscriptions.createdAt)).limit(1),
+      db.select().from(orders).where(eq(orders.email, user.email)).orderBy(desc(orders.createdAt)),
+    ]);
+    account = {
+      regenerationsRemaining: profile[0]?.regenerationsRemaining ?? 0,
+      subscriptionStatus: activeSubscription[0]?.status || "No active subscription",
+    };
+    history = pastOrders;
+  } catch (error) {
+    console.error("Account lookup failed", error);
+  }
+
+  return (
+    <main className="account-page">
+      <header className="account-header">
+        <div><span className="eyebrow">YOUR STICKIER ACCOUNT</span><h1>Welcome back,<br /><em>{user.displayName}.</em></h1><p>{user.email}</p></div>
+        <a className="account-signout" href={chatGPTSignOutPath("/")}>SIGN OUT</a>
+      </header>
+      <section className="account-stats">
+        <article><span>MEMBERSHIP</span><strong>{account.subscriptionStatus}</strong><small>$9.99 / month</small></article>
+        <article><span>REGENERATIONS LEFT</span><strong>{account.regenerationsRemaining}</strong><small>Resets to 20 each billing period</small></article>
+      </section>
+      <section className="account-history"><div className="account-section-head"><div><span className="eyebrow">YOUR ARCHIVE</span><h2>Past orders.</h2></div><Link className="account-create" href="/">MAKE A NEW SHEET <span>→</span></Link></div>{history.length===0?<p className="account-empty">Your paid sticker sheets will appear here.</p>:<div className="order-list">{history.map(order=><article className="order-row" key={order.id}><div><strong>{order.subject}&apos;s sticker sheet</strong><small>{order.kind === "subscription" ? "Monthly membership" : "One-time purchase"}</small></div><time>{new Date(order.createdAt).toLocaleDateString()}</time><span>${(order.amount / 100).toFixed(2)}</span></article>)}</div>}</section>
+    </main>
+  );
+}
