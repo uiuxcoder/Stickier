@@ -1,6 +1,8 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { chatGPTSignOutPath, requireChatGPTUser } from "@/app/chatgpt-auth";
+import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { orders, subscriptions, users } from "@/db/schema";
 
@@ -11,8 +13,12 @@ export default async function AccountPage({
 }: {
   searchParams: Promise<{ subscription?: string }>;
 }) {
-  const user = await requireChatGPTUser("/account");
+  const requestHeaders = await headers();
+  const request = new Request("https://account.local", { headers: requestHeaders });
+  const user = await getSessionUser(request);
+  if (!user) redirect("/");
   const params = await searchParams;
+
   let account = { regenerationsRemaining: 0, subscriptionStatus: "No active subscription" };
   let history: typeof orders.$inferSelect[] = [];
   let lookupFailed = false;
@@ -20,14 +26,14 @@ export default async function AccountPage({
   try {
     const db = getDb();
     const [profile, activeSubscription, pastOrders] = await Promise.all([
-      db.select().from(users).where(eq(users.email, user.email)).limit(1),
+      db.select().from(users).where(eq(users.id, user.id)).limit(1),
       db
         .select()
         .from(subscriptions)
-        .where(and(eq(subscriptions.email, user.email), inArray(subscriptions.status, ["active", "trialing"])))
+        .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
         .orderBy(desc(subscriptions.createdAt))
         .limit(1),
-      db.select().from(orders).where(eq(orders.email, user.email)).orderBy(desc(orders.createdAt)),
+      db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)),
     ]);
     account = {
       regenerationsRemaining: profile[0]?.regenerationsRemaining ?? 0,
@@ -49,7 +55,12 @@ export default async function AccountPage({
           {params.subscription === "success" ? <p role="status">Your membership is active. Regenerations refresh each billing period.</p> : null}
           {lookupFailed ? <p role="alert">We could not load your account details. Please refresh in a moment.</p> : null}
         </div>
-        <a className="account-signout" href={chatGPTSignOutPath("/")}>SIGN OUT</a>
+        <div className="account-header-actions">
+          <form action="/api/account/portal" method="post">
+            <button className="account-portal" type="submit">MANAGE BILLING</button>
+          </form>
+          <a className="account-signout" href="/api/auth/signout">SIGN OUT</a>
+        </div>
       </header>
       <section className="account-stats">
         <article><span>MEMBERSHIP</span><strong>{account.subscriptionStatus}</strong><small>$9.99 / month</small></article>

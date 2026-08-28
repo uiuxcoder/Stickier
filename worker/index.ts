@@ -1,11 +1,16 @@
-/** Cloudflare Worker entry point for the vinext-starter template. */
+/** Cloudflare Worker entry point for Stickier. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { processGenerationJob, type GenerationJobMessage } from "@/lib/generation-worker";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
-  STICKER_ASSETS?: R2Bucket;
+  STICKER_ASSETS: R2Bucket;
+  GENERATION_QUEUE: Queue;
+  GENERATE_RATE_LIMITER: RateLimit;
+  CHECKOUT_RATE_LIMITER: RateLimit;
+  DOWNLOAD_RATE_LIMITER: RateLimit;
   IMAGES?: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -20,12 +25,9 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
-// Image security config. SVG sources with .svg extension auto-skip the
-// optimization endpoint on the client side (served directly, no proxy).
-// To route SVGs through the optimizer (with security headers), set
-// dangerouslyAllowSVG: true in next.config.js and uncomment below:
-// const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
-
+// The app is embedded by ChatGPT/Apps SDK hosts, so it must not send a blanket
+// frame-deny. Clickjacking-sensitive API surface is protected by the signed
+// session cookie (SameSite=Lax) and same-origin fetch, not by framing rules.
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -45,16 +47,24 @@ const worker = {
     const headers = new Headers(response.headers);
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    headers.set("X-Frame-Options", "DENY");
     headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    if (!headers.has("Content-Security-Policy")) {
-      headers.set("Content-Security-Policy", "frame-ancestors 'none'");
-    }
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers,
     });
+  },
+
+  async queue(batch: MessageBatch<GenerationJobMessage>, env: Env): Promise<void> {
+    for (const message of batch.messages) {
+      try {
+        await processGenerationJob(env, message.body);
+        message.ack();
+      } catch (error) {
+        console.error("Generation job failed", message.body?.jobId, error);
+        message.retry();
+      }
+    }
   },
 };
 

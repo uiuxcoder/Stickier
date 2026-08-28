@@ -8,6 +8,7 @@ import {
   MOODS,
   PRODUCTS,
   THEMES,
+  UPLOAD_KEY_PATTERN,
 } from "@/lib/constants";
 
 const dataUrlSchema = z
@@ -15,7 +16,12 @@ const dataUrlSchema = z
   .max(Math.ceil(MAX_PHOTO_BYTES * 1.4) + 64)
   .regex(/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+=*$/i);
 
+const uploadKeySchema = z.string().regex(UPLOAD_KEY_PATTERN);
+
 export const generationRequestSchema = z.object({
+  // Photos arrive as R2 object keys after a direct upload. A small number of
+  // inline data URLs are still accepted for backward compatibility.
+  photoKeys: z.array(uploadKeySchema).max(MAX_REFERENCE_PHOTOS).default([]),
   photos: z.array(dataUrlSchema).max(MAX_REFERENCE_PHOTOS).default([]),
   subject: z.string().trim().min(1).max(80).default("Your"),
   product: z.enum(PRODUCTS).default("me"),
@@ -25,17 +31,20 @@ export const generationRequestSchema = z.object({
   theme: z.enum(THEMES).optional(),
   moods: z.array(z.enum(MOODS)).max(MOODS.length).default([]),
   specialRequest: z.string().trim().max(MAX_SPECIAL_REQUEST_CHARS).optional(),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 export const checkoutRequestSchema = z.object({
   email: z.string().trim().regex(EMAIL_PATTERN),
   subject: z.string().trim().max(80).optional(),
   imageKey: z.string().regex(IMAGE_KEY_PATTERN),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 export const subscriptionRequestSchema = z.object({
   subject: z.string().trim().max(80).optional(),
   imageKey: z.string().regex(IMAGE_KEY_PATTERN),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 export function isImageKey(value: string | null | undefined): value is string {

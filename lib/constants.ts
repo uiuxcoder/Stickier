@@ -23,3 +23,4 @@ export const CHECKOUT_HOURLY_CAP = 12;
 export const DOWNLOAD_HOURLY_CAP = 40;
 export const PREVIEW_WIDTH = 640;
 export const PREVIEW_QUALITY = 38;
+export const UPLOAD_KEY_PATTERN = /^uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-z-]+\.(jpe?g|png|webp)$/i;

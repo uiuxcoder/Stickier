@@ -14,13 +14,26 @@ import {
 import { isImageKey } from "@/lib/validation";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-async function recordEvent(event: Stripe.Event) {
-  const inserted = await getDb()
+/**
+ * Record the event only after it has been processed successfully. Recording it
+ * first and deleting on failure leaves a window where a crashed isolate makes a
+ * paid event look delivered and it is never retried. Stripe retries on any
+ * non-2xx, so on failure we simply return 500 and let the redelivery reprocess.
+ */
+async function hasProcessed(eventId: string) {
+  const rows = await getDb()
+    .select({ id: stripeEvents.id })
+    .from(stripeEvents)
+    .where(eq(stripeEvents.id, eventId))
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function markProcessed(event: Stripe.Event) {
+  await getDb()
     .insert(stripeEvents)
-    .values({ id: event.id, type: event.type })
-    .onConflictDoNothing({ target: stripeEvents.id })
-    .returning({ id: stripeEvents.id });
-  return inserted.length > 0;
+    .values({ id: event.id, type: event.type, createdAt: Date.now() })
+    .onConflictDoNothing({ target: stripeEvents.id });
 }
 
 async function sendDownloadEmail(session: Stripe.Checkout.Session, email: string, origin: string) {
@@ -37,6 +50,17 @@ async function sendDownloadEmail(session: Stripe.Checkout.Session, email: string
   if (result.error) throw new Error(result.error.message);
 }
 
+/** Resolve the app user for a checkout, preferring the linked userId. */
+async function findUserId(email: string, metadataUserId?: string | null) {
+  const db = getDb();
+  if (metadataUserId) {
+    const byId = await db.select({ id: users.id }).from(users).where(eq(users.id, metadataUserId)).limit(1);
+    if (byId[0]) return byId[0].id;
+  }
+  const byEmail = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  return byEmail[0]?.id ?? null;
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin: string) {
   if (!isPaidCheckout(session)) return;
   const imageKey = session.metadata?.imageKey;
@@ -46,13 +70,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
   const db = getDb();
   const stripeCustomerId = customerId(session.customer);
   const isSubscription = session.mode === "subscription";
+  const metadataUserId = session.metadata?.userId ?? null;
+  const now = Date.now();
 
+  // Upsert the user keyed on email, then link the stable surrogate ID.
   await db
     .insert(users)
     .values({
+      id: metadataUserId ?? crypto.randomUUID(),
       email,
       stripeCustomerId,
       regenerationsRemaining: isSubscription ? MONTHLY_REGENERATIONS : 0,
+      createdAt: now,
     })
     .onConflictDoUpdate({
       target: users.email,
@@ -62,28 +91,35 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
       },
     });
 
+  const userId = await findUserId(email, metadataUserId);
+
   await db
     .insert(orders)
     .values({
       id: crypto.randomUUID(),
+      userId,
       email,
       stripeSessionId: session.id,
       kind: isSubscription ? "subscription" : "one-time",
       subject: session.metadata?.subject || "Your",
       imageKey,
       amount: session.amount_total || 0,
+      createdAt: now,
     })
     .onConflictDoNothing({ target: orders.stripeSessionId });
 
-  await db.update(generations).set({ purchasedAt: Date.now(), email }).where(eq(generations.imageKey, imageKey));
+  await db
+    .update(generations)
+    .set({ purchasedAt: now, email, ...(userId ? { userId } : {}) })
+    .where(eq(generations.imageKey, imageKey));
 
   if (isSubscription && typeof session.subscription === "string") {
     await db
       .insert(subscriptions)
-      .values({ stripeSubscriptionId: session.subscription, email, status: "active" })
+      .values({ stripeSubscriptionId: session.subscription, userId, email, status: "active", createdAt: now })
       .onConflictDoUpdate({
         target: subscriptions.stripeSubscriptionId,
-        set: { status: "active", email },
+        set: { status: "active", email, ...(userId ? { userId } : {}) },
       });
   }
 
@@ -100,46 +136,73 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const subscriptionId = subscriptionIdFromInvoice(invoice);
-  const email = invoice.customer_email || invoice.metadata?.email || null;
   if (!subscriptionId) return;
   const db = getDb();
-  if (email) {
+
+  // Resolve the subscriber from our own records first; Stripe's customer_email
+  // is not reliably populated on subscription renewal invoices.
+  const sub = await db
+    .select({ email: subscriptions.email, userId: subscriptions.userId })
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, subscriptionId))
+    .limit(1);
+  const email = invoice.customer_email || invoice.metadata?.email || sub[0]?.email || null;
+  const userId = sub[0]?.userId ?? (email ? await findUserId(email) : null);
+
+  if (userId) {
+    await db.update(users).set({ regenerationsRemaining: MONTHLY_REGENERATIONS }).where(eq(users.id, userId));
+  } else if (email) {
     await db.update(users).set({ regenerationsRemaining: MONTHLY_REGENERATIONS }).where(eq(users.email, email));
-    await db.update(subscriptions).set({ status: "active", email }).where(eq(subscriptions.stripeSubscriptionId, subscriptionId));
-    return;
   }
-  await db.update(subscriptions).set({ status: "active" }).where(eq(subscriptions.stripeSubscriptionId, subscriptionId));
+
+  await db
+    .update(subscriptions)
+    .set({ status: "active", ...(email ? { email } : {}), ...(userId ? { userId } : {}) })
+    .where(eq(subscriptions.stripeSubscriptionId, subscriptionId));
 }
 
 async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const status = subscription.status;
   const periodEnd = periodEndFromSubscription(subscription);
   const email = subscription.metadata?.email;
+  const metadataUserId = subscription.metadata?.userId ?? null;
   const db = getDb();
+  const now = Date.now();
+
+  const existing = await db
+    .select({ email: subscriptions.email, userId: subscriptions.userId })
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, subscription.id))
+    .limit(1);
+  const resolvedEmail = email || existing[0]?.email || "unknown";
+  const userId =
+    metadataUserId ?? existing[0]?.userId ?? (resolvedEmail !== "unknown" ? await findUserId(resolvedEmail) : null);
 
   await db
     .insert(subscriptions)
     .values({
       stripeSubscriptionId: subscription.id,
-      email: email || "unknown",
+      userId,
+      email: resolvedEmail,
       status,
       currentPeriodEnd: periodEnd,
+      createdAt: now,
     })
     .onConflictDoUpdate({
       target: subscriptions.stripeSubscriptionId,
-      set: { status, currentPeriodEnd: periodEnd, ...(email ? { email } : {}) },
+      set: {
+        status,
+        currentPeriodEnd: periodEnd,
+        ...(email ? { email } : {}),
+        ...(userId ? { userId } : {}),
+      },
     });
 
   const inactive = status === "canceled" || status === "unpaid" || status === "incomplete_expired";
   if (!inactive) return;
 
-  const rows = await db
-    .select({ email: subscriptions.email })
-    .from(subscriptions)
-    .where(eq(subscriptions.stripeSubscriptionId, subscription.id))
-    .limit(1);
-  const owner = email || rows[0]?.email;
-  if (!owner || owner === "unknown") return;
+  const owner = resolvedEmail !== "unknown" ? resolvedEmail : null;
+  if (!owner) return;
 
   const stillActive = await db
     .select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
@@ -147,7 +210,11 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
     .where(and(eq(subscriptions.email, owner), inArray(subscriptions.status, ["active", "trialing"])))
     .limit(1);
   if (!stillActive[0]) {
-    await db.update(users).set({ regenerationsRemaining: 0 }).where(eq(users.email, owner));
+    if (userId) {
+      await db.update(users).set({ regenerationsRemaining: 0 }).where(eq(users.id, userId));
+    } else {
+      await db.update(users).set({ regenerationsRemaining: 0 }).where(eq(users.email, owner));
+    }
   }
 }
 
@@ -167,8 +234,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const firstDelivery = await recordEvent(event);
-    if (!firstDelivery) return Response.json({ received: true, duplicate: true });
+    if (await hasProcessed(event.id)) {
+      return Response.json({ received: true, duplicate: true });
+    }
 
     if (event.type === "checkout.session.completed") {
       await handleCheckoutCompleted(event.data.object, new URL(request.url).origin);
@@ -178,10 +246,11 @@ export async function POST(request: Request) {
       await handleSubscriptionChange(event.data.object);
     }
 
+    await markProcessed(event);
     return Response.json({ received: true });
   } catch (error) {
-    console.error("Stripe webhook processing failed", error);
-    await getDb().delete(stripeEvents).where(eq(stripeEvents.id, event.id)).catch(() => undefined);
+    console.error("Stripe webhook processing failed", event.id, error);
+    // Do not record the event: returning 500 makes Stripe redeliver it.
     return Response.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }

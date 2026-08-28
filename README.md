@@ -17,20 +17,47 @@ This starter originally avoided `wrangler.jsonc`. Stickier now includes `wrangle
 
 ## Production secrets
 
-Copy `.env.example` and set:
+Copy `.env.example` and set each with `wrangler secret put <NAME>`:
 
 - `OPENAI_API_KEY`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
+- `SESSION_SECRET` — signs session cookies and photo-upload tokens
+- `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile bot protection
 
-Optional: `STRIPE_PRICE_ID`, `STRIPE_SUBSCRIPTION_PRICE_ID`, `OPENAI_IMAGE_MODEL`.
+Optional: `STRIPE_PRICE_ID`, `STRIPE_SUBSCRIPTION_PRICE_ID`, `OPENAI_IMAGE_MODEL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 
-Cloudflare resources already provisioned for this project:
+## Architecture
 
-- D1 `stickier-db` (`e923c47f-2095-4741-9b5a-76a0f35b9080`)
-- R2 `stickier-assets`
+- **Config**: `wrangler.jsonc` is the single source of truth for bindings and
+  compatibility. The Vite plugin auto-discovers it; do not duplicate bindings in
+  `vite.config.ts`.
+- **Auth**: identity is an HMAC-signed session cookie (`SESSION_SECRET`) minted
+  by `/api/auth/session`. The OpenAI Sites `oai-authenticated-user-*` headers are
+  only a sign-in hint, never trusted on their own. Users carry a surrogate ID;
+  orders, subscriptions and generations link to it.
+- **Generation**: `POST /api/generate-stickers` validates, runs Turnstile and
+  moderation, reserves quota, and enqueues a job on the `GENERATION_QUEUE`
+  Cloudflare Queue. The Worker `queue` consumer calls OpenAI and writes the
+  sheet to R2; the browser polls `/api/generation-status`.
+- **Uploads**: photos go straight to R2 via `/api/upload-photo` (signed,
+  short-lived tokens), not through a JSON body.
+- **Billing**: Stripe webhooks populate `orders`/`subscriptions`; reads
+  (`/api/checkout-status`, `/api/download-stickers`) are served from D1.
+
+## Provision Cloudflare resources
+
+```bash
+wrangler d1 migrations apply stickier-db --remote
+wrangler queues create stickier-generation
+wrangler queues create stickier-generation-dlq
+```
+
+The D1 database (`stickier-db`), R2 bucket (`stickier-assets`), Images binding,
+and three rate-limit namespaces are declared in `wrangler.jsonc`. Add an R2
+lifecycle rule to expire the `uploads/` prefix (reference photos) after 24 hours.
 
 Point Stripe webhooks at `/api/webhooks/stripe` for `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, and `customer.subscription.deleted`.
 

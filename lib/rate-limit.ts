@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { getDb } from "@/db";
 import { rateLimits } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -15,7 +16,29 @@ export async function hashIp(request: Request) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function consumeRateLimit(key: string, limit: number, windowMs: number) {
+type RateOutcome = { ok: true; remaining?: number } | { ok: false; retryAfterMs: number };
+
+/**
+ * Enforce a rate limit. Prefers the Workers Rate Limiting binding (fast,
+ * in-memory, per-location) and falls back to a D1-backed counter when the
+ * binding is not configured. The binding is intentionally not an exact
+ * accounting system; it is a cheap abuse brake. Exact quota accounting lives in
+ * the users table, not here.
+ */
+export async function consumeRateLimit(
+  limiter: RateLimit | undefined,
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<RateOutcome> {
+  if (limiter) {
+    const { success } = await limiter.limit({ key });
+    return success ? { ok: true } : { ok: false, retryAfterMs: windowMs };
+  }
+  return consumeD1RateLimit(key, limit, windowMs);
+}
+
+async function consumeD1RateLimit(key: string, limit: number, windowMs: number): Promise<RateOutcome> {
   const now = Date.now();
   const resetAt = now + windowMs;
   const db = getDb();
@@ -47,4 +70,12 @@ export function rateLimitResponse(retryAfterMs: number) {
       headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000) || 60) },
     },
   );
+}
+
+export function rateLimiters() {
+  return {
+    generate: env.GENERATE_RATE_LIMITER,
+    checkout: env.CHECKOUT_RATE_LIMITER,
+    download: env.DOWNLOAD_RATE_LIMITER,
+  };
 }

@@ -1,29 +1,35 @@
-import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
-  email: text("email").primaryKey(),
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  fullName: text("full_name"),
   stripeCustomerId: text("stripe_customer_id"),
   regenerationsRemaining: integer("regenerations_remaining").notNull().default(0),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: integer("created_at").notNull(),
 });
 
 export const subscriptions = sqliteTable(
   "subscriptions",
   {
     stripeSubscriptionId: text("stripe_subscription_id").primaryKey(),
+    userId: text("user_id").references(() => users.id),
     email: text("email").notNull(),
     status: text("status").notNull(),
     currentPeriodEnd: integer("current_period_end"),
-    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: integer("created_at").notNull(),
   },
-  (table) => [index("subscriptions_email_idx").on(table.email)],
+  (table) => [
+    index("subscriptions_email_idx").on(table.email),
+    index("subscriptions_user_id_idx").on(table.userId),
+  ],
 );
 
 export const orders = sqliteTable(
   "orders",
   {
     id: text("id").primaryKey(),
+    userId: text("user_id").references(() => users.id),
     email: text("email").notNull(),
     stripeSessionId: text("stripe_session_id").notNull().unique(),
     kind: text("kind").notNull(),
@@ -31,25 +37,49 @@ export const orders = sqliteTable(
     imageKey: text("image_key").notNull(),
     amount: integer("amount").notNull(),
     emailSentAt: text("email_sent_at"),
-    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: integer("created_at").notNull(),
   },
   (table) => [
     index("orders_email_idx").on(table.email),
+    index("orders_user_id_idx").on(table.userId),
     index("orders_image_key_idx").on(table.imageKey),
   ],
 );
 
-export const generations = sqliteTable("generations", {
-  imageKey: text("image_key").primaryKey(),
-  email: text("email"),
-  createdAt: integer("created_at").notNull(),
-  purchasedAt: integer("purchased_at"),
-});
+export const generations = sqliteTable(
+  "generations",
+  {
+    imageKey: text("image_key").primaryKey(),
+    userId: text("user_id").references(() => users.id),
+    email: text("email"),
+    createdAt: integer("created_at").notNull(),
+    purchasedAt: integer("purchased_at"),
+  },
+  (table) => [index("generations_user_id_idx").on(table.userId)],
+);
+
+export const generationJobs = sqliteTable(
+  "generation_jobs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => users.id),
+    email: text("email"),
+    status: text("status").notNull().default("queued"),
+    imageKey: text("image_key"),
+    error: text("error"),
+    inputJson: text("input_json").notNull(),
+    photoKeys: text("photo_keys").notNull().default("[]"),
+    reservedQuota: integer("reserved_quota").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("generation_jobs_user_id_idx").on(table.userId)],
+);
 
 export const stripeEvents = sqliteTable("stripe_events", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: integer("created_at").notNull(),
 });
 
 export const rateLimits = sqliteTable("rate_limits", {

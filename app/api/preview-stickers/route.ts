@@ -20,7 +20,10 @@ export async function GET(request: Request) {
 
     const image = await env.STICKER_ASSETS.get(key);
     if (!image) return new Response("Preview unavailable", { status: 404 });
-    return createPreviewResponse(await image.arrayBuffer(), image.httpMetadata?.contentType || "image/png");
+    const preview = await createPreviewResponse(await image.arrayBuffer());
+    // Fail closed: never serve the original full-resolution asset as a preview.
+    if (!preview) return new Response("Preview unavailable", { status: 503 });
+    return preview;
   } catch (error) {
     console.error("Sticker preview failed", error);
     return new Response("Preview unavailable", { status: 500 });

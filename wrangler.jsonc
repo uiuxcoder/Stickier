@@ -1,7 +1,10 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "stickier",
   "main": "worker/index.ts",
-  "compatibility_date": "2026-08-28",
+  // Pinned to the newest date the installed workerd (1.20260515.1) supports.
+  // Do not set this ahead of the local runtime or `vite dev` will refuse to boot.
+  "compatibility_date": "2026-05-15",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
@@ -9,6 +12,13 @@
       "invocation_logs": true,
       "head_sampling_rate": 1
     }
+  },
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS"
+  },
+  "images": {
+    "binding": "IMAGES"
   },
   "d1_databases": [
     {
@@ -22,6 +32,40 @@
     {
       "binding": "STICKER_ASSETS",
       "bucket_name": "stickier-assets"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "GENERATION_QUEUE",
+        "queue": "stickier-generation"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "stickier-generation",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 2,
+        "dead_letter_queue": "stickier-generation-dlq"
+      }
+    ]
+  },
+  "ratelimits": [
+    {
+      "name": "GENERATE_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 8, "period": 60 }
+    },
+    {
+      "name": "CHECKOUT_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 12, "period": 60 }
+    },
+    {
+      "name": "DOWNLOAD_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 40, "period": 60 }
     }
   ]
 }
