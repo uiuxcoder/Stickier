@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { chatGPTSignOutPath, requireChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
@@ -6,16 +6,27 @@ import { orders, subscriptions, users } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage() {
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subscription?: string }>;
+}) {
   const user = await requireChatGPTUser("/account");
+  const params = await searchParams;
   let account = { regenerationsRemaining: 0, subscriptionStatus: "No active subscription" };
   let history: typeof orders.$inferSelect[] = [];
+  let lookupFailed = false;
 
   try {
     const db = getDb();
     const [profile, activeSubscription, pastOrders] = await Promise.all([
       db.select().from(users).where(eq(users.email, user.email)).limit(1),
-      db.select().from(subscriptions).where(eq(subscriptions.email, user.email)).orderBy(desc(subscriptions.createdAt)).limit(1),
+      db
+        .select()
+        .from(subscriptions)
+        .where(and(eq(subscriptions.email, user.email), inArray(subscriptions.status, ["active", "trialing"])))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1),
       db.select().from(orders).where(eq(orders.email, user.email)).orderBy(desc(orders.createdAt)),
     ]);
     account = {
@@ -25,19 +36,48 @@ export default async function AccountPage() {
     history = pastOrders;
   } catch (error) {
     console.error("Account lookup failed", error);
+    lookupFailed = true;
   }
 
   return (
     <main className="account-page">
       <header className="account-header">
-        <div><span className="eyebrow">YOUR STICKIER ACCOUNT</span><h1>Welcome back,<br /><em>{user.displayName}.</em></h1><p>{user.email}</p></div>
+        <div>
+          <span className="eyebrow">YOUR STICKIER ACCOUNT</span>
+          <h1>Welcome back,<br /><em>{user.displayName}.</em></h1>
+          <p>{user.email}</p>
+          {params.subscription === "success" ? <p role="status">Your membership is active. Regenerations refresh each billing period.</p> : null}
+          {lookupFailed ? <p role="alert">We could not load your account details. Please refresh in a moment.</p> : null}
+        </div>
         <a className="account-signout" href={chatGPTSignOutPath("/")}>SIGN OUT</a>
       </header>
       <section className="account-stats">
         <article><span>MEMBERSHIP</span><strong>{account.subscriptionStatus}</strong><small>$9.99 / month</small></article>
         <article><span>REGENERATIONS LEFT</span><strong>{account.regenerationsRemaining}</strong><small>Resets to 20 each billing period</small></article>
       </section>
-      <section className="account-history"><div className="account-section-head"><div><span className="eyebrow">YOUR ARCHIVE</span><h2>Past orders.</h2></div><Link className="account-create" href="/">MAKE A NEW SHEET <span>→</span></Link></div>{history.length===0?<p className="account-empty">Your paid sticker sheets will appear here.</p>:<div className="order-list">{history.map(order=><article className="order-row" key={order.id}><div><strong>{order.subject}&apos;s sticker sheet</strong><small>{order.kind === "subscription" ? "Monthly membership" : "One-time purchase"}</small></div><time>{new Date(order.createdAt).toLocaleDateString()}</time><span>${(order.amount / 100).toFixed(2)}</span></article>)}</div>}</section>
+      <section className="account-history">
+        <div className="account-section-head">
+          <div><span className="eyebrow">YOUR ARCHIVE</span><h2>Past orders.</h2></div>
+          <Link className="account-create" href="/">MAKE A NEW SHEET <span>→</span></Link>
+        </div>
+        {history.length === 0 ? (
+          <p className="account-empty">Your paid sticker sheets will appear here.</p>
+        ) : (
+          <div className="order-list">
+            {history.map((order) => (
+              <article className="order-row" key={order.id}>
+                <div>
+                  <strong>{order.subject}&apos;s sticker sheet</strong>
+                  <small>{order.kind === "subscription" ? "Monthly membership" : "One-time purchase"}</small>
+                </div>
+                <time>{new Date(order.createdAt).toLocaleDateString()}</time>
+                <span>${(order.amount / 100).toFixed(2)}</span>
+                <a href={`/api/download-stickers?session_id=${encodeURIComponent(order.stripeSessionId)}`}>Download</a>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

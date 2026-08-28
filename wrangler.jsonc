@@ -1,0 +1,27 @@
+{
+  "name": "stickier",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stickier-db",
+      "database_id": "e923c47f-2095-4741-9b5a-76a0f35b9080",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "STICKER_ASSETS",
+      "bucket_name": "stickier-assets"
+    }
+  ]
+}
