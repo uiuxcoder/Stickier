@@ -39,6 +39,12 @@ export const checkoutRequestSchema = z.object({
   email: z.string().trim().regex(EMAIL_PATTERN),
   subject: z.string().trim().max(80).optional(),
   imageKey: z.string().regex(IMAGE_KEY_PATTERN),
+  plan: z.enum(["digital", "physical"]).default("digital"),
+  name: z.string().trim().max(120).optional(),
+  address: z.string().trim().max(200).optional(),
+  city: z.string().trim().max(80).optional(),
+  state: z.string().trim().max(40).optional(),
+  zip: z.string().trim().max(20).optional(),
   turnstileToken: z.string().max(2048).optional(),
 });
 

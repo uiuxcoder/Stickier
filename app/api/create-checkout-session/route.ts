@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const parsed = checkoutRequestSchema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: "A valid email and sticker sheet are required." }, { status: 400 });
 
-    const { email, subject, imageKey, turnstileToken } = parsed.data;
+    const { email, subject, imageKey, turnstileToken, plan, name, address, city, state, zip } = parsed.data;
 
     const turnstile = await verifyTurnstile(turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
     if (!turnstile.ok) {
@@ -33,30 +33,29 @@ export async function POST(request: Request) {
 
     const user = await getSessionUser(request);
     const origin = new URL(request.url).origin;
-    const priceId = process.env.STRIPE_PRICE_ID;
+    const amount = plan === "physical" ? 999 : ONE_TIME_AMOUNT_CENTS;
     const session = await getStripe().checkout.sessions.create({
       mode: "payment",
       customer_email: email,
-      line_items: priceId
-        ? [{ price: priceId, quantity: 1 }]
-        : [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `${subject || "Your"} digital sticker pack`,
-                  description: "Ten one-of-one digital stickers",
-                },
-                unit_amount: ONE_TIME_AMOUNT_CENTS,
-              },
-              quantity: 1,
-            },
-          ],
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: plan === "physical" ? `${subject || "Your"} physical sticker pack` : `${subject || "Your"} digital sticker pack`,
+            description: plan === "physical" ? "Ten die-cut stickers with digital pack included" : "Ten one-of-one digital stickers",
+          },
+          unit_amount: amount,
+        },
+        quantity: 1,
+      }],
       success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?checkout=cancelled`,
+      ...(plan === "physical" ? { automatic_tax: { enabled: true }, shipping_address_collection: { allowed_countries: ["US"] } } : {}),
       metadata: {
         subject: subject || "Your",
         imageKey,
+        plan,
+        ...(plan === "physical" ? { name: name || "", address: address || "", city: city || "", state: state || "", zip: zip || "" } : {}),
         email,
         ...(user ? { userId: user.id } : {}),
       },

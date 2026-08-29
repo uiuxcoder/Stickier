@@ -1,5 +1,5 @@
 export const MONTHLY_REGENERATIONS = 20;
-export const ONE_TIME_AMOUNT_CENTS = 399;
+export const ONE_TIME_AMOUNT_CENTS = 499;
 export const SUBSCRIPTION_AMOUNT_CENTS = 999;
 export const DOWNLOAD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const IMAGE_KEY_PATTERN = /^stickers\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/i;

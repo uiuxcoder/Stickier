@@ -30,6 +30,7 @@ export async function GET(request: Request) {
       email: order[0].email,
       subject: order[0].subject,
       imageKey: order[0].imageKey,
+      plan: order[0].amount >= 999 ? "physical" : "digital",
       downloadUrl: `/api/download-stickers?session_id=${encodeURIComponent(sessionId)}`,
     });
   } catch (error) {
