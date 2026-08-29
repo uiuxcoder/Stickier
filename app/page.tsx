@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, DragEvent, startTransition, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, Heart, ImagePlus, PawPrint, Sparkles, Upload, UserRound, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +22,26 @@ declare global {
       remove: (id?: string) => void;
     };
   }
+}
+
+// Shared across every widget mount so the API script is only appended once.
+let turnstileScript: Promise<void> | null = null;
+function loadTurnstile(): Promise<void> {
+  if (window.turnstile) return Promise.resolve();
+  if (!turnstileScript) {
+    turnstileScript = new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        turnstileScript = null;
+        reject(new Error("Turnstile failed to load."));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return turnstileScript;
 }
 
 function Sheet({ name, className = "", clean = false, src = "/sticker-sheet.png" }: { name: string; className?: string; clean?: boolean; src?: string }) {
@@ -101,7 +121,6 @@ export default function Home(){
   const [generationError,setGenerationError]=useState("");
   const [tick,setTick]=useState(0);
   const [turnstileToken,setTurnstileToken]=useState("");
-  const turnstileRef=useRef<HTMLDivElement|null>(null);
   const turnstileWidgetId=useRef<string|undefined>(undefined);
   const pollTimer=useRef<number|undefined>(undefined);
 
@@ -155,20 +174,22 @@ export default function Home(){
     }
   },[generatedImage,generatedImageKey,product,name,groupName,pet,theme,moods,email]);
 
-  // Load and render the Turnstile widget when a site key is configured.
-  useEffect(()=>{
+  // A callback ref, not an effect: the widget container only exists on the
+  // stages that need a token, so mounting has to follow the container rather
+  // than run once when the page loads. Each mount issues its own token, which
+  // keeps the single-use tokens for generation and for checkout distinct.
+  const mountTurnstile=useCallback((node:HTMLDivElement|null)=>{
     if(!turnstileSiteKey)return;
-    const render=()=>{
-      if(turnstileRef.current&&window.turnstile&&!turnstileWidgetId.current){
-        turnstileWidgetId.current=window.turnstile.render(turnstileRef.current,{sitekey:turnstileSiteKey,callback:(token:string)=>setTurnstileToken(token),"expired-callback":()=>setTurnstileToken("")});
-      }
-    };
-    if(window.turnstile){render();return}
-    const script=document.createElement("script");
-    script.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-    script.async=true;
-    script.onload=render;
-    document.head.appendChild(script);
+    if(!node){
+      if(turnstileWidgetId.current&&window.turnstile)window.turnstile.remove(turnstileWidgetId.current);
+      turnstileWidgetId.current=undefined;
+      setTurnstileToken("");
+      return;
+    }
+    void loadTurnstile().then(()=>{
+      if(!window.turnstile||turnstileWidgetId.current||!node.isConnected)return;
+      turnstileWidgetId.current=window.turnstile.render(node,{sitekey:turnstileSiteKey,callback:(token:string)=>setTurnstileToken(token),"expired-callback":()=>setTurnstileToken("")});
+    }).catch(()=>setGenerationError("We could not load the human-verification widget. Please refresh and try again."));
   },[turnstileSiteKey]);
 
   useEffect(()=>{const params=new URLSearchParams(window.location.search);const checkout=params.get("checkout");const sessionId=params.get("session_id");if(checkout==="cancelled"){queueMicrotask(()=>setCheckoutNotice("Checkout was cancelled. Your preview is still here if you want to try again."));window.history.replaceState({},"",window.location.pathname);return}if(!sessionId){if(checkout)window.history.replaceState({},"",window.location.pathname);return}
@@ -247,7 +268,10 @@ export default function Home(){
   const startCheckout=async()=>{if(paymentPlan==="subscription"){void startSubscription();return}setCheckoutLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
   const startSubscription=async()=>{if(!signedIn){window.location.assign("/signin?return_to="+encodeURIComponent("/"));return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
   const back:Partial<Record<Stage,Stage>>={choose:"home",photos:"choose",details:"photos",mood:"details",theme:"mood",add:"theme",companion:"add",reveal:"theme"};
-  const canGenerate=ageConfirmed&&(turnstileSiteKey?Boolean(turnstileToken):true);
+  // Turnstile tokens are single-use, so every gated action needs its own live
+  // token from the widget mounted on that stage.
+  const canVerify=turnstileSiteKey?Boolean(turnstileToken):true;
+  const canGenerate=ageConfirmed&&canVerify;
 
   return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span>{stage==="home"?"YOUR LIFE, BUT STICKIER":stage==="samples"?"THE SAMPLE STUDIO":product==="pet"?"THE PET STICKER STUDIO":"THE LIFE STICKER STUDIO"}</span><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>stage==="home"?setStage("samples"):stage==="samples"?setStage("choose"):restart()}>{stage==="home"?"SEE SAMPLES":stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
   {checkoutNotice&&<p className="checkout-notice" role="status">{checkoutNotice}</p>}
@@ -267,10 +291,10 @@ export default function Home(){
   {stage==="companion"&&<div className="wizard-content"><Progress n={7} total={7}/><div className="eyebrow">ADD YOUR {companion==="pet"?"CO-STAR":"PERSON"}</div><h3>Upload {companion==="pet"?"your pet":"your favorite person"}.</h3><p>One or two clear photos are perfect.</p><UploadBox pet={companion==="pet"} target={companion==="pet"?"your pet":"your favorite person"} previews={companionPhotos} onChange={f=>load(f,setCompanionPhotos,setCompanionPhotoKeys,setCompanionPhotoDataUrls,companionPhotos)}/><div className="wizard-actions"><button className="skip" onClick={()=>setStage("confirm")}>SKIP</button><Button className="red-btn" onClick={()=>setStage("confirm")}>CONTINUE <ArrowRight/></Button></div></div>}
   </div></section>}
 
-  {stage==="confirm"&&<section className="wizard enter"><div className="wizard-main confirm-main"><h3>Almost there.</h3><p>Confirm you have the right to use these photos, then we&apos;ll make your sheet.</p><label className="age-gate"><input type="checkbox" checked={ageConfirmed} onChange={e=>setAgeConfirmed(e.target.checked)}/><span>I confirm everyone in these photos is an adult, or I have a parent or guardian&apos;s permission, and I have the right to use every photo.</span></label>{turnstileSiteKey?<div ref={turnstileRef} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div></section>}
+  {stage==="confirm"&&<section className="wizard confirm-wizard enter"><div className="wizard-main confirm-main"><h3>Almost there.</h3><p>Confirm you have the right to use these photos, then we&apos;ll make your sheet.</p><label className="age-gate"><input type="checkbox" checked={ageConfirmed} onChange={e=>setAgeConfirmed(e.target.checked)}/><span>I confirm everyone in these photos is an adult, or I have a parent or guardian&apos;s permission, and I have the right to use every photo.</span></label>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div></section>}
 
   {stage==="generating"&&<section className="generate enter"><div className="printer"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy"><b>MAKING YOUR STICKER SHEET</b><h2>{lines[tick]}</h2><div className="progress"><i/></div><small className="generation-estimate">Takes approximately 30–60 seconds</small></div></section>}
-  {stage==="reveal"&&<section className="reveal-page enter"><div className="reveal-head"><div><h2>{product==="pet"?`${subject}, as stickers.`:"Your life, as stickers."}</h2><p>Ten digital stickers, ready to download and use anywhere.</p>{generationError&&<p role="alert">{generationError}</p>}{checkoutError&&<p role="alert">{checkoutError}</p>}</div><div className="reveal-actions"><Button className="red-btn" onClick={openPayment} disabled={Boolean(generationError)||!generatedImageKey}>PURCHASE STICKERS · $3.99 <ArrowRight/></Button><Button className="subscription-btn" onClick={()=>void startSubscription()} disabled={subscriptionLoading||Boolean(generationError)||!generatedImageKey}>{subscriptionLoading?"OPENING…":signedIn?"SUBSCRIBE · $9.99 / MONTH":"SIGN IN TO SUBSCRIBE"}<ArrowRight/></Button></div></div><div className="reveal-body"><div className="sticker-grid">{positions.map((pos,i)=><div className={`sticker-tile ${i===9?"sticker-tile-last":""}`} key={i}><span>{String(i+1).padStart(2,"0")}</span><div className="sticker-image" style={generatedSlices[i]?{backgroundImage:`url(${generatedSlices[i]})`,backgroundSize:"contain",backgroundPosition:"center",backgroundRepeat:"no-repeat"}:{backgroundImage:`url(${generatedImage||"/sticker-sheet.png"})`,backgroundPosition:pos,backgroundSize:"300% 400%",backgroundRepeat:"no-repeat"}}/><small className="cell-watermark cell-watermark-one" aria-hidden="true">STICKIER · PREVIEW</small><small className="cell-watermark cell-watermark-two" aria-hidden="true">STICKIER · PREVIEW</small><small className="cell-watermark cell-watermark-three" aria-hidden="true">STICKIER · PREVIEW</small></div>)}</div><aside className="full-sheet-preview"><div><span>THE FULL SHEET</span></div><Sheet name={subject} clean src={generatedImage||"/sticker-sheet.png"}/></aside></div></section>}
+  {stage==="reveal"&&<section className="reveal-page enter"><div className="reveal-head"><div><h2>{product==="pet"?`${subject}, as stickers.`:"Your life, as stickers."}</h2><p>Ten digital stickers, ready to download and use anywhere.</p>{generationError&&<p role="alert">{generationError}</p>}{checkoutError&&<p role="alert">{checkoutError}</p>}</div><div className="reveal-side"><div className="reveal-actions"><Button className="red-btn" onClick={openPayment} disabled={Boolean(generationError)||!generatedImageKey||!canVerify}>PURCHASE STICKERS · $3.99 <ArrowRight/></Button><Button className="subscription-btn" onClick={()=>void startSubscription()} disabled={subscriptionLoading||Boolean(generationError)||!generatedImageKey||(signedIn&&!canVerify)}>{subscriptionLoading?"OPENING…":signedIn?"SUBSCRIBE · $9.99 / MONTH":"SIGN IN TO SUBSCRIBE"}<ArrowRight/></Button></div>{turnstileSiteKey&&!generationError&&generatedImageKey?<div ref={mountTurnstile} className="turnstile-widget reveal-turnstile"/>:null}</div></div><div className="reveal-body"><div className="sticker-grid">{positions.map((pos,i)=><div className={`sticker-tile ${i===9?"sticker-tile-last":""}`} key={i}><span>{String(i+1).padStart(2,"0")}</span><div className="sticker-image" style={generatedSlices[i]?{backgroundImage:`url(${generatedSlices[i]})`,backgroundSize:"contain",backgroundPosition:"center",backgroundRepeat:"no-repeat"}:{backgroundImage:`url(${generatedImage||"/sticker-sheet.png"})`,backgroundPosition:pos,backgroundSize:"300% 400%",backgroundRepeat:"no-repeat"}}/><small className="cell-watermark cell-watermark-one" aria-hidden="true">STICKIER · PREVIEW</small><small className="cell-watermark cell-watermark-two" aria-hidden="true">STICKIER · PREVIEW</small><small className="cell-watermark cell-watermark-three" aria-hidden="true">STICKIER · PREVIEW</small></div>)}</div><aside className="full-sheet-preview"><div><span>THE FULL SHEET</span></div><Sheet name={subject} clean src={generatedImage||"/sticker-sheet.png"}/></aside></div></section>}
   {stage==="confirmation"&&<section className="confirmation enter"><div className="check"><Check/></div><div className="eyebrow">PURCHASE COMPLETE</div><h2>Your digital stickers are ready.</h2><p>We sent a copy to <b>{email||"your email"}</b>. You can also download your sticker sheet now.</p><Sheet name={subject} className="confirmation-sheet" clean src={checkoutSessionId?`/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`:(generatedImage||"/sticker-sheet.png")}/><div className="confirmation-actions"><a className="download-btn" href={checkoutSessionId?`/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`:"#"} aria-disabled={!checkoutSessionId}><Download/> DOWNLOAD STICKERS</a><Button className="link" onClick={restart}>MAKE ANOTHER <ArrowRight/></Button></div></section>}
 
   <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}><DialogContent className="payment-modal">{paymentStep==="email"?<><DialogHeader><div className="payment-kicker">DIGITAL STICKER PACK · $3.99</div><DialogTitle>Where should we send your stickers?</DialogTitle><DialogDescription>We&apos;ll email you a copy and also make it available to download immediately after payment.</DialogDescription></DialogHeader><div className="card-fields"><label><span>EMAIL ADDRESS</span><input type="email" required autoFocus value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label></div><Button className="black-btn pay-card" disabled={!/^\S+@\S+\.\S+$/.test(email)} onClick={()=>setPaymentStep("payment")}>CONTINUE TO PAYMENT <ArrowRight/></Button></>:<><DialogHeader><div className="payment-kicker">DIGITAL STICKER PACK · $3.99</div><DialogTitle>Secure checkout.</DialogTitle><DialogDescription>Your stickers will be sent to {email}. Stripe securely handles your payment details.</DialogDescription></DialogHeader>{checkoutError&&<p role="alert">{checkoutError}</p>}<Button className="black-btn pay-card" disabled={checkoutLoading} onClick={startCheckout}>{checkoutLoading?"OPENING CHECKOUT…":"PAY $3.99 WITH STRIPE"} <ArrowRight/></Button><button className="change-email" onClick={()=>setPaymentStep("email")}>CHANGE EMAIL</button><small className="payment-note">Secure digital checkout · No physical shipment</small></>}</DialogContent></Dialog>
