@@ -3,10 +3,11 @@ import { MAX_PHOTO_BYTES, UPLOAD_KEY_PATTERN } from "@/lib/constants";
 import { signUploadToken, verifyUploadToken } from "@/lib/bindings";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const EXT_FOR_TYPE: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
+  "image/gif": "gif",
   "image/webp": "webp",
 };
 

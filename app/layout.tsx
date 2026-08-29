@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./hero-overrides.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://stickier.app"),

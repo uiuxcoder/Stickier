@@ -1,18 +1,26 @@
 "use client";
 
 import { ChangeEvent, DragEvent, startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Download, Heart, ImagePlus, PawPrint, Sparkles, Upload, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, ImagePlus, PawPrint, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-type Stage = "home" | "samples" | "choose" | "photos" | "details" | "mood" | "theme" | "add" | "companion" | "confirm" | "generating" | "reveal" | "confirmation";
+type Stage = "home" | "samples" | "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
 type Product = "me" | "pet" | "partner" | "family";
-const lines = ["Studying the little\ndetails…", "Sketching your tiny\nuniverse…", "Adding main-character\nenergy…", "Cutting the perfect\nborders…"];
+const loadingSteps = ["Getting to know your photo", "Picking up the details", "Bringing your stickers to life...", "Adding the finishing touches"];
 const positions = ["0% 0%", "50% 0%", "100% 0%", "0% 34%", "50% 34%", "100% 34%", "0% 68%", "50% 68%", "100% 68%", "50% 100%"];
 const samples = ["01","02","03","04","05","06"];
-const moodOptions = ["Cute","Funny","Cozy","Chaotic","Dreamy","Cool","Sweet","Playful"];
-const genericStickerIcons = [PawPrint, Heart, Sparkles, UserRound, PawPrint, Heart, Sparkles, UserRound, PawPrint, Heart];
-const MAX_PHOTOS = 6;
+const moodOptions = [
+  {name:"Cute",description:"Adorable, wholesome, expressive"},
+  {name:"Funny",description:"Jokes, goofy poses, visual gags"},
+  {name:"Cozy",description:"Warm, relaxed, comfy"},
+  {name:"Chaotic",description:"Exaggerated, unexpected, unhinged"},
+  {name:"Dreamy",description:"Soft, whimsical, magical"},
+  {name:"Cool",description:"Stylish, effortless, editorial"},
+  {name:"Retro",description:"Nostalgic, vintage, throwback"},
+  {name:"Surreal",description:"Weird, imaginative, impossible"},
+];
+const MAX_PHOTOS = 3;
 
 declare global {
   interface Window {
@@ -50,12 +58,25 @@ function Sheet({ name, className = "", clean = false, src = "/latest-dog-person-
 function Progress({ n, total }: { n: number; total: number }) {
   return <div className="wizard-progress"><span>STEP {String(n).padStart(2,"0")} / {String(total).padStart(2,"0")}</span><div><i style={{width:`${n/total*100}%`}}/></div></div>;
 }
-function UploadBox({ previews, pet, target = "yourself", onChange }: { previews:string[]; pet:boolean; target?:string; onChange:(f:FileList|null)=>void }) {
+function UploadBox({ previews, pet=false, onChange, onRemove }: { previews:string[]; pet?:boolean; onChange:(f:FileList|null)=>void; onRemove:(index:number)=>void }) {
   const drop=(e:DragEvent<HTMLLabelElement>)=>{e.preventDefault();e.currentTarget.classList.remove("dragging");onChange(e.dataTransfer.files)};
-  return <label className="upload-zone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("dragging")}} onDragLeave={e=>e.currentTarget.classList.remove("dragging")} onDrop={drop}><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e:ChangeEvent<HTMLInputElement>)=>onChange(e.target.files)}/><div className="upload-icon">{pet?<PawPrint/>:<ImagePlus/>}</div><b>{previews.length?`${previews.length} PHOTO${previews.length>1?"S":""} ADDED`:"DROP YOUR PHOTOS HERE"}</b><p>{previews.length?"Looking good. Drop or choose more if you want.":`Drag photos here, or click below · Add 3–6 clear photos of ${target}`}</p><span><Upload size={15}/> CHOOSE PHOTOS</span>{previews.length>0&&<div className="preview-row">{previews.slice(0,5).map((s,i)=><img src={s} alt={`Upload ${i+1}`} key={i}/>)}</div>}</label>;
+  return <label className="upload-zone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("dragging")}} onDragLeave={e=>e.currentTarget.classList.remove("dragging")} onDrop={drop}><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif" multiple disabled={previews.length>=MAX_PHOTOS} onChange={(e:ChangeEvent<HTMLInputElement>)=>{onChange(e.target.files);e.currentTarget.value=""}}/><div className="upload-icon">{pet?<PawPrint/>:<ImagePlus/>}</div><b>{previews.length?`✓ ${previews.length} PHOTO${previews.length>1?"S":""} ADDED`:"DROP YOUR PHOTOS HERE"}</b><span><Upload size={15}/>{previews.length===0?"UPLOAD PHOTOS":previews.length<MAX_PHOTOS?"ADD ANOTHER PHOTO":"3 PHOTO LIMIT"}</span>{previews.length>0&&<div className="preview-row">{previews.map((src,index)=><div className="preview-item" key={src}><img src={src} alt={`Upload ${index+1}`}/><button type="button" aria-label={`Delete photo ${index+1}`} onClick={event=>{event.preventDefault();event.stopPropagation();onRemove(index)}}><Trash2/></button></div>)}</div>}</label>;
 }
 function GenericStickerSheet() {
-  return <div className="generic-sticker-sheet">{genericStickerIcons.map((Icon,index)=><div className={`generic-sticker generic-sticker-${index%4}`} key={index}><Icon/></div>)}</div>;
+  return <div className="printer-placeholder-grid" aria-label="Ten empty sticker placeholders">{Array.from({length:10},(_,index)=><span key={index}/>)}</div>;
+}
+
+function ReferencePhotos({previews,onChange,onRemove}:{previews:string[];onChange:(files:FileList|null)=>void;onRemove:(index:number)=>void}){
+  return <div className="reference-upload">{previews.length>0&&<div className="reference-preview-row">{previews.map((src,index)=><div className="reference-preview-item" key={src}><img src={src} alt={`Reference photo ${index+1}`}/><button type="button" aria-label={`Delete reference photo ${index+1}`} onClick={()=>onRemove(index)}><Trash2/></button></div>)}</div>}<label className={`reference-photo-button ${previews.length>=MAX_PHOTOS?"disabled":""}`}><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif" multiple disabled={previews.length>=MAX_PHOTOS} onChange={event=>{onChange(event.target.files);event.currentTarget.value=""}}/><ImagePlus/>{previews.length?"ADD MORE REFERENCE PHOTOS":"ADD REFERENCE PHOTOS"}<small>{previews.length}/3 · OPTIONAL</small></label></div>;
+}
+
+async function normalizePhoto(file:File):Promise<File>{
+  const isHeic=/\.(heic|heif)$/i.test(file.name)||/image\/hei[cf]/i.test(file.type);
+  if(!isHeic)return file;
+  const {default:heic2any}=await import("heic2any");
+  const converted=await heic2any({blob:file,toType:"image/jpeg",quality:.92});
+  const blob=Array.isArray(converted)?converted[0]:converted;
+  return new File([blob],file.name.replace(/\.(heic|heif)$/i,".jpg"),{type:"image/jpeg"});
 }
 
 // Upload a photo directly to R2 via the signed upload endpoint, returning its
@@ -96,10 +117,10 @@ export default function Home(){
   const [photos,setPhotos]=useState<string[]>([]);
   const [photoKeys,setPhotoKeys]=useState<string[]>([]);
   const [photoDataUrls,setPhotoDataUrls]=useState<string[]>([]);
-  const [companionPhotos,setCompanionPhotos]=useState<string[]>([]);
-  const [companionPhotoKeys,setCompanionPhotoKeys]=useState<string[]>([]);
-  const [companionPhotoDataUrls,setCompanionPhotoDataUrls]=useState<string[]>([]);
-  const [companion,setCompanion]=useState<"pet"|"person"|"skip">("skip");
+  const [referencePhotos,setReferencePhotos]=useState<string[]>([]);
+  const [referencePhotoKeys,setReferencePhotoKeys]=useState<string[]>([]);
+  const [referencePhotoDataUrls,setReferencePhotoDataUrls]=useState<string[]>([]);
+  const [skipPhotoStep,setSkipPhotoStep]=useState(false);
   const [specialRequest,setSpecialRequest]=useState("");
   const [pet,setPet]=useState({name:"",species:"Dog"});
   const [theme,setTheme]=useState("Classic");
@@ -127,13 +148,12 @@ export default function Home(){
   const pollTimer=useRef<number|undefined>(undefined);
 
   const subject=product==="pet"?(pet.name||"Your pet"):product==="partner"?(groupName||"My partner"):product==="family"?(groupName||"Family & friends"):(name||"You");
-  const total=product==="me"?7:5;
-  const photoTarget=product==="pet"?"your pet":product==="partner"?"you and your partner":product==="family"?"your family and friends":"yourself";
-  const requestExample=product==="pet"?"Favorite toy, signature accessory, funny habit, nickname, or anything else that feels like them.":product==="partner"?"Example: Include flowers.":product==="family"?"Example: Include matching outfits or an inside joke.":"Example: Add a tote bag and a tiny cup of matcha.";
-  const currentStep=({choose:1,photos:2,details:3,mood:4,theme:5,add:6,companion:7} as Partial<Record<Stage,number>>)[stage]||1;
+  const total=3;
+  const requestExample='Examples: “Put us in Halloween costumes,” “Give my plant a cute pot.”';
+  const currentStep=({photos:1,details:2,mood:3} as Partial<Record<Stage,number>>)[stage]||1;
   const turnstileSiteKey=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
-  useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(x=>(x+1)%4),2200);return()=>clearInterval(a)},[stage]);
+  useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(x=>Math.min(x+1,3)),2200);return()=>clearInterval(a)},[stage]);
   useEffect(()=>{if(!generatedImage)return;const image=new Image();image.crossOrigin="anonymous";image.onload=()=>{const slices:string[]=[];for(let index=0;index<10;index++){const column=index===9?1:index%3;const row=Math.floor(index/3);const canvas=document.createElement("canvas");canvas.width=image.naturalWidth/3;canvas.height=image.naturalHeight/4;canvas.getContext("2d")?.drawImage(image,column*canvas.width,row*canvas.height,canvas.width,canvas.height,0,0,canvas.width,canvas.height);slices.push(canvas.toDataURL("image/png"))}setGeneratedSlices(slices)};image.src=generatedImage},[generatedImage]);
 
   // Resolve the signed-in user from the app-owned session cookie.
@@ -216,12 +236,12 @@ export default function Home(){
     void poll();
     return()=>{if(pollTimer.current)window.clearTimeout(pollTimer.current)};
   },[]);
-  useEffect(()=>{if(["choose","photos","details","mood","theme","add","companion"].includes(stage))window.scrollTo({top:0,left:0,behavior:"auto"})},[stage]);
+  useEffect(()=>{if(["photos","details","mood"].includes(stage))window.scrollTo({top:0,left:0,behavior:"auto"})},[stage]);
 
   type Setter=(x:string[]|((prev:string[])=>string[]))=>void;
   const load=async(files:FileList|null,setter:Setter,setKeys:Setter,setData:Setter,current:string[])=>{
     if(!files)return;
-    const selected=Array.from(files).slice(0,MAX_PHOTOS-current.length);
+    const selected=await Promise.all(Array.from(files).slice(0,MAX_PHOTOS-current.length).map(normalizePhoto));
     const previews=await Promise.all(selected.map(file=>new Promise<string>(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(file)})));
     setter(prev=>[...prev,...previews]);
     for(const file of selected){
@@ -230,17 +250,17 @@ export default function Home(){
       else if(result.dataUrl)setData(prev=>[...prev,result.dataUrl!]);
     }
   };
-
-  const start=(p:Product)=>{setProduct(p);setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setCompanionPhotos([]);setCompanionPhotoKeys([]);setCompanionPhotoDataUrls([]);setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGeneratedSlices([]);setGenerationError("");setStage("photos")};
+  const removeMainPhoto=(index:number)=>{const remaining=photos.filter((_,i)=>i!==index);setPhotos(remaining);setPhotoKeys([]);setPhotoDataUrls(remaining)};
+  const removeReferencePhoto=(index:number)=>{const remaining=referencePhotos.filter((_,i)=>i!==index);setReferencePhotos(remaining);setReferencePhotoKeys([]);setReferencePhotoDataUrls(remaining)};
 
   // Submit the generation job, then poll for completion instead of holding the
   // connection open for the full OpenAI call.
   const generate=async()=>{
     setTick(0);setGenerationError("");setStage("generating");
     try{
-      const keys=product==="pet"?photoKeys:[...photoKeys,...companionPhotoKeys];
-      const dataUrls=product==="pet"?photoDataUrls:[...photoDataUrls,...companionPhotoDataUrls];
-      const response=await fetch("/api/generate-stickers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoKeys:keys,photos:dataUrls,subject,product,companion,companionName:companion==="pet"?pet.name:groupName,species:pet.species,theme,moods,specialRequest,turnstileToken})});
+      const keys=[...photoKeys,...referencePhotoKeys];
+      const dataUrls=[...photoDataUrls,...referencePhotoDataUrls];
+      const response=await fetch("/api/generate-stickers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoKeys:keys,photos:dataUrls,subject,product,companion:"skip",species:pet.species,theme,moods,specialRequest,turnstileToken})});
       const data=await response.json() as {jobId?:string;error?:string};
       if(!response.ok||!data.jobId)throw new Error(data.error||"Unable to start generation.");
       const jobId=data.jobId;
@@ -264,38 +284,31 @@ export default function Home(){
     }
   };
 
-  const restart=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setStage("home")};
+  const restart=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setSkipPhotoStep(false);setAgeConfirmed(false);setStage("home")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
   const openPayment=()=>{setPaymentPlan("physical");setCheckoutError("");setPaymentStep("choose");setPaymentOpen(true)};
   const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,subject,imageKey:generatedImageKey,plan:paymentPlan,...(paymentPlan==="physical"?shipping:{}),turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
   const startSubscription=async()=>{if(!signedIn){window.location.assign("/signin?return_to="+encodeURIComponent("/"));return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
-  const back:Partial<Record<Stage,Stage>>={choose:"home",photos:"choose",details:"photos",mood:"details",theme:"mood",add:"theme",companion:"add",reveal:"theme"};
+  const back:Partial<Record<Stage,Stage>>={photos:"home",details:skipPhotoStep?"home":"photos",mood:"details",reveal:"mood"};
   // Turnstile tokens are single-use, so every gated action needs its own live
   // token from the widget mounted on that stage.
   const canVerify=turnstileSiteKey?Boolean(turnstileToken):true;
   const canGenerate=ageConfirmed&&canVerify;
 
-  return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span>{stage==="home"?"YOUR LIFE, BUT STICKIER":stage==="samples"?"THE SAMPLE STUDIO":product==="pet"?"THE PET STICKER STUDIO":"THE LIFE STICKER STUDIO"}</span><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>stage==="home"?setStage("samples"):stage==="samples"?setStage("choose"):restart()}>{stage==="home"?"SEE SAMPLES":stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
+  return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>stage==="home"||stage==="samples"?(setSkipPhotoStep(false),setStage("photos")):restart()}>{stage==="home"||stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
   {checkoutNotice&&<p className="checkout-notice" role="status">{checkoutNotice}</p>}
 
-  {stage==="home"&&<section className="split enter"><div className="copy"><h1>Any photo.<br/><em>Any idea.</em><br/>Your stickers.</h1><p>You, your people, your pets, and your little obsessions turned into custom sticker sheets.</p><div className="home-cta"><Button className="red-btn" onClick={()=>setStage("choose")}>MAKE MY STICKERS <ArrowRight/></Button></div></div><div className="art hero-home"><div className="tag t1">YOUR PHOTO</div><div className="tag t2">YOUR STICKERS</div><img className="hero-home-image" src="/sticker-reference-locked-hero-v12.webp" alt="A Polaroid and ten custom stickers of a woman and her dog"/><div className="burst">10<small>STICKERS</small></div></div></section>}
+  {stage==="home"&&<section className="split enter"><div className="copy home-copy"><h1><span>Any photo. <em>Any Idea.</em></span><span>Turned Into Stickers.</span></h1><p>You, your people, your pets, and your little obsessions turned into custom stickers.</p><div className="home-proof">10 CUSTOM STICKERS · PREVIEW BEFORE YOU BUY</div><div className="home-upload"><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/></div>{photos.length>0&&<div className="home-cta"><Button className="red-btn" onClick={()=>{setProduct("me");setSkipPhotoStep(true);setStage("details")}}>MAKE MY STICKERS <ArrowRight/></Button></div>}</div><div className="art hero-story"><div className="hero-story-composite" role="img" aria-label="A candid Polaroid of a brunette woman with her puppy transforming into ten soft illustrated stickers"><img className="hero-story-slice hero-polaroid" src="/sticker-reference-locked-hero-v12.webp" alt=""/><img className="hero-arrow-cutout" src="/curved-arrow-transparent-v14.png" alt=""/><img className="hero-story-slice hero-sheet" src="/sticker-reference-locked-hero-v12.webp" alt=""/></div><div className="tag t1">YOUR PHOTO</div><div className="tag t2">YOUR STICKERS</div><div className="burst">10<small>STICKERS</small></div></div></section>}
 
   {stage==="samples"&&<section className="samples-page enter"><header className="samples-head"><h2>See what gets<br/><em>stuck.</em></h2><p>Every sheet includes ten one-of-one stickers.</p></header><div className="sample-grid clean">{samples.map((sample,i)=><article className="sample-card" key={sample}><div className="sample-sheet"><div><span>STICKIER™</span><small>{sample} / 06</small></div><img src="/sticker-sheet.png" alt={`Sticker sheet sample ${i+1} with ten stickers`}/><footer>10 STICKERS · ONE OF ONE</footer></div></article>)}</div></section>}
 
-  {["choose","photos","details","mood","theme","add","companion"].includes(stage)&&<section className="wizard enter"><aside><div><span>THE STICKER ERA METHOD</span><h2>{product==="pet"?<>Tiny quirks.<br/>Big personality.</>:<>The details<br/>make the era.</>}</h2></div><Sheet name={subject} className="wizard-sheet"/></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
-  {stage==="choose"&&<div className="wizard-content choose-content"><Progress n={1} total={4}/><h3>Who are we turning<br/>into stickers?</h3><div className="choice-grid"><button onClick={()=>start("me")}><i><UserRound/></i><b>Me</b><span>My personality, hobbies &amp; favorite things</span><ArrowRight/></button><button onClick={()=>start("pet")}><i><PawPrint/></i><b>My pet</b><span>Their personality, quirks &amp; favorite things</span><ArrowRight/></button><button onClick={()=>start("partner")}><i><Heart/></i><b>My partner</b><span>Your relationship, rituals &amp; favorite memories</span><ArrowRight/></button><button onClick={()=>start("family")}><i><UsersRound/></i><b>Family &amp; friends</b><span>Your favorite people, moments &amp; inside jokes</span><ArrowRight/></button></div></div>}
-  {stage==="photos"&&<div className="wizard-content"><Progress n={2} total={total}/><h3>Add a few photos<br/>of {photoTarget}.</h3><p>Different angles and expressions give your stickers more range. At least one photo is required.</p><UploadBox pet={product==="pet"} target={photoTarget} previews={photos} onChange={f=>load(f,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)}/><div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>setStage("details")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="details"&&product!=="pet"&&<div className="wizard-content details"><Progress n={3} total={total}/><h3>What belongs in this sticker pack?</h3><div className="pet-fields"><label><span>{product==="me"?"What should we call you?":product==="partner"?"What should we call this pack?":"What should we call this group?"}</span><input value={product==="me"?name:groupName} onChange={e=>product==="me"?setName(e.target.value):setGroupName(e.target.value)} placeholder={product==="me"?"Your name":product==="partner"?"You & Alex":"The crew"}/></label></div><label className="request-box"><span>ANY SPECIAL REQUESTS</span><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample} Optional.</small></label><p className="consent-note">Photos are sent to OpenAI to generate your stickers. See our <a href="/privacy">privacy policy</a>.</p><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="details"&&product==="pet"&&<div className="wizard-content details pet-form"><Progress n={3} total={total}/><h3>What belongs in this sticker pack?</h3><div className="pet-fields"><label><span>What&apos;s their name?</span><input value={pet.name} onChange={e=>setPet({...pet,name:e.target.value})} placeholder="Mochi"/></label><label><span>Type of animal</span><select value={pet.species} onChange={e=>setPet({...pet,species:e.target.value})}><option>Dog</option><option>Cat</option><option>Bird</option><option>Rabbit</option><option>Other</option></select></label></div><label className="request-box"><span>ANY SPECIAL REQUESTS</span><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample} Optional.</small></label><p className="consent-note">Photos are sent to OpenAI to generate your stickers. See our <a href="/privacy">privacy policy</a>.</p><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="mood"&&<div className="wizard-content"><Progress n={4} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}>{mood}{moods.includes(mood)&&<Check/>}</button>)}</div><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("theme")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="theme"&&<div className="wizard-content"><Progress n={5} total={total}/><h3>Choose a theme.</h3><p>We&apos;ll weave it into the colors, props, and tiny details.</p><div className="theme-grid">{[["Classic","—","Classic & neutral"],["Valentine's Day","♥","Sweet & romantic"],["Halloween","◐","Spooky & cute"],["Thanksgiving","🍂","Cozy fall energy"],["Christmas","★","Festive & bright"],["Birthday","✦","Party mode"]].map(([label,icon,copy])=><button className={theme===label?"selected":""} key={label} onClick={()=>setTheme(label)}><i>{icon}</i><b>{label}</b><span>{copy}</span>{theme===label&&<Check/>}</button>)}</div><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>product==="me"?setStage("add"):setStage("confirm")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="add"&&<div className="wizard-content"><Progress n={6} total={7}/><div className="eyebrow">YOUR SUPPORTING CAST</div><h3>Anyone else who belongs<br/>on your sheet?</h3><p>You&apos;ll still be the main character.</p><div className="choice-grid three"><button onClick={()=>{setCompanion("pet");setStage("companion")}}><i>🐶</i><b>My pet</b><span>The four-legged co-star</span></button><button onClick={()=>{setCompanion("person");setStage("companion")}}><i>♥</i><b>My person</b><span>A favorite human</span></button><button onClick={()=>{setCompanion("skip");setStage("confirm")}}><i>→</i><b>Just me</b><span>Skip and continue</span></button></div></div>}
-  {stage==="companion"&&<div className="wizard-content"><Progress n={7} total={7}/><div className="eyebrow">ADD YOUR {companion==="pet"?"CO-STAR":"PERSON"}</div><h3>Upload {companion==="pet"?"your pet":"your favorite person"}.</h3><p>One or two clear photos are perfect.</p><UploadBox pet={companion==="pet"} target={companion==="pet"?"your pet":"your favorite person"} previews={companionPhotos} onChange={f=>load(f,setCompanionPhotos,setCompanionPhotoKeys,setCompanionPhotoDataUrls,companionPhotos)}/><div className="wizard-actions"><button className="skip" onClick={()=>setStage("confirm")}>SKIP</button><Button className="red-btn" onClick={()=>setStage("confirm")}>CONTINUE <ArrowRight/></Button></div></div>}
+  {["photos","details","mood"].includes(stage)&&<section className="wizard enter"><aside><div><h2>This is where it gets personal.</h2></div><img className="wizard-latest-sheet" src="/halloween-girl-dog-sticker-sheet-v15.webp" alt="Ten Halloween stickers featuring a witch and her dog in a ghost costume"/></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>back[stage]==="home"?restart():setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
+  {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/><div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
+  {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos)} onRemove={removeReferencePhoto}/><p className="consent-note">Photos are sent to OpenAI to generate your stickers. See our <a href="/privacy">privacy policy</a>.</p><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
+  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood.name)?"selected":""} aria-pressed={moods.includes(mood.name)} key={mood.name} onClick={()=>toggleMood(mood.name)}><b>{mood.name}</b><span>{mood.description}</span>{moods.includes(mood.name)&&<Check/>}</button>)}</div><label className="age-gate compact"><input type="checkbox" checked={ageConfirmed} onChange={e=>setAgeConfirmed(e.target.checked)}/><span>I have permission to use these photos.</span></label>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}
 
-  {stage==="confirm"&&<section className="wizard confirm-wizard enter"><div className="wizard-main confirm-main"><h3>Almost there.</h3><p>Confirm you have the right to use these photos, then we&apos;ll make your sheet.</p><label className="age-gate"><input type="checkbox" checked={ageConfirmed} onChange={e=>setAgeConfirmed(e.target.checked)}/><span>I confirm everyone in these photos is an adult, or I have a parent or guardian&apos;s permission, and I have the right to use every photo.</span></label>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div></section>}
-
-  {stage==="generating"&&<section className="generate enter"><div className="printer"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy"><b>MAKING YOUR STICKER SHEET</b><h2>{lines[tick]}</h2><div className="progress"><i/></div><small className="generation-estimate">Takes approximately 30–60 seconds</small></div></section>}
+  {stage==="generating"&&<section className="generate loading-state enter"><div className="printer" aria-label="Blank sticker sheet printing"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy loading-copy"><h2>Your stickers are coming to life.</h2><strong>Usually ready in 30–60 seconds</strong><ol className="loading-steps">{loadingSteps.map((step,index)=><li className={index<tick?"complete":index===tick?"active":"upcoming"} key={step}>{index<tick?<span>✓</span>:index===tick?<span className="loading-spinner"/>:<span>○</span>}{index===tick?<b>{step}</b>:step}</li>)}</ol><b className="hang-tight">Hang tight — don&apos;t refresh.</b></div></section>}
   {stage==="reveal"&&<section className="reveal-page enter"><div className="reveal-head"><div><h2>{product==="pet"?`${subject}, as stickers.`:"Your life, as stickers."}</h2><p>Ten digital stickers, ready to download and use anywhere.</p>{generationError&&<p role="alert">{generationError}</p>}{checkoutError&&<p role="alert">{checkoutError}</p>}</div><div className="reveal-side"><div className="reveal-actions"><Button className="red-btn" onClick={openPayment} disabled={Boolean(generationError)||!generatedImageKey||!canVerify}>PURCHASE STICKERS <ArrowRight/></Button><Button className="subscription-btn" onClick={()=>void startSubscription()} disabled={subscriptionLoading||Boolean(generationError)||!generatedImageKey||(signedIn&&!canVerify)}>{subscriptionLoading?"OPENING…":signedIn?"SUBSCRIBE · $9.99 / MONTH":"SIGN IN TO SUBSCRIBE"}<ArrowRight/></Button></div>{turnstileSiteKey&&!generationError&&generatedImageKey?<div ref={mountTurnstile} className="turnstile-widget reveal-turnstile"/>:null}</div></div><div className="reveal-body"><div className="sticker-grid">{positions.map((pos,i)=><div className={`sticker-tile ${i===9?"sticker-tile-last":""}`} key={i}><span>{String(i+1).padStart(2,"0")}</span><div className="sticker-image" style={generatedSlices[i]?{backgroundImage:`url(${generatedSlices[i]})`,backgroundSize:"contain",backgroundPosition:"center",backgroundRepeat:"no-repeat"}:{backgroundImage:`url(${generatedImage||"/sticker-sheet.png"})`,backgroundPosition:pos,backgroundSize:"300% 400%",backgroundRepeat:"no-repeat"}}/><small className="cell-watermark cell-watermark-one" aria-hidden="true">STICKIER · PREVIEW</small><small className="cell-watermark cell-watermark-two" aria-hidden="true">STICKIER · PREVIEW</small><small className="cell-watermark cell-watermark-three" aria-hidden="true">STICKIER · PREVIEW</small></div>)}</div><aside className="full-sheet-preview"><div><span>THE FULL SHEET</span></div><Sheet name={subject} clean src={generatedImage||"/sticker-sheet.png"}/></aside></div></section>}
   {stage==="confirmation"&&<section className="confirmation enter"><div className="check"><Check/></div><div className="eyebrow">PURCHASE COMPLETE</div><h2>{purchasedPlan==="physical"?"Your stickers are officially happening ✦":"They’re yours ✦"}</h2><p>We sent a copy to <b>{email||"your email"}</b>. You can also download your sticker sheet now.</p><Sheet name={subject} className="confirmation-sheet" clean src={checkoutSessionId?`/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`:(generatedImage||"/sticker-sheet.png")}/><div className="confirmation-actions"><a className="download-btn" href={checkoutSessionId?`/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`:"#"} aria-disabled={!checkoutSessionId}><Download/> DOWNLOAD STICKERS</a><Button className="link" onClick={restart}>MAKE ANOTHER <ArrowRight/></Button></div></section>}
 
