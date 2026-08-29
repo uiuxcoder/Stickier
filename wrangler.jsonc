@@ -6,6 +6,9 @@
   // Do not set this ahead of the local runtime or `vite dev` will refuse to boot.
   "compatibility_date": "2026-05-15",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+  },
   "observability": {
     "enabled": true,
     "logs": {

@@ -17,7 +17,7 @@ This starter originally avoided `wrangler.jsonc`. Stickier now includes `wrangle
 
 ## Production secrets
 
-Copy `.env.example` and set each with `wrangler secret put <NAME>`:
+Set each secret in a local `.env` file (gitignored) and with `wrangler secret put <NAME>` for production:
 
 - `OPENAI_API_KEY`
 - `STRIPE_SECRET_KEY`
@@ -28,6 +28,10 @@ Copy `.env.example` and set each with `wrangler secret put <NAME>`:
 - `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile bot protection
 
 Optional: `STRIPE_PRICE_ID`, `STRIPE_SUBSCRIPTION_PRICE_ID`, `OPENAI_IMAGE_MODEL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+
+Local development can use Cloudflare’s always-pass Turnstile test keys (`1x00000000000000000000AA` / `1x0000000000000000000000000000000AA`). Replace them with a real widget before production.
+
+Forward Stripe test webhooks with `npm run dev:webhooks` while `npm run dev` is running.
 
 ## Architecture
 

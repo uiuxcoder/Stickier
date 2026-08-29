@@ -15,6 +15,7 @@ export async function GET() {
     stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
     email: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
     session: Boolean(process.env.SESSION_SECRET),
+    turnstile: Boolean(process.env.TURNSTILE_SECRET_KEY),
     d1: false,
     r2: false,
   };
