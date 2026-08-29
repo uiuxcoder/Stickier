@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getSessionUser } from "@/lib/auth";
+import { buildClearSessionCookie, getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { generationJobs, generations, orders, subscriptions, users } from "@/db/schema";
 import { getStripe } from "@/lib/stripe";
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     await db.delete(subscriptions).where(eq(subscriptions.userId, user.id));
     await db.delete(users).where(eq(users.id, user.id));
 
-    return Response.json({ deleted: true });
+    return Response.json({ deleted: true }, { headers: { "Set-Cookie": buildClearSessionCookie(request) } });
   } catch (error) {
     console.error("Account deletion failed", user.id, error);
     return Response.json({ error: "Unable to delete account." }, { status: 500 });

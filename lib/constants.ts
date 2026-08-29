@@ -4,6 +4,14 @@ export const SUBSCRIPTION_AMOUNT_CENTS = 999;
 export const DOWNLOAD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const IMAGE_KEY_PATTERN = /^stickers\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/i;
 export const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;
+export const AUTH_MINUTE_CAP = 10;
+export const AUTH_EMAIL_HOURLY_CAP = 10;
+export const SIGNUP_HOURLY_CAP = 8;
+export const FORGOT_PASSWORD_HOURLY_CAP = 5;
+export const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
+export const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 export const THEMES = [
   "Classic",
   "Valentine's Day",

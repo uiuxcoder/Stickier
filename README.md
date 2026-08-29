@@ -24,8 +24,9 @@ Set each secret in a local `.env` file (gitignored) and with `wrangler secret pu
 - `STRIPE_WEBHOOK_SECRET`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
-- `SESSION_SECRET` — signs session cookies and photo-upload tokens
+- `SESSION_SECRET` — signs session cookies, email links, and photo-upload tokens
 - `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile bot protection
+- `APP_ORIGIN` — canonical site origin used in auth emails (defaults to `https://stickier.app` in production)
 
 Optional: `STRIPE_PRICE_ID`, `STRIPE_SUBSCRIPTION_PRICE_ID`, `OPENAI_IMAGE_MODEL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 
@@ -38,10 +39,11 @@ Forward Stripe test webhooks with `npm run dev:webhooks` while `npm run dev` is 
 - **Config**: `wrangler.jsonc` is the single source of truth for bindings and
   compatibility. The Vite plugin auto-discovers it; do not duplicate bindings in
   `vite.config.ts`.
-- **Auth**: identity is an HMAC-signed session cookie (`SESSION_SECRET`) minted
-  by `/api/auth/session`. The OpenAI Sites `oai-authenticated-user-*` headers are
-  only a sign-in hint, never trusted on their own. Users carry a surrogate ID;
-  orders, subscriptions and generations link to it.
+- **Auth**: identity is an HMAC-signed session cookie (`SESSION_SECRET`). Email and
+  password sign-up / sign-in are the production path (`/signup`, `/signin`). New
+  accounts confirm email through Resend. The OpenAI Sites `oai-authenticated-user-*`
+  headers remain only a sign-in hint, never trusted on their own. Users carry a
+  surrogate ID; orders, subscriptions and generations link to it.
 - **Generation**: `POST /api/generate-stickers` validates, runs Turnstile and
   moderation, reserves quota, and enqueues a job on the `GENERATION_QUEUE`
   Cloudflare Queue. The Worker `queue` consumer calls OpenAI and writes the

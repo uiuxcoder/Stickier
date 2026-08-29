@@ -4,6 +4,7 @@ import {
   getSessionUser,
   readPlatformIdentityHint,
 } from "@/lib/auth";
+import { jsonUser } from "@/lib/auth-http";
 
 /**
  * GET: return the current session user, or null.
@@ -16,9 +17,7 @@ import {
 export async function GET(request: Request) {
   const user = await getSessionUser(request);
   if (!user) return Response.json({ user: null });
-  return Response.json({
-    user: { id: user.id, email: user.email, displayName: user.displayName },
-  });
+  return Response.json({ user: jsonUser(user) });
 }
 
 export async function POST(request: Request) {
@@ -27,20 +26,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "No identity available to sign in." }, { status: 401 });
   }
   try {
-    const { user, setCookie } = await establishSession(hint.email, hint.fullName);
-    return Response.json(
-      { user: { id: user.id, email: user.email, displayName: user.displayName } },
-      { headers: { "Set-Cookie": setCookie } }
-    );
+    const { user, setCookie } = await establishSession(hint.email, hint.fullName, request);
+    return Response.json({ user: jsonUser(user) }, { headers: { "Set-Cookie": setCookie } });
   } catch (error) {
     console.error("Failed to establish session", error);
     return Response.json({ error: "Unable to sign in." }, { status: 500 });
   }
 }
 
-export async function DELETE() {
-  return Response.json(
-    { user: null },
-    { headers: { "Set-Cookie": buildClearSessionCookie() } }
-  );
+export async function DELETE(request: Request) {
+  return Response.json({ user: null }, { headers: { "Set-Cookie": buildClearSessionCookie(request) } });
 }

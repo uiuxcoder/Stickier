@@ -15,9 +15,9 @@ export default function PrivacyPage() {
       <ul>
         <li>Photos you upload for sticker generation</li>
         <li>Names, themes, moods, and optional notes you provide</li>
-        <li>Email address for delivery and account records</li>
+        <li>Email address and password (stored as a one-way hash) when you create an account</li>
         <li>Payment records processed by Stripe</li>
-        <li>ChatGPT identity headers when you sign in through OpenAI Sites</li>
+        <li>ChatGPT identity headers if you sign in through OpenAI Sites</li>
       </ul>
       <h2>How we use it</h2>
       <p>Photos and prompt details are sent to OpenAI to generate your sticker sheet. Generated images are stored in Cloudflare R2 so we can fulfill your download. Emails are sent with Resend after a successful payment.</p>

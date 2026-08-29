@@ -8,6 +8,13 @@
       "when": 1787953143602,
       "tag": "0000_motionless_wolfsbane",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787979463663,
+      "tag": "0001_wealthy_mandarin",
+      "breakpoints": true
     }
   ]
 }

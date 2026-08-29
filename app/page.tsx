@@ -118,6 +118,43 @@ export default function Home(){
   // Resolve the signed-in user from the app-owned session cookie.
   useEffect(()=>{void fetch("/api/me").then(r=>r.json()).then((data)=>{const user=(data as {user?:{email?:string}|null}).user;if(user?.email){setSignedIn(true);setEmail(current=>current||user.email!)}}).catch(()=>undefined)},[]);
 
+  // Restore a generated sheet after a sign-in redirect so subscribe can continue.
+  // Slices are not stored; the effect above rebuilds them from generatedImage.
+  useEffect(()=>{
+    if(new URLSearchParams(window.location.search).get("session_id"))return;
+    let saved:{generatedImage?:string;generatedImageKey?:string;product?:Product;name?:string;groupName?:string;pet?:{name:string;species:string};theme?:string;moods?:string[];email?:string};
+    try{
+      const raw=sessionStorage.getItem("stickier-reveal");
+      if(!raw)return;
+      saved=JSON.parse(raw);
+    }catch{
+      sessionStorage.removeItem("stickier-reveal");
+      return;
+    }
+    if(!saved.generatedImageKey)return;
+    queueMicrotask(()=>{
+      setGeneratedImage(saved.generatedImage||"");
+      setGeneratedImageKey(saved.generatedImageKey!);
+      if(saved.product)setProduct(saved.product);
+      if(saved.name)setName(saved.name);
+      if(saved.groupName)setGroupName(saved.groupName);
+      if(saved.pet)setPet(saved.pet);
+      if(saved.theme)setTheme(saved.theme);
+      if(saved.moods)setMoods(saved.moods);
+      if(saved.email)setEmail(current=>current||saved.email!);
+      setStage("reveal");
+    });
+  },[]);
+
+  useEffect(()=>{
+    if(!generatedImageKey)return;
+    try{
+      sessionStorage.setItem("stickier-reveal",JSON.stringify({generatedImage,generatedImageKey,product,name,groupName,pet,theme,moods,email}));
+    }catch{
+      // Ignore quota errors; sign-in can still proceed without restoring the sheet.
+    }
+  },[generatedImage,generatedImageKey,product,name,groupName,pet,theme,moods,email]);
+
   // Load and render the Turnstile widget when a site key is configured.
   useEffect(()=>{
     if(!turnstileSiteKey)return;
@@ -204,15 +241,15 @@ export default function Home(){
     }
   };
 
-  const restart=()=>setStage("home");
+  const restart=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setStage("home")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
   const openPayment=()=>{setPaymentPlan("one-time");setCheckoutError("");setPaymentStep("email");setPaymentOpen(true)};
   const startCheckout=async()=>{if(paymentPlan==="subscription"){void startSubscription();return}setCheckoutLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
-  const startSubscription=async()=>{if(!signedIn){window.location.assign("/signin-with-chatgpt?return_to="+encodeURIComponent("/"));return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
+  const startSubscription=async()=>{if(!signedIn){window.location.assign("/signin?return_to="+encodeURIComponent("/"));return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
   const back:Partial<Record<Stage,Stage>>={choose:"home",photos:"choose",details:"photos",mood:"details",theme:"mood",add:"theme",companion:"add",reveal:"theme"};
   const canGenerate=ageConfirmed&&(turnstileSiteKey?Boolean(turnstileToken):true);
 
-  return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span>{stage==="home"?"YOUR LIFE, BUT STICKIER":stage==="samples"?"THE SAMPLE STUDIO":product==="pet"?"THE PET STICKER STUDIO":"THE LIFE STICKER STUDIO"}</span><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:null}<button className="nav-cta" onClick={()=>stage==="home"?setStage("samples"):stage==="samples"?setStage("choose"):restart()}>{stage==="home"?"SEE SAMPLES":stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
+  return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span>{stage==="home"?"YOUR LIFE, BUT STICKIER":stage==="samples"?"THE SAMPLE STUDIO":product==="pet"?"THE PET STICKER STUDIO":"THE LIFE STICKER STUDIO"}</span><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>stage==="home"?setStage("samples"):stage==="samples"?setStage("choose"):restart()}>{stage==="home"?"SEE SAMPLES":stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
   {checkoutNotice&&<p className="checkout-notice" role="status">{checkoutNotice}</p>}
 
   {stage==="home"&&<section className="split enter"><div className="copy"><h1>Your life.<br/><em>As a sticker sheet.</em></h1><p>We&apos;ll turn you, your favorite person, pet, obsession, and tiny rituals into one ridiculously cute sticker sheet.</p><div className="home-cta"><Button className="red-btn" onClick={()=>setStage("choose")}>MAKE MY SHEET <ArrowRight/></Button></div></div><div className="art"><div className="tag t1">YOUR ERA</div><div className="tag t2">ONE OF ONE</div><Sheet name={name||"Your"} className="tilt"/><div className="burst">10<small>STICKERS</small></div></div></section>}

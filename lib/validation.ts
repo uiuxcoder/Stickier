@@ -6,6 +6,7 @@ import {
   MAX_REFERENCE_PHOTOS,
   MAX_SPECIAL_REQUEST_CHARS,
   MOODS,
+  PASSWORD_MAX_LENGTH,
   PRODUCTS,
   THEMES,
   UPLOAD_KEY_PATTERN,
@@ -45,6 +46,39 @@ export const subscriptionRequestSchema = z.object({
   subject: z.string().trim().max(80).optional(),
   imageKey: z.string().regex(IMAGE_KEY_PATTERN),
   turnstileToken: z.string().max(2048).optional(),
+});
+
+const emailField = z.string().trim().regex(EMAIL_PATTERN).max(254);
+const passwordField = z.string().min(1).max(PASSWORD_MAX_LENGTH);
+const turnstileField = z.string().max(2048).optional();
+
+export const signUpRequestSchema = z.object({
+  email: emailField,
+  password: passwordField,
+  fullName: z.string().trim().max(80).optional(),
+  turnstileToken: turnstileField,
+});
+
+export const signInRequestSchema = z.object({
+  email: emailField,
+  password: passwordField,
+  turnstileToken: turnstileField,
+});
+
+export const forgotPasswordRequestSchema = z.object({
+  email: emailField,
+  turnstileToken: turnstileField,
+});
+
+export const resetPasswordRequestSchema = z.object({
+  token: z.string().min(16).max(2048),
+  password: passwordField,
+  turnstileToken: turnstileField,
+});
+
+export const resendVerificationRequestSchema = z.object({
+  email: emailField,
+  turnstileToken: turnstileField,
 });
 
 export function isImageKey(value: string | null | undefined): value is string {

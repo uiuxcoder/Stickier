@@ -11,6 +11,7 @@ interface Env {
   GENERATE_RATE_LIMITER: RateLimit;
   CHECKOUT_RATE_LIMITER: RateLimit;
   DOWNLOAD_RATE_LIMITER: RateLimit;
+  AUTH_RATE_LIMITER?: RateLimit;
   IMAGES?: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {

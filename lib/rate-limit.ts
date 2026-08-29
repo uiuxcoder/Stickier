@@ -77,5 +77,6 @@ export function rateLimiters() {
     generate: env.GENERATE_RATE_LIMITER,
     checkout: env.CHECKOUT_RATE_LIMITER,
     download: env.DOWNLOAD_RATE_LIMITER,
+    auth: env.AUTH_RATE_LIMITER,
   };
 }

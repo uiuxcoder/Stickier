@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ subscription?: string }>;
+  searchParams: Promise<{ subscription?: string; verified?: string }>;
 }) {
   const requestHeaders = await headers();
   const request = new Request("https://account.local", { headers: requestHeaders });
   const user = await getSessionUser(request);
-  if (!user) redirect("/");
+  if (!user) redirect("/signin?return_to=/account");
   const params = await searchParams;
 
   let account = { regenerationsRemaining: 0, subscriptionStatus: "No active subscription" };
@@ -53,13 +53,16 @@ export default async function AccountPage({
           <h1>Welcome back,<br /><em>{user.displayName}.</em></h1>
           <p>{user.email}</p>
           {params.subscription === "success" ? <p role="status">Your membership is active. Regenerations refresh each billing period.</p> : null}
+          {params.verified === "1" ? <p role="status">Your email is confirmed. You&apos;re signed in.</p> : null}
           {lookupFailed ? <p role="alert">We could not load your account details. Please refresh in a moment.</p> : null}
         </div>
         <div className="account-header-actions">
           <form action="/api/account/portal" method="post">
             <button className="account-portal" type="submit">MANAGE BILLING</button>
           </form>
-          <a className="account-signout" href="/api/auth/signout">SIGN OUT</a>
+          <form action="/api/auth/signout" method="post">
+            <button className="account-signout" type="submit">SIGN OUT</button>
+          </form>
         </div>
       </header>
       <section className="account-stats">
