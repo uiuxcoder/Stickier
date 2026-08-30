@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 
-export function JoinStickerClubButton() {
+type JoinStickerClubButtonProps = {
+  imageKey?: string;
+  subject?: string;
+};
+
+export function JoinStickerClubButton({ imageKey, subject }: JoinStickerClubButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -13,7 +18,7 @@ export function JoinStickerClubButton() {
       const response = await fetch("/api/create-subscription-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: "digital-success" }),
+        body: JSON.stringify({ source: "digital-success", imageKey, subject }),
       });
       const data = (await response.json()) as { url?: string; error?: string };
       if (!response.ok || !data.url) throw new Error(data.error || "Unable to start checkout.");

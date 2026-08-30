@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { ArrowDown, ArrowRight, Check, Sparkles } from "lucide-react";
+import { Check, Download, LockKeyhole, Mail, MapPin } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 import { JoinStickerClubButton } from "@/components/join-sticker-club-button";
@@ -20,19 +20,25 @@ async function resolveCheckoutEmail(request: Request, sessionId: string | undefi
   }
 }
 
-function formatShortDate(timestampMs: number) {
-  return new Date(timestampMs).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function formatDate(timestampMs: number) {
+  return new Date(timestampMs).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-function deliveryDateFromNow(baseMs: number) {
-  const eta = baseMs + 8 * 24 * 60 * 60 * 1000;
-  return formatShortDate(eta);
+function formatMoney(amount: number, currency = "usd") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(amount / 100);
 }
 
 export default async function MembershipSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ session_id?: string }>;
+  searchParams: Promise<{ session_id?: string; preview_plan?: string }>;
 }) {
   const requestHeaders = await headers();
   const request = new Request("https://membership-success.local", { headers: requestHeaders });
@@ -42,24 +48,43 @@ export default async function MembershipSuccessPage({
 
   let email = (await resolveCheckoutEmail(request, sessionId)) || "your email";
   let stickerPreviewUrl = "/sticker-sheet.png";
-  let shippingDestination = "Address typed in Stripe shipping";
+  let shippingAddress = ["Shipping address provided at checkout"];
   let orderNumber = sessionId
     ? sessionId.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()
-    : "Pending";
-  let estimatedDelivery = deliveryDateFromNow(Date.now());
+    : "PENDING";
+  let orderDate = formatDate(Date.now());
   let canDownload = false;
   let downloadUrl = "#";
+  let purchasedImageKey: string | undefined;
+  let subject = "Your";
   let purchasePlan: "digital" | "physical" = "physical";
+  let isSubscription = false;
+  let productName = "Physical Sticker Sheet";
+  let subtotal = 999;
+  let tax = 0;
+  let total = 999;
+  let currency = "usd";
+
+  if (process.env.NODE_ENV !== "production" && params.preview_plan === "digital") {
+    purchasePlan = "digital";
+    productName = "Digital Sticker Sheet";
+    subtotal = 499;
+    total = 499;
+  }
 
   if (stripe && sessionId) {
     try {
       const session = await stripe.checkout.sessions.retrieve(sessionId);
-      const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 20 });
+      const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 1 });
+      const lineItem = lineItems.data[0];
 
       const imageKey = session.metadata?.imageKey;
       const plan = session.metadata?.plan;
+      subject = session.metadata?.subject || subject;
+      isSubscription = session.mode === "subscription";
       if (plan === "digital" || plan === "physical") purchasePlan = plan;
       if (imageKey) {
+        purchasedImageKey = imageKey;
         stickerPreviewUrl = `/api/preview-stickers?key=${encodeURIComponent(imageKey)}`;
         canDownload = true;
         downloadUrl = `/api/download-stickers?session_id=${encodeURIComponent(sessionId)}`;
@@ -69,123 +94,121 @@ export default async function MembershipSuccessPage({
       if (customerEmail) email = customerEmail;
 
       if (session.created) {
-        estimatedDelivery = deliveryDateFromNow(session.created * 1000);
+        orderDate = formatDate(session.created * 1000);
       }
 
       const address = session.customer_details?.address;
       if (address) {
-        const lines = [address.line1, address.line2, [address.city, address.state, address.postal_code].filter(Boolean).join(" ")]
+        const lines = [address.line1, address.line2, [address.city, address.state, address.postal_code].filter(Boolean).join(" "), address.country]
           .map((line) => (line || "").trim())
           .filter(Boolean);
-        if (lines.length > 0) shippingDestination = lines.join(", ");
+        if (lines.length > 0) shippingAddress = lines;
       }
 
-      if (session.mode === "payment" && !plan) purchasePlan = "physical";
+      if (lineItem?.description) productName = lineItem.description;
+      else if (isSubscription) productName = "Sticker Club Membership";
+      else if (purchasePlan === "digital") productName = "Digital Sticker Sheet";
+
+      currency = session.currency || currency;
+      subtotal = session.amount_subtotal ?? lineItem?.amount_subtotal ?? subtotal;
+      tax = session.total_details?.amount_tax ?? 0;
+      total = session.amount_total ?? lineItem?.amount_total ?? total;
     } catch {
       // Keep graceful fallback copy when Stripe session cannot be loaded.
     }
   }
 
-  if (purchasePlan === "digital") {
-    return (
-      <main className="membership-success-shell">
-        <section className="membership-success-head">
-          <h1>Order confirmed ✦</h1>
-          <small>
-            Confirmation sent to <strong>{email}</strong>
-          </small>
-        </section>
-
-        <section className="digital-success-shell">
-          <div className="digital-preview-card">
-            <img className="digital-sheet-image" src={stickerPreviewUrl} alt="Purchased custom sticker sheet" />
-          </div>
-          <div className="digital-content-col">
-            <h2>Your sticker sheet is ready</h2>
-            {canDownload ? (
-              <a className="digital-download-btn" href={downloadUrl}>
-                Download stickers <ArrowDown size={16} />
-              </a>
-            ) : (
-              <Link className="digital-download-btn" href="/account">
-                View my order <ArrowRight size={16} />
-              </Link>
-            )}
-            <Link href="/?start=upload" className="digital-remake-link">
-              <Sparkles size={14} /> Make another sticker sheet <ArrowRight size={14} />
-            </Link>
-            <div className="digital-upsell-card">
-              <h3>Make it a monthly thing ✦</h3>
-              <p className="digital-upsell-price">$19.99/month</p>
-              <p className="digital-upsell-copy">Create up to 20 sticker sheets and get your favorite 3 delivered.</p>
-              <ul className="digital-upsell-list">
-                <li>
-                  <Check size={14} /> 20 new sticker sheets every month
-                </li>
-                <li>
-                  <Check size={14} /> Choose 3 to receive as physical sticker sheets
-                </li>
-                <li>
-                  <Check size={14} /> Delivered to your doorstep
-                </li>
-                <li>
-                  <Check size={14} /> Cancel anytime
-                </li>
-              </ul>
-              <JoinStickerClubButton />
-            </div>
-          </div>
-        </section>
-      </main>
-    );
-  }
+  const isDigital = purchasePlan === "digital";
 
   return (
-    <main className="membership-success-shell">
-      <section className="membership-success-head">
-        <h1>Order confirmed ✦</h1>
-        <small>Confirmation sent to {email}</small>
-      </section>
+    <main className="order-confirmation-page">
+      <header className="order-confirmation-nav">
+        <Link href="/" className="order-confirmation-logo">STICKIER<sup>™</sup></Link>
+        <span><LockKeyhole size={15} /> Secure checkout</span>
+      </header>
 
-      <section className="purchase-summary">
-        <div className="purchase-preview">
-          <img src={stickerPreviewUrl} alt="Purchased custom sticker sheet" />
-        </div>
-        <div className="purchase-details">
-          <h3>Custom Sticker Sheet</h3>
-          <dl>
+      <div className="order-confirmation-layout">
+        <section className="order-confirmation-main">
+          <div className="order-confirmation-intro">
+            <span className="order-confirmation-check"><Check size={28} strokeWidth={2.5} /></span>
             <div>
-              <dt>Quantity</dt>
-              <dd>1</dd>
+              <h1>Thank you!</h1>
+              <p>{isDigital ? "Your sticker sheet is ready to download." : "Your sticker order is confirmed."}</p>
             </div>
-            <div>
-              <dt>Price</dt>
-              <dd>$9.99</dd>
+          </div>
+
+          <div className="order-confirmation-meta">
+            <strong>Order #{orderNumber}</strong>
+            <i aria-hidden="true" />
+            <span>{orderDate}</span>
+          </div>
+
+          <div className="order-confirmation-actions">
+            {canDownload ? (
+              <a className="order-confirmation-primary" href={downloadUrl}>
+                <Download size={17} /> Download my stickers
+              </a>
+            ) : (
+              <Link className="order-confirmation-primary" href="/account">View my order</Link>
+            )}
+            <Link href="/?start=upload" className="order-confirmation-secondary">Create another sticker</Link>
+          </div>
+
+          {isDigital && !isSubscription ? (
+            <aside className="order-confirmation-club">
+              <div>
+                <small>Make it a monthly thing</small>
+                <h2>Sticker Club</h2>
+                <strong>$19.99/month</strong>
+                <p>Create up to 20 sticker sheets. Get your favorite 3 delivered.</p>
+              </div>
+              <div className="order-confirmation-club-action">
+                <JoinStickerClubButton imageKey={purchasedImageKey} subject={subject} />
+                <span>Cancel anytime</span>
+              </div>
+            </aside>
+          ) : null}
+
+          <section className="order-details-section">
+            <h2>Order details</h2>
+            <div className="order-detail-row">
+              <span className="order-detail-icon"><Mail size={20} /></span>
+              <div>
+                <small>Delivery email</small>
+                <p>{email}</p>
+              </div>
             </div>
+            {!isDigital ? (
+              <div className="order-detail-row">
+                <span className="order-detail-icon"><MapPin size={22} /></span>
+                <div>
+                  <small>Shipping address</small>
+                  <address>{shippingAddress.map((line) => <span key={line}>{line}</span>)}</address>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        </section>
+
+        <aside className="order-summary-panel">
+          <div className="order-summary-product">
+            <img src={stickerPreviewUrl} alt="Purchased custom sticker sheet" />
             <div>
-              <dt>Shipping to</dt>
-              <dd>{shippingDestination}</dd>
+              <strong>{productName}</strong>
+              <span>Qty 1</span>
             </div>
-            <div>
-              <dt>Estimated delivery</dt>
-              <dd>{estimatedDelivery}</dd>
-            </div>
-            <div>
-              <dt>Order #</dt>
-              <dd>{orderNumber}</dd>
+            <b>{formatMoney(subtotal, currency)}</b>
+          </div>
+          <dl className="order-summary-costs">
+            <div><dt>Subtotal</dt><dd>{formatMoney(subtotal, currency)}</dd></div>
+            <div><dt>Taxes</dt><dd>{formatMoney(tax, currency)}</dd></div>
+            <div className="order-summary-total">
+              <dt>Total</dt>
+              <dd><small>{currency.toUpperCase()}</small>{formatMoney(total, currency)}</dd>
             </div>
           </dl>
-          {canDownload ? (
-            <a className="membership-primary-link" href={downloadUrl}>
-              Download my sticker sheet
-            </a>
-          ) : (
-            <Link className="membership-primary-link" href="/account">
-              View my order
-            </Link>
-          )}
-        </div>
-      </section>
+        </aside>
+      </div>
     </main>
   );
 }

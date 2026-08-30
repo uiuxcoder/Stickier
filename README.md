@@ -32,6 +32,11 @@ Optional: `STRIPE_PRICE_ID`, `STRIPE_SUBSCRIPTION_PRICE_ID`, `OPENAI_IMAGE_MODEL
 
 Local development can use Cloudflare’s always-pass Turnstile test keys (`1x00000000000000000000AA` / `1x0000000000000000000000000000000AA`). Replace them with a real widget before production.
 
+Run `npm run dev` to build once and start both the Vite frontend on port 5173 and
+the Wrangler API worker on port 8788. The launcher stops both processes together
+if either exits. Stop it before running `npm run build`; the build guard prevents
+Wrangler from reloading a partially written server bundle.
+
 Forward Stripe test webhooks with `npm run dev:webhooks` while `npm run dev` is running.
 
 ## Architecture
@@ -149,7 +154,7 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 ## Diagnostic Commands
 
 - `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
+- `npm run dev`: build once, then start the Vite frontend and Wrangler API worker together
 - `npm run build`: build the deployable Sites artifact
 - `npm run start`: start the built Vinext application
 - `npm test`: build and verify the rendered development-preview metadata

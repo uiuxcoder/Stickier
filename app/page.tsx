@@ -11,14 +11,12 @@ const loadingSteps = ["Getting to know your photo", "Picking up the details", "B
 const positions = ["0% 0%", "50% 0%", "100% 0%", "0% 34%", "50% 34%", "100% 34%", "0% 68%", "50% 68%", "100% 68%", "50% 100%"];
 const samples = ["01","02","03","04","05","06"];
 const moodOptions = [
-  {name:"Cute",description:"Adorable, wholesome, expressive"},
-  {name:"Funny",description:"Jokes, goofy poses, visual gags"},
-  {name:"Cozy",description:"Warm, relaxed, comfy"},
-  {name:"Chaotic",description:"Exaggerated, unexpected, unhinged"},
-  {name:"Dreamy",description:"Soft, whimsical, magical"},
-  {name:"Cool",description:"Stylish, effortless, editorial"},
-  {name:"Retro",description:"Nostalgic, vintage, throwback"},
-  {name:"Surreal",description:"Weird, imaginative, impossible"},
+  "Cute",
+  "Funny",
+  "Happy",
+  "Cozy",
+  "Angry",
+  "Chaotic",
 ];
 const MAX_PHOTOS = 3;
 
@@ -162,6 +160,7 @@ export default function Home(){
   // "make another sheet" link (e.g. the post-checkout success page).
   useEffect(()=>{
     if(new URLSearchParams(window.location.search).get("start")!=="upload")return;
+    try{sessionStorage.removeItem("stickier-reveal")}catch{}
     setSkipPhotoStep(false);
     setStage("photos");
     window.history.replaceState({},"",window.location.pathname);
@@ -310,14 +309,14 @@ export default function Home(){
   return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>stage==="home"||stage==="samples"?(setSkipPhotoStep(false),setStage("photos")):restart()}>{stage==="home"||stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
   {checkoutNotice&&<p className="checkout-notice" role="status">{checkoutNotice}</p>}
 
-  {stage==="home"&&<section className="split enter"><div className="copy home-copy"><h1><span>Any photo. <em>Any Idea.</em></span><span>Turned Into Stickers.</span></h1><p>You, your people, your pets, and your little obsessions turned into custom stickers.</p><div className="home-proof">10 CUSTOM STICKERS · PREVIEW BEFORE YOU BUY</div><div className="home-upload"><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/></div>{photos.length>0&&<div className="home-cta"><Button className="red-btn" onClick={()=>{setProduct("me");setSkipPhotoStep(true);setStage("details")}}>MAKE MY STICKERS <ArrowRight/></Button></div>}</div><div className="art hero-story"><div className="hero-story-composite" role="img" aria-label="A candid Polaroid of a brunette woman with her puppy transforming into ten soft illustrated stickers"><img className="hero-story-slice hero-polaroid" src="/sticker-reference-locked-hero-v12.webp" alt=""/><img className="hero-arrow-cutout" src="/curved-arrow-transparent-v14.png" alt=""/><img className="hero-story-slice hero-sheet" src="/sticker-reference-locked-hero-v12.webp" alt=""/></div><div className="tag t1">YOUR PHOTO</div><div className="tag t2">YOUR STICKERS</div><div className="burst">10<small>STICKERS</small></div></div></section>}
+  {stage==="home"&&<section className="split enter"><div className="copy home-copy"><h1><span>Any photo. <em>Any idea.</em></span><span>Turned into stickers.</span></h1><p>You, your people, your pets, and your little obsessions turned into custom stickers.</p><div className="home-proof">10 CUSTOM STICKERS · PREVIEW BEFORE YOU BUY</div><div className="home-upload"><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/></div>{photos.length>0&&<div className="home-cta"><Button className="red-btn" onClick={()=>{setProduct("me");setSkipPhotoStep(true);setStage("details")}}>MAKE MY STICKERS <ArrowRight/></Button></div>}</div><div className="art hero-story"><div className="hero-story-composite" role="img" aria-label="A candid Polaroid of a brunette woman with her puppy transforming into ten soft illustrated stickers"><img className="hero-story-slice hero-polaroid" src="/sticker-reference-locked-hero-v12.webp" alt=""/><img className="hero-arrow-cutout" src="/curved-arrow-transparent-v14.png" alt=""/><img className="hero-story-slice hero-sheet" src="/sticker-reference-locked-hero-v12.webp" alt=""/></div><div className="tag t1">YOUR PHOTO</div><div className="tag t2">YOUR STICKERS</div><div className="burst">10<small>STICKERS</small></div></div></section>}
 
   {stage==="samples"&&<section className="samples-page enter"><header className="samples-head"><h2>See what gets<br/><em>stuck.</em></h2><p>Every sheet includes ten one-of-one stickers.</p></header><div className="sample-grid clean">{samples.map((sample,i)=><article className="sample-card" key={sample}><div className="sample-sheet"><div><span>STICKIER™</span><small>{sample} / 06</small></div><img src="/sticker-sheet.png" alt={`Sticker sheet sample ${i+1} with ten stickers`}/><footer>10 STICKERS · ONE OF ONE</footer></div></article>)}</div></section>}
 
   {["photos","details","mood"].includes(stage)&&<section className="wizard enter"><aside><div><h2>This is where it gets personal.</h2></div><img className="wizard-latest-sheet" src="/halloween-girl-dog-sticker-sheet-v15.webp" alt="Ten Halloween stickers featuring a witch and her dog in a ghost costume"/></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>back[stage]==="home"?restart():setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
   {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/><div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
   {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos)} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood.name)?"selected":""} aria-pressed={moods.includes(mood.name)} key={mood.name} onClick={()=>toggleMood(mood.name)}><b>{mood.name}</b><span>{mood.description}</span>{moods.includes(mood.name)&&<Check/>}</button>)}</div>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
+  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}
 
   {stage==="generating"&&<section className="generate loading-state enter"><div className="printer" aria-label="Blank sticker sheet printing"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy loading-copy"><h2>Your stickers are coming to life.</h2><strong>Usually ready in 30–60 seconds</strong><ol className="loading-steps">{loadingSteps.map((step,index)=><li className={index<tick?"complete":index===tick?"active":"upcoming"} key={step}>{index<tick?<span>✓</span>:index===tick?<span className="loading-spinner"/>:<span>○</span>}{index===tick?<b>{step}</b>:step}</li>)}</ol><b className="hang-tight">Hang tight — don&apos;t refresh.</b></div></section>}

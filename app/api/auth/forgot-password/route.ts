@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Enter a valid email." }, { status: 400 });
   }
 
-  const turnstile = await verifyTurnstile(parsed.data.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
+  const turnstile = await verifyTurnstile(parsed.data.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
   if (!turnstile.ok) {
     return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
   }

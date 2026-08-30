@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const host = new URL(request.url).hostname;
   const isLocalDev = host === "localhost" || host === "127.0.0.1";
   if (!isLocalDev) {
-    const turnstile = await verifyTurnstile(input.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
+    const turnstile = await verifyTurnstile(input.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
     if (!turnstile.ok) {
       return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
     }

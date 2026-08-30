@@ -22,7 +22,7 @@ export const THEMES = [
   "Birthday",
 ] as const;
 // Keep this list aligned with the client mood picker in `app/page.tsx`.
-export const MOODS = ["Cute", "Funny", "Cozy", "Chaotic", "Dreamy", "Cool", "Retro", "Surreal"] as const;
+export const MOODS = ["Cute", "Funny", "Happy", "Cozy", "Angry", "Chaotic"] as const;
 export const PRODUCTS = ["me", "pet", "partner", "family"] as const;
 export const MAX_REFERENCE_PHOTOS = 6;
 // 8MB keeps mobile photos usable in local/prod flows while still bounded.

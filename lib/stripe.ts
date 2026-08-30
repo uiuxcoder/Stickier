@@ -3,7 +3,11 @@ import Stripe from "stripe";
 export function getStripe() {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) throw new Error("STRIPE_SECRET_KEY is not configured.");
-  return new Stripe(secret);
+  return new Stripe(secret, {
+    httpClient: Stripe.createFetchHttpClient(),
+    maxNetworkRetries: 1,
+    timeout: 10_000,
+  });
 }
 
 export function subscriptionIdFromInvoice(invoice: Stripe.Invoice) {

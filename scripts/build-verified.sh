@@ -18,6 +18,12 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+if command -v pgrep >/dev/null && pgrep -f "${SITES_PROJECT_ROOT}/node_modules/.bin/wrangler.*dev.*8788" >/dev/null; then
+  echo "A local Wrangler worker is serving dist/ on port 8788." >&2
+  echo "Stop npm run dev before building so Wrangler cannot reload a partially written bundle." >&2
+  exit 75
+fi
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

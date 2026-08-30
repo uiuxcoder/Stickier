@@ -62,7 +62,7 @@ export async function POST(request: Request) {
               quantity: 1,
             },
           ],
-      success_url: `${origin}/membership/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/api/membership/complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/membership`,
       shipping_address_collection: { allowed_countries: ["US"] },
       metadata: {

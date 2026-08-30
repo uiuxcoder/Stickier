@@ -35,14 +35,20 @@ type DashboardProps = {
 };
 
 const MONTHLY_CREATIONS = 20;
+const MONTH_LABELS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function monthKeyFromDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function monthLabelFromKey(monthKey: string) {
-  const [year, month] = monthKey.split("-").map(Number);
-  return new Date(year, Math.max(0, month - 1), 1).toLocaleString("en-US", { month: "long" });
+  const month = Number(monthKey.split("-")[1]);
+  return MONTH_LABELS[month - 1] || "Monthly";
+}
+
+function formatStickerDate(timestamp: number) {
+  const date = new Date(timestamp);
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
 function statusFromSubmittedAt(submittedAt: number): DropStatus {
@@ -141,6 +147,8 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
   const canPickForDrop = isActive && submittedIds.length === 0;
   const canShip = canPickForDrop && selectedIds.length === 3;
   const usedCreations = Math.max(0, MONTHLY_CREATIONS - Math.max(0, Math.min(MONTHLY_CREATIONS, remainingCreations)));
+  const creationProgress = `${(usedCreations / MONTHLY_CREATIONS) * 100}%`;
+  const selectionProgress = `${(selectedCount / 3) * 100}%`;
 
   const stickersById = useMemo(() => {
     return new Map(stickers.map((sticker) => [sticker.id, sticker]));
@@ -169,17 +177,13 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
   return (
     <main className="club-shell">
       <header className="club-topbar">
-        <div>
-          <p className="club-kicker">Sticker Club</p>
-          <h1>Your {thisMonthLabel} Sticker Drop ✦</h1>
-          <p>{Math.max(0, remainingCreations)} of {MONTHLY_CREATIONS} creations left</p>
-        </div>
+        <Link className="club-logo" href="/">
+          STICKIER<sup>TM</sup>
+        </Link>
+        <p>Sticker Club</p>
         <div className="club-menu" aria-label="Account menu">
-          <Link href="/account">My Sticker Club</Link>
-          <a href="#past-drops">Past Drops</a>
-          <a href="#shipping-address">Shipping Address</a>
           <form action="/api/account/portal" method="post">
-            <button type="submit">Membership</button>
+            <button type="submit">Manage Membership</button>
           </form>
           <form action="/api/auth/signout" method="post">
             <button type="submit">Sign Out</button>
@@ -187,7 +191,14 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
         </div>
       </header>
 
-      <section className="club-status-card">
+      <section className="club-membership-overview">
+        <div className="club-membership-title">
+          <p className="club-kicker">Your membership</p>
+          <h1>Sticker Club <span aria-hidden="true">✦</span></h1>
+          <strong className={isActive ? "club-active-badge" : "club-inactive-badge"}>
+            {isActive ? "Active" : "Inactive"}
+          </strong>
+        </div>
         {!isActive ? (
           <div className="club-inactive" role="status">
             <h2>Membership inactive</h2>
@@ -198,37 +209,33 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
           </div>
         ) : (
           <>
-            <div className="club-loop">
-              <span>Make</span>
-              <ArrowRight size={14} />
-              <span>Choose your 3</span>
-              <ArrowRight size={14} />
-              <span>Ship your 3</span>
-            </div>
             <div className="club-metrics">
               <article>
-                <p>20 sticker creations available</p>
-                <strong>{usedCreations} / {MONTHLY_CREATIONS} used</strong>
+                <strong>{usedCreations}<span>/ {MONTHLY_CREATIONS}</span></strong>
+                <p>Creations used</p>
+                <i aria-hidden="true"><span style={{ width: creationProgress }} /></i>
               </article>
               <article>
-                <p>Choose 3 stickers to get in the mail</p>
-                <strong>{selectedCount} of 3 selected</strong>
+                <strong>{selectedCount}<span>/ 3</span></strong>
+                <p>Prints selected</p>
+                <i aria-hidden="true"><span style={{ width: selectionProgress }} /></i>
               </article>
             </div>
             <div className="club-actions-row">
-              <Link className="club-primary-link" href="/">
-                + Make stickers
+              <small>{Math.max(0, remainingCreations)} creations left in {thisMonthLabel}</small>
+              <Link className="club-primary-link" href="/?start=upload">
+                Create a sticker
               </Link>
               {submittedIds.length === 3 ? (
                 <div className="club-submitted-pill" role="status">
                   <PackageCheck size={16} />
                   Your {thisMonthLabel} drop is being made ✦
                 </div>
-              ) : (
+              ) : selectedIds.length > 0 ? (
                 <Button className="club-ship-button" disabled={!canShip} onClick={() => setShipConfirmOpen(true)}>
                   Ship my 3 stickers
                 </Button>
-              )}
+              ) : null}
             </div>
             {submittedIds.length === 3 && currentDropStatus ? (
               <div className="club-submitted-block">
@@ -250,14 +257,15 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
 
       <section className="club-gallery">
         <div className="club-gallery-head">
-          <h2>Your sticker gallery</h2>
+          <p className="club-kicker">Your archive</p>
+          <h2>Your creations.</h2>
           <p>{canPickForDrop ? "Pick your favorites for this month." : "Your picks are locked for this month after shipping."}</p>
         </div>
         {stickers.length === 0 ? (
           <div className="club-empty-gallery">
             <Sparkles size={18} />
             <p>No stickers yet. Make your first set to start your monthly drop.</p>
-            <Link className="club-primary-link" href="/">
+            <Link className="club-primary-link" href="/?start=upload">
               Start making stickers
             </Link>
           </div>
@@ -270,7 +278,7 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
                 <article className="club-sticker-card" key={sticker.id}>
                   <img src={sticker.imageUrl} alt="Sticker creation preview" />
                   <div>
-                    <p>{new Date(sticker.createdAt).toLocaleDateString()}</p>
+                    <p>{formatStickerDate(sticker.createdAt)}</p>
                     <button
                       type="button"
                       className={isSelected ? "selected" : ""}
@@ -339,9 +347,23 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
         )}
       </section>
 
-      <section className="club-signin-note" id="shipping-address">
-        <p>Your Sticker Club account is ready. We sent a secure sign-in link to {email}. No password needed.</p>
-        <Link href="/signin">Go to my Sticker Club</Link>
+      <section className="club-account-tools" id="membership-settings">
+        <div>
+          <p className="club-kicker">Membership settings</p>
+          <h2>Account &amp; delivery</h2>
+          <p>Signed in as {email}. Billing and delivery details are securely managed by Stripe.</p>
+        </div>
+        <div className="club-account-actions">
+          <form action="/api/account/portal" method="post">
+            <button type="submit" name="action" value="address">Change shipping address</button>
+          </form>
+          <form action="/api/account/portal" method="post">
+            <button type="submit" name="action" value="payment">Update credit card</button>
+          </form>
+          <form action="/api/account/portal" method="post">
+            <button className="club-danger-action" type="submit" name="action" value="cancel">Cancel membership</button>
+          </form>
+        </div>
       </section>
 
       <Dialog open={shipConfirmOpen} onOpenChange={setShipConfirmOpen}>
