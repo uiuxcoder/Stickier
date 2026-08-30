@@ -54,6 +54,11 @@
       }
     ]
   },
+  "routes": [
+    { "pattern": "saltysticker.com", "custom_domain": true },
+    { "pattern": "www.saltysticker.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
   "ratelimits": [
     {
       "name": "GENERATE_RATE_LIMITER",

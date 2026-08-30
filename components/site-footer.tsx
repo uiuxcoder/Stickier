@@ -69,7 +69,7 @@ export function SiteFooter() {
               Email us and we will help with orders, downloads, billing, or anything else.
               We usually reply within one business day.
             </p>
-            <a className="support-email" href="mailto:hello@stickier.app">hello@stickier.app</a>
+            <a className="support-email" href="mailto:hello@saltysticker.com">hello@saltysticker.com</a>
             <button type="button" className="support-close" onClick={() => setIsSupportOpen(false)}>
               Close
             </button>
