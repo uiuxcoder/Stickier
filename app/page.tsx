@@ -9,7 +9,7 @@ import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
 type Stage = "home" | "samples" | "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
 type Product = "me" | "pet" | "partner" | "family";
 const loadingSteps = ["Getting to know your photo", "Picking up the details", "Bringing your stickers to life...", "Adding the finishing touches"];
-const positions = ["0% 0%", "50% 0%", "100% 0%", "0% 34%", "50% 34%", "100% 34%", "0% 68%", "50% 68%", "100% 68%", "50% 100%"];
+const positions = ["0% 0%", "50% 0%", "100% 0%", "0% 33.3333%", "50% 33.3333%", "100% 33.3333%", "0% 66.6667%", "50% 66.6667%", "100% 66.6667%", "50% 100%"];
 const samples = ["01","02","03","04","05","06"];
 const moodOptions = [
   "Cute",
@@ -63,6 +63,52 @@ function UploadBox({ previews, pet=false, onChange, onRemove }: { previews:strin
 }
 function GenericStickerSheet() {
   return <div className="printer-placeholder-grid" aria-label="Ten empty sticker placeholders">{Array.from({length:10},(_,index)=><span key={index}/>)}</div>;
+}
+
+// The model rarely centers each sticker inside its grid cell, so a fixed grid
+// cut looks off-center. Trim the pure-white margin around the artwork and
+// re-center it on a square canvas with an even white border that stands in
+// for the die-cut outline.
+function centerStickerArtwork(cell: HTMLCanvasElement): string {
+  const context = cell.getContext("2d", { willReadFrequently: true });
+  if (!context) return cell.toDataURL("image/png");
+  const width = cell.width;
+  const height = cell.height;
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = context.getImageData(0, 0, width, height).data;
+  } catch {
+    return cell.toDataURL("image/png");
+  }
+  let top = height;
+  let left = width;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const offset = (y * width + x) * 4;
+      if (pixels[offset + 3] <= 16) continue;
+      if (pixels[offset] >= 238 && pixels[offset + 1] >= 238 && pixels[offset + 2] >= 238) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  if (right < 0) return cell.toDataURL("image/png");
+  const artWidth = right - left + 1;
+  const artHeight = bottom - top + 1;
+  const margin = Math.max(10, Math.round(Math.max(artWidth, artHeight) * 0.09));
+  const size = Math.max(artWidth, artHeight) + margin * 2;
+  const square = document.createElement("canvas");
+  square.width = size;
+  square.height = size;
+  const squareContext = square.getContext("2d");
+  if (!squareContext) return cell.toDataURL("image/png");
+  squareContext.fillStyle = "#ffffff";
+  squareContext.fillRect(0, 0, size, size);
+  squareContext.drawImage(cell, left, top, artWidth, artHeight, Math.round((size - artWidth) / 2), Math.round((size - artHeight) / 2), artWidth, artHeight);
+  return square.toDataURL("image/png");
 }
 
 function ReferencePhotos({previews,onChange,onRemove}:{previews:string[];onChange:(files:FileList|null)=>void;onRemove:(index:number)=>void}){
@@ -161,7 +207,29 @@ export default function Home(){
   const isLocalDev=typeof window!=="undefined"&&["localhost","127.0.0.1"].includes(window.location.hostname);
 
   useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(x=>Math.min(x+1,3)),2200);return()=>clearInterval(a)},[stage]);
-  useEffect(()=>{if(!generatedImage)return;const image=new Image();image.crossOrigin="anonymous";image.onload=()=>{const slices:string[]=[];for(let index=0;index<10;index++){const column=index===9?1:index%3;const row=Math.floor(index/3);const canvas=document.createElement("canvas");canvas.width=image.naturalWidth/3;canvas.height=image.naturalHeight/4;canvas.getContext("2d")?.drawImage(image,column*canvas.width,row*canvas.height,canvas.width,canvas.height,0,0,canvas.width,canvas.height);slices.push(canvas.toDataURL("image/png"))}setGeneratedSlices(slices)};image.src=generatedImage},[generatedImage]);
+  useEffect(()=>{
+    if(!generatedImage)return;
+    const image=new Image();
+    image.crossOrigin="anonymous";
+    image.onload=()=>{
+      const cellWidth=image.naturalWidth/3;
+      const cellHeight=image.naturalHeight/4;
+      const cell=document.createElement("canvas");
+      const context=cell.getContext("2d");
+      if(!context)return;
+      const slices:string[]=[];
+      for(let index=0;index<10;index++){
+        const column=index===9?1:index%3;
+        const row=Math.floor(index/3);
+        cell.width=Math.ceil(cellWidth);
+        cell.height=Math.ceil(cellHeight);
+        context.drawImage(image,column*cellWidth,row*cellHeight,cellWidth,cellHeight,0,0,cell.width,cell.height);
+        slices.push(centerStickerArtwork(cell));
+      }
+      setGeneratedSlices(slices);
+    };
+    image.src=generatedImage;
+  },[generatedImage]);
 
   // Resolve the signed-in user from the app-owned session cookie.
   useEffect(()=>{void fetch("/api/me").then(r=>r.json()).then((data)=>{const user=(data as {user?:{email?:string}|null}).user;if(user?.email){setSignedIn(true);setEmail(current=>current||user.email!)}}).catch(()=>undefined)},[]);
