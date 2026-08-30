@@ -4,6 +4,7 @@ import { ChangeEvent, DragEvent, startTransition, useCallback, useEffect, useRef
 import { ArrowLeft, ArrowRight, Check, Download, ImagePlus, PawPrint, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
 
 type Stage = "home" | "samples" | "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
 type Product = "me" | "pet" | "partner" | "family";
@@ -68,13 +69,20 @@ function ReferencePhotos({previews,onChange,onRemove}:{previews:string[];onChang
   return <div className="reference-upload">{previews.length>0&&<div className="reference-preview-row">{previews.map((src,index)=><div className="reference-preview-item" key={src}><img src={src} alt={`Reference photo ${index+1}`}/><button type="button" aria-label={`Delete reference photo ${index+1}`} onClick={()=>onRemove(index)}><Trash2/></button></div>)}</div>}<label className={`reference-photo-button ${previews.length>=MAX_PHOTOS?"disabled":""}`}><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif" multiple disabled={previews.length>=MAX_PHOTOS} onChange={event=>{onChange(event.target.files);event.currentTarget.value=""}}/><ImagePlus/>{previews.length?"ADD MORE REFERENCE PHOTOS":"ADD REFERENCE PHOTOS"}<small>{previews.length}/3 · OPTIONAL</small></label></div>;
 }
 
-async function normalizePhoto(file:File):Promise<File>{
-  const isHeic=/\.(heic|heif)$/i.test(file.name)||/image\/hei[cf]/i.test(file.type);
-  if(!isHeic)return file;
-  const {default:heic2any}=await import("heic2any/dist/heic2any.js");
-  const converted=await heic2any({blob:file,toType:"image/jpeg",quality:.92});
-  const blob=Array.isArray(converted)?converted[0]:converted;
-  return new File([blob],file.name.replace(/\.(heic|heif)$/i,".jpg"),{type:"image/jpeg"});
+// Convert each selection independently so one unreadable file cannot discard
+// the rest of the batch.
+async function normalizePhotos(files:File[]):Promise<{photos:File[];errors:string[]}>{
+  const photos:File[]=[];
+  const errors:string[]=[];
+  for(const file of files){
+    try{
+      photos.push(await normalizePhoto(file));
+    }catch(error){
+      const reason=error instanceof UnsupportedPhotoError?error.message:"We could not read that photo.";
+      errors.push(`${file.name}: ${reason}`);
+    }
+  }
+  return {photos,errors};
 }
 
 // Upload a photo directly to R2 via the signed upload endpoint, returning its
@@ -119,6 +127,8 @@ export default function Home(){
   const [referencePhotoKeys,setReferencePhotoKeys]=useState<string[]>([]);
   const [referencePhotoDataUrls,setReferencePhotoDataUrls]=useState<string[]>([]);
   const [skipPhotoStep,setSkipPhotoStep]=useState(false);
+  const [photoError,setPhotoError]=useState("");
+  const [photoBusy,setPhotoBusy]=useState(false);
   const [specialRequest,setSpecialRequest]=useState("");
   const [pet,setPet]=useState({name:"",species:"Dog"});
   const [theme,setTheme]=useState("Classic");
@@ -248,7 +258,19 @@ export default function Home(){
   type Setter=(x:string[]|((prev:string[])=>string[]))=>void;
   const load=async(files:FileList|null,setter:Setter,setKeys:Setter,setData:Setter,current:string[])=>{
     if(!files)return;
-    const selected=await Promise.all(Array.from(files).slice(0,MAX_PHOTOS-current.length).map(normalizePhoto));
+    setPhotoError("");
+    const chosen=Array.from(files).slice(0,MAX_PHOTOS-current.length);
+    if(!chosen.length)return;
+    setPhotoBusy(true);
+    let selected:File[];
+    try{
+      const {photos:normalized,errors}=await normalizePhotos(chosen);
+      if(errors.length)setPhotoError(errors.join(" "));
+      selected=normalized;
+    }finally{
+      setPhotoBusy(false);
+    }
+    if(!selected.length)return;
     const previews=await Promise.all(selected.map(file=>new Promise<string>(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(file)})));
     setter(prev=>[...prev,...previews]);
     for(const file of selected){
@@ -314,7 +336,7 @@ export default function Home(){
   {stage==="samples"&&<section className="samples-page enter"><header className="samples-head"><h2>See what gets<br/><em>stuck.</em></h2><p>Every sheet includes ten one-of-one stickers.</p></header><div className="sample-grid clean">{samples.map((sample,i)=><article className="sample-card" key={sample}><div className="sample-sheet"><div><span>STICKIER™</span><small>{sample} / 06</small></div><img src="/sticker-sheet.png" alt={`Sticker sheet sample ${i+1} with ten stickers`}/><footer>10 STICKERS · ONE OF ONE</footer></div></article>)}</div></section>}
 
   {["photos","details","mood"].includes(stage)&&<section className="wizard enter"><aside><div><h2>This is where it gets personal.</h2></div><img className="wizard-latest-sheet" src="/halloween-girl-dog-sticker-sheet-v15.webp" alt="Ten Halloween stickers featuring a witch and her dog in a ghost costume"/></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>back[stage]==="home"?restart():setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
-  {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/><div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
+  {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/>{photoBusy&&<p className="upload-status">Converting your photo…</p>}{photoError&&<p className="upload-error">{photoError}</p>}<div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
   {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos)} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
   {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}

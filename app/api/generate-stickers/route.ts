@@ -5,6 +5,7 @@ import { generationJobs, subscriptions, users } from "@/db/schema";
 import { ANON_DAILY_PREVIEWS, GENERATE_HOURLY_CAP } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { dataUrlToFile, generationRequestSchema } from "@/lib/validation";
+import { extensionForImageType } from "@/lib/image-format";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { moderateText } from "@/lib/moderation";
 import { processGenerationJob } from "@/lib/generation-worker";
@@ -105,9 +106,9 @@ export async function POST(request: Request) {
   for (const [index, dataUrl] of input.photos.entries()) {
     const file = dataUrlToFile(dataUrl, index);
     if (!file) continue;
-    const key = `uploads/${crypto.randomUUID()}/${crypto.randomUUID()}.png`;
+    const key = `uploads/${crypto.randomUUID()}/${crypto.randomUUID()}.${extensionForImageType(file.type)}`;
     await bucket.put(key, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type || "image/png" },
+      httpMetadata: { contentType: file.type },
     });
     photoKeys.push(key);
   }
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
     try {
       // Local wrangler queue delivery is not always reliable during hot reload,
       // so run jobs inline in localhost to keep development flow usable.
-      await processGenerationJob({ DB: env.DB, STICKER_ASSETS: bucket }, { jobId });
+      await processGenerationJob({ DB: env.DB, STICKER_ASSETS: bucket, IMAGES: env.IMAGES }, { jobId });
     } catch (error) {
       console.error("Local generation job failed", error);
       await db

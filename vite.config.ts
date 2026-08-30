@@ -16,7 +16,10 @@ export default defineConfig(async () => {
 
     return {
     optimizeDeps: {
-      exclude: ["heic2any"],
+      // heic2any ships as a UMD bundle. Excluding it leaves the raw UMD wrapper
+      // to be loaded as ESM in dev, where it exports nothing and HEIC uploads
+      // fail; pre-bundling gives it a real default export.
+      include: ["heic2any"],
     },
     server: {
       host: "0.0.0.0",

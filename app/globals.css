@@ -554,6 +554,8 @@ nav{height:88px;padding:0 var(--space-10)}
 .join-club-secondary-btn:hover{background:rgba(20,20,20,.05)}
 .join-club-secondary-btn:disabled{opacity:.55;cursor:not-allowed}
 .join-club-error{margin:0;color:#b42318;font-size:12px}
+.upload-error{margin:12px 0 0;color:#b42318;font-size:12px;line-height:1.5}
+.upload-status{margin:12px 0 0;color:#555;font-size:12px;line-height:1.5}
 
 @media(max-width:900px){
   .membership-welcome-layout{grid-template-columns:1fr}

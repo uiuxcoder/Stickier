@@ -5,6 +5,13 @@ import { generationJobs, generations, users } from "@/db/schema";
 import { promptFor, type GenerationInput } from "@/lib/prompt";
 import { IMAGE_KEY_PATTERN } from "@/lib/constants";
 import { buildOpenAIImageEditBody } from "@/lib/openai-image";
+import {
+  imageFileName,
+  inspectJpeg,
+  isOpenAIImageType,
+  sniffImageType,
+  type OpenAIImageType,
+} from "@/lib/image-format";
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
@@ -13,10 +20,50 @@ export type GenerationJobMessage = {
   jobId: string;
 };
 
+type ImagesBinding = {
+  input(stream: ReadableStream): {
+    transform(options: Record<string, unknown>): {
+      output(options: { format: string; quality: number }): Promise<{ response(): Response }>;
+    };
+  };
+};
+
 type QueueEnv = {
   DB: D1Database;
   STICKER_ASSETS: R2Bucket;
+  IMAGES?: ImagesBinding;
 };
+
+/**
+ * Re-encode a reference photo that OpenAI would reject. Apple's HDR JPEGs embed
+ * a gain map through an APP2 "MPF" segment, and the edits endpoint fails the
+ * whole request with "invalid image file" when it sees one. The browser already
+ * strips these during upload; this is the backstop for anything that did not go
+ * through that path.
+ */
+async function sanitizeReferencePhoto(
+  env: QueueEnv,
+  bytes: ArrayBuffer,
+  contentType: OpenAIImageType
+): Promise<{ bytes: ArrayBuffer; contentType: OpenAIImageType }> {
+  const advisory = contentType === "image/jpeg" ? inspectJpeg(bytes) : null;
+  if (!advisory?.multiPicture && (advisory?.orientation ?? 1) <= 1) return { bytes, contentType };
+
+  if (!env.IMAGES) {
+    console.error("Reference photo needs re-encoding but the IMAGES binding is unavailable.");
+    return { bytes, contentType };
+  }
+
+  try {
+    const result = await env.IMAGES.input(new Blob([bytes]).stream())
+      .transform({})
+      .output({ format: "image/jpeg", quality: 95 });
+    return { bytes: await result.response().arrayBuffer(), contentType: "image/jpeg" };
+  } catch (error) {
+    console.error("Failed to re-encode reference photo", error);
+    return { bytes, contentType };
+  }
+}
 
 function getDb(env: QueueEnv) {
   return drizzle(env.DB, { schema });
@@ -83,9 +130,16 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
   for (const [index, key] of photoKeys.entries()) {
     const object = await env.STICKER_ASSETS.get(key);
     if (!object) continue;
-    const bytes = await object.arrayBuffer();
-    const contentType = object.httpMetadata?.contentType || "image/png";
-    photos.push(new File([bytes], `reference-${index}.png`, { type: contentType }));
+    const stored = await object.arrayBuffer();
+    // The edits endpoint validates the format against both the part's MIME type
+    // and its filename extension, so both are derived from the actual bytes.
+    const storedType = sniffImageType(stored);
+    if (!isOpenAIImageType(storedType)) {
+      console.error("Skipping reference photo with unsupported format", key);
+      continue;
+    }
+    const { bytes, contentType } = await sanitizeReferencePhoto(env, stored, storedType);
+    photos.push(new File([bytes], imageFileName(`reference-${index}`, contentType), { type: contentType }));
   }
 
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";

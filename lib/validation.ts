@@ -11,6 +11,7 @@ import {
   THEMES,
   UPLOAD_KEY_PATTERN,
 } from "@/lib/constants";
+import { imageFileName, isOpenAIImageType, sniffImageType } from "@/lib/image-format";
 
 const dataUrlSchema = z
   .string()
@@ -119,5 +120,8 @@ export function dataUrlToFile(dataUrl: string, index: number) {
   if (!match) return null;
   const bytes = Buffer.from(match[2], "base64");
   if (bytes.byteLength > MAX_PHOTO_BYTES) return null;
-  return new File([bytes], `reference-${index}.png`, { type: match[1] });
+  // The declared type in the data URL is only a hint; the bytes decide.
+  const type = sniffImageType(bytes);
+  if (!isOpenAIImageType(type)) return null;
+  return new File([bytes], imageFileName(`reference-${index}`, type), { type });
 }
