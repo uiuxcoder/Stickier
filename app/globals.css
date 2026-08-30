@@ -614,3 +614,46 @@ nav{height:88px;padding:0 var(--space-10)}
   .membership-welcome-benefits>div{grid-template-columns:auto 1fr;justify-items:start;text-align:left}
   .club-account-actions,.club-account-actions form,.club-account-actions button{width:100%}
 }
+
+/* Desktop landing page: one locked hero viewport, no page scroll */
+@media(min-width:901px){
+  html:has(.shell.home),
+  body:has(.shell.home){
+    height:100%;
+    overflow:hidden;
+    overscroll-behavior:none;
+  }
+  body:has(.shell.home){
+    height:100vh;
+    display:grid;
+    grid-template-rows:minmax(0,1fr) auto;
+  }
+  .shell.home{
+    min-height:0;
+    height:100%;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .shell.home>nav{
+    flex:0 0 88px;
+    height:88px;
+  }
+  .shell.home>.split{
+    flex:1;
+    min-height:0;
+    overflow:hidden;
+  }
+  .shell.home .split.enter{
+    animation:none;
+  }
+  .shell.home .hero-story{
+    min-height:0;
+    overflow:hidden;
+    container-type:size;
+  }
+  .shell.home .hero-story-composite{
+    width:min(900px,100%,calc(100cqh * 3 / 2));
+    max-height:100%;
+  }
+}
