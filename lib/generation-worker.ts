@@ -4,6 +4,7 @@ import * as schema from "@/db/schema";
 import { generationJobs, generations, users } from "@/db/schema";
 import { promptFor, type GenerationInput } from "@/lib/prompt";
 import { IMAGE_KEY_PATTERN } from "@/lib/constants";
+import { buildOpenAIImageEditBody } from "@/lib/openai-image";
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
@@ -87,17 +88,18 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     photos.push(new File([bytes], `reference-${index}.png`, { type: contentType }));
   }
 
-  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
     if (photos.length) {
-      const body = new FormData();
-      body.append("model", model);
-      body.append("prompt", promptFor(input));
-      body.append("size", "1024x1024");
-      body.append("quality", "medium");
-      photos.forEach((photo) => body.append("image[]", photo));
+      const body = buildOpenAIImageEditBody({
+        model,
+        prompt: promptFor(input),
+        quality: "medium",
+        size: "1024x1024",
+        photos,
+      });
 
       response = await fetch(OPENAI_EDITS_URL, {
         method: "POST",

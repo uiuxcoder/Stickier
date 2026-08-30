@@ -337,3 +337,146 @@ nav{height:88px;padding:0 var(--space-10)}
   .loading-steps{gap:12px;margin:28px 0 24px}
   .loading-steps li{font-size:14px}
 }
+
+/* Sticker Club membership flow */
+.membership-shell{min-height:100vh;display:grid;place-items:center;padding:48px 20px;background:radial-gradient(circle at 18% 15%,#fff,transparent 40%),radial-gradient(circle at 82% 80%,#f4d84b55,transparent 35%),#f5f0e6}
+.membership-card{width:min(560px,100%);background:#fffef8;border:1.5px solid #111;box-shadow:10px 10px 0 #111;padding:30px 28px;display:grid;gap:16px}
+.membership-kicker{margin:0;font:900 9px/1 Arial;letter-spacing:.14em;text-transform:uppercase;color:#555}
+.membership-card h1{font-size:clamp(46px,8vw,66px);line-height:.95}
+.membership-summary{margin:0;color:#444;line-height:1.6}
+.membership-card ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.membership-card li{display:flex;align-items:center;gap:8px;font-size:14px}
+.membership-card [role="alert"]{margin:0;color:#b42318;font-size:13px}
+.membership-card button{height:48px;border:0;background:#111;color:#fff;font-size:12px;font-weight:900;letter-spacing:.08em;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.membership-card button:disabled{opacity:.5;cursor:not-allowed}
+
+.membership-success-shell{min-height:100vh;max-width:980px;margin:0 auto;padding:56px 22px 72px;display:grid;gap:24px;background:#f5f0e6}
+.membership-success-head{display:grid;gap:8px}
+.membership-success-head h1{font-size:clamp(48px,8vw,72px);line-height:.95}
+.membership-success-head h2{font-size:clamp(30px,5vw,44px);line-height:1;margin-top:4px}
+.membership-success-head small{font-size:12px;color:#666}
+.purchase-summary{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:20px;background:#fffef8;border:1px solid #d5ccbc;padding:18px}
+.purchase-preview{display:grid;gap:10px}
+.purchase-preview p{margin:0;font:900 9px/1 Arial;letter-spacing:.12em;text-transform:uppercase;color:#666}
+.purchase-preview img{width:100%;max-width:520px;aspect-ratio:4/5;object-fit:contain;background:#fff;border:1px solid #ece5d9}
+.purchase-details{display:grid;align-content:start;gap:10px}
+.purchase-details h3{font-size:36px;line-height:1}
+.purchase-details p{margin:0;color:#555}
+.purchase-details strong{font-size:26px;line-height:1.1;font-family:Georgia,serif}
+.purchase-details dl{margin:6px 0 0;display:grid;gap:8px}
+.purchase-details dt{font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#777}
+.purchase-details dd{margin:3px 0 0;color:#222}
+.membership-primary-link{height:48px;padding:0 20px;display:inline-flex;align-items:center;justify-content:center;background:#111;color:#fff;text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.08em;width:fit-content}
+.membership-secondary{display:grid;gap:8px;padding:16px 0 0;border-top:1px solid #ddd0bd;max-width:680px}
+.membership-secondary h3{font-size:30px;line-height:1.05}
+.membership-secondary p{margin:0;color:#555;line-height:1.5}
+.membership-meta-row{display:flex;flex-wrap:wrap;gap:14px;color:#222;font-size:13px;font-weight:700}
+.membership-secondary a{font-size:11px;font-weight:900;letter-spacing:.06em;color:#111;text-decoration:none;width:fit-content}
+.membership-secondary small{font-size:11px;color:#888}
+
+.club-shell{min-height:100vh;padding:52px 5vw 72px;background:radial-gradient(circle at 12% 10%,#fff,transparent 30%),radial-gradient(circle at 90% 85%,#f4d84b55,transparent 28%),#f5f0e6;display:grid;gap:20px}
+.club-topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.club-topbar h1{font-size:clamp(36px,6vw,58px);line-height:.95}
+.club-topbar p{margin:8px 0 0;color:#444}
+.club-kicker{margin:0;font:900 9px/1 Arial;letter-spacing:.14em;text-transform:uppercase;color:#666}
+.club-menu{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;max-width:440px}
+.club-menu a,.club-menu button{border:0;background:none;padding:0;color:#111;font:900 9px/1 Arial;letter-spacing:.1em;text-decoration:underline;cursor:pointer}
+
+.club-status-card{background:#fffef8;border:1.5px solid #111;box-shadow:10px 10px 0 #111;padding:24px;display:grid;gap:14px}
+.club-loop{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.club-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.club-metrics article{background:#f8f3e8;border:1px solid #111;padding:14px;display:grid;gap:4px}
+.club-metrics p{margin:0;color:#555}
+.club-metrics strong{font-size:23px;font-family:Georgia,serif;line-height:1.1}
+.club-actions-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.club-primary-link{height:46px;padding:0 16px;display:inline-flex;align-items:center;gap:8px;background:#111;color:#fff;text-decoration:none;font-size:10px;font-weight:900;letter-spacing:.08em}
+.club-ship-button{height:46px!important;padding:0 16px!important;background:var(--red)!important;color:#fff!important;border-radius:0!important}
+.club-submitted-pill{display:inline-flex;align-items:center;gap:8px;background:#f4d84b;border:1px solid #111;padding:10px 12px;font-size:10px;font-weight:900;letter-spacing:.08em}
+.club-submitted-block{display:grid;gap:10px;padding:12px;border:1px dashed #999;background:#fff}
+.club-submitted-meta p{margin:0;color:#555}
+.club-submitted-meta strong{font-size:15px}
+.club-submitted-previews{display:flex;gap:8px;flex-wrap:wrap}
+.club-submitted-previews img{width:84px;height:84px;object-fit:cover;border:1px solid #111}
+.club-status-line{margin:0;font-size:12px;font-weight:700}
+
+.club-gallery{display:grid;gap:12px}
+.club-gallery-head h2{font-size:34px;line-height:1}
+.club-gallery-head p{margin:6px 0 0;color:#555}
+.club-empty-gallery{display:flex;gap:10px;align-items:center;background:#fff;border:1px dashed #888;padding:16px;flex-wrap:wrap}
+.club-empty-gallery p{margin:0;flex:1 1 280px}
+.club-sticker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.club-sticker-card{background:#fff;border:1px solid #111;padding:8px;display:grid;gap:8px}
+.club-sticker-card img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #ddd}
+.club-sticker-card p{margin:0;color:#666;font-size:11px}
+.club-sticker-card button{width:100%;height:38px;border:1px solid #111;background:#fff;font-size:10px;font-weight:900;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.club-sticker-card button.selected{background:#111;color:#fff}
+.club-sticker-card button:disabled{opacity:.45;cursor:not-allowed}
+
+.club-how h2{font-size:28px;line-height:1.1}
+.club-how>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.club-how article{background:#fff;border:1px solid #111;padding:14px}
+.club-how h3{margin:0 0 6px;font-size:21px}
+.club-how p{margin:0;color:#555;line-height:1.45}
+
+.club-past h2{font-size:28px;line-height:1.1}
+.club-past>p{color:#666}
+.club-past-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.club-past-grid article{background:#fff;border:1px solid #111;padding:10px;display:grid;gap:8px}
+.club-past-grid header{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.club-past-grid h3{margin:0;font-size:20px}
+.club-past-grid span{font-size:10px;font-weight:900;letter-spacing:.08em;color:#666}
+.club-past-previews{display:flex;gap:6px;flex-wrap:wrap}
+.club-past-previews img{width:68px;height:68px;object-fit:cover;border:1px solid #ddd}
+
+.club-inactive h2{font-size:40px;line-height:1}
+.club-inactive p{margin:10px 0 14px;color:#555;max-width:620px}
+.club-signin-note{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.club-signin-note p{margin:0;color:#666}
+.club-signin-note a{font-size:10px;font-weight:900;letter-spacing:.1em;color:#111}
+
+.club-ship-modal{background:#fffef8!important;border:1.5px solid #111!important;border-radius:0!important;box-shadow:10px 10px 0 #111!important}
+.club-ship-preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.club-ship-preview-grid img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #111}
+.club-ship-actions{display:flex!important;justify-content:flex-end;gap:8px}
+.club-primary-button,.club-secondary-button{height:42px;border:1px solid #111;padding:0 14px;font-size:10px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.club-primary-button{background:#111;color:#fff}
+.club-secondary-button{background:#fff;color:#111}
+
+.digital-success-shell{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:32px;background:#fff;border-radius:20px;box-shadow:0 18px 40px rgba(20,15,5,.08);padding:32px;max-width:980px;margin:0 auto}
+.digital-preview-card{background:#fff;border:1px solid #eee6d8;border-radius:14px;padding:20px;display:flex;align-items:center;justify-content:center}
+.digital-sheet-image{width:100%;max-width:380px;height:auto;display:block;border-radius:12px}
+.digital-content-col{display:flex;flex-direction:column;gap:6px}
+.digital-content-col h2{font-size:clamp(28px,3.4vw,36px);line-height:1.05;margin:0 0 6px}
+.digital-content-col>p{margin:0 0 20px;color:#555;line-height:1.5;max-width:420px}
+.digital-download-btn{display:inline-flex;align-items:center;gap:10px;justify-content:center;height:52px;padding:0 22px;background:#141414;color:#fff;border-radius:10px;text-decoration:none;font-size:15px;font-weight:600;width:fit-content}
+.digital-remake-link{display:inline-flex;align-items:center;gap:8px;color:#141414;font-size:14px;font-weight:600;text-decoration:none;padding-bottom:20px;border-bottom:1px solid #ece6d8;margin-bottom:20px;width:fit-content;margin-top:16px}
+.digital-upsell-card{background:#f6efe2;border-radius:16px;padding:22px 24px 26px;display:grid;gap:10px}
+.digital-upsell-card h3{margin:0;font-size:26px;line-height:1.1}
+.digital-upsell-price{margin:0;font-size:18px;font-weight:700;color:#d98a1f}
+.digital-upsell-copy{margin:2px 0 6px;color:#5c5648;line-height:1.5;font-size:14px}
+.digital-upsell-list{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:9px}
+.digital-upsell-list li{display:flex;align-items:center;gap:10px;font-size:13.5px;color:#413d33}
+.digital-upsell-list li svg{width:15px;color:#2f9e5c;flex-shrink:0}
+.join-club-button-wrap{display:grid;gap:8px}
+.join-club-secondary-btn{height:50px;border-radius:10px;border:1.5px solid #141414;background:transparent;color:#141414;font-size:14px;font-weight:700;cursor:pointer;width:100%}
+.join-club-secondary-btn:hover{background:rgba(20,20,20,.05)}
+.join-club-secondary-btn:disabled{opacity:.55;cursor:not-allowed}
+.join-club-error{margin:0;color:#b42318;font-size:12px}
+
+@media(max-width:900px){
+  .purchase-summary{grid-template-columns:1fr}
+  .club-how>div{grid-template-columns:1fr}
+  .club-topbar{flex-direction:column}
+  .club-menu{justify-content:flex-start}
+  .club-metrics{grid-template-columns:1fr}
+  .club-sticker-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .club-past-grid{grid-template-columns:1fr}
+  .digital-success-shell{grid-template-columns:1fr;padding:24px}
+}
+@media(max-width:520px){
+  .membership-card{padding:22px 18px}
+  .membership-success-shell,.club-shell{padding:34px 18px 52px}
+  .purchase-details h3{font-size:30px}
+  .club-sticker-grid{grid-template-columns:1fr}
+  .club-loop{flex-wrap:wrap}
+}

@@ -72,7 +72,8 @@ export const checkoutRequestSchema = z.object({
 
 export const subscriptionRequestSchema = z.object({
   subject: z.string().trim().max(80).optional(),
-  imageKey: z.string().regex(IMAGE_KEY_PATTERN),
+  imageKey: z.string().regex(IMAGE_KEY_PATTERN).optional(),
+  source: z.string().trim().max(40).optional(),
   turnstileToken: z.string().max(2048).optional(),
 });
 

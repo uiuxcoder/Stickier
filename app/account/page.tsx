@@ -1,31 +1,27 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { orders, subscriptions, users } from "@/db/schema";
+import { generations, subscriptions, users } from "@/db/schema";
+import { MemberDashboard } from "@/components/member-dashboard";
+import { MONTHLY_REGENERATIONS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ subscription?: string; verified?: string }>;
-}) {
+export default async function AccountPage() {
   const requestHeaders = await headers();
   const request = new Request("https://account.local", { headers: requestHeaders });
   const user = await getSessionUser(request);
   if (!user) redirect("/signin?return_to=/account");
-  const params = await searchParams;
 
-  let account = { regenerationsRemaining: 0, subscriptionStatus: "No active subscription" };
-  let history: typeof orders.$inferSelect[] = [];
-  let lookupFailed = false;
+  let remainingCreations = 0;
+  let isActive = false;
+  let stickerCards: { id: string; imageUrl: string; createdAt: number }[] = [];
 
   try {
     const db = getDb();
-    const [profile, activeSubscription, pastOrders] = await Promise.all([
+    const [profile, activeSubscription, allGenerations] = await Promise.all([
       db.select().from(users).where(eq(users.id, user.id)).limit(1),
       db
         .select()
@@ -33,65 +29,21 @@ export default async function AccountPage({
         .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
         .orderBy(desc(subscriptions.createdAt))
         .limit(1),
-      db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)),
+      db.select().from(generations).where(eq(generations.userId, user.id)).orderBy(desc(generations.createdAt)),
     ]);
-    account = {
-      regenerationsRemaining: profile[0]?.regenerationsRemaining ?? 0,
-      subscriptionStatus: activeSubscription[0]?.status || "No active subscription",
-    };
-    history = pastOrders;
+
+    isActive = Boolean(activeSubscription[0]);
+    remainingCreations = isActive
+      ? Math.max(0, Math.min(MONTHLY_REGENERATIONS, profile[0]?.regenerationsRemaining ?? 0))
+      : 0;
+    stickerCards = allGenerations.map((generation) => ({
+      id: generation.imageKey,
+      imageUrl: `/api/preview-stickers?key=${encodeURIComponent(generation.imageKey)}`,
+      createdAt: generation.createdAt,
+    }));
   } catch (error) {
     console.error("Account lookup failed", error);
-    lookupFailed = true;
   }
 
-  return (
-    <main className="account-page">
-      <header className="account-header">
-        <div>
-          <span className="eyebrow">YOUR STICKIER ACCOUNT</span>
-          <h1>Welcome back,<br /><em>{user.displayName}.</em></h1>
-          <p>{user.email}</p>
-          {params.subscription === "success" ? <p role="status">Your membership is active. You get 20 regenerations and 3 shipped sticker sheets each billing period.</p> : null}
-          {params.verified === "1" ? <p role="status">Your email is confirmed. You&apos;re signed in.</p> : null}
-          {lookupFailed ? <p role="alert">We could not load your account details. Please refresh in a moment.</p> : null}
-        </div>
-        <div className="account-header-actions">
-          <form action="/api/account/portal" method="post">
-            <button className="account-portal" type="submit">MANAGE BILLING</button>
-          </form>
-          <form action="/api/auth/signout" method="post">
-            <button className="account-signout" type="submit">SIGN OUT</button>
-          </form>
-        </div>
-      </header>
-      <section className="account-stats">
-        <article><span>MEMBERSHIP</span><strong>{account.subscriptionStatus}</strong><small>$19.99 / month</small></article>
-        <article><span>REGENERATIONS LEFT</span><strong>{account.regenerationsRemaining}</strong><small>Resets to 20 each billing period + 3 physical sheets shipped monthly</small></article>
-      </section>
-      <section className="account-history">
-        <div className="account-section-head">
-          <div><span className="eyebrow">YOUR ARCHIVE</span><h2>Past orders.</h2></div>
-          <Link className="account-create" href="/">MAKE A NEW SHEET <span>→</span></Link>
-        </div>
-        {history.length === 0 ? (
-          <p className="account-empty">Your paid sticker sheets will appear here.</p>
-        ) : (
-          <div className="order-list">
-            {history.map((order) => (
-              <article className="order-row" key={order.id}>
-                <div>
-                  <strong>{order.subject}&apos;s sticker sheet</strong>
-                  <small>{order.kind === "subscription" ? "Monthly membership" : "One-time purchase"}</small>
-                </div>
-                <time>{new Date(order.createdAt).toLocaleDateString()}</time>
-                <span>${(order.amount / 100).toFixed(2)}</span>
-                <a href={`/api/download-stickers?session_id=${encodeURIComponent(order.stripeSessionId)}`}>Download</a>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
-  );
+  return <MemberDashboard userId={user.id} email={user.email} isActive={isActive} remainingCreations={remainingCreations} stickers={stickerCards} />;
 }

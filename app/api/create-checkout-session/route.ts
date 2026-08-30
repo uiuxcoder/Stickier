@@ -55,7 +55,7 @@ export async function POST(request: Request) {
         },
         quantity: 1,
       }],
-      success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/membership/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?checkout=cancelled&image_key=${encodeURIComponent(imageKey)}`,
       ...(plan === "physical" ? { shipping_address_collection: { allowed_countries: ["US"] } } : {}),
       metadata: {
@@ -68,28 +68,15 @@ export async function POST(request: Request) {
       },
     } as const;
 
-    let session;
-    try {
-      session = await getStripe().checkout.sessions.create({
-        ...baseParams,
-        ...(plan === "physical" ? { automatic_tax: { enabled: true } } : {}),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const messageLower = message.toLowerCase();
-      const automaticTaxUnavailable =
-        plan === "physical" &&
-        (messageLower.includes("head office address") ||
-          messageLower.includes("automatic tax") ||
-          messageLower.includes("tax is not") ||
-          messageLower.includes("cannot calculate tax"));
+    const enableAutomaticTax =
+      plan === "physical" &&
+      !isLocalDev &&
+      process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true";
 
-      if (!automaticTaxUnavailable) throw error;
-
-      // Local/test fallback: Stripe Tax may be unconfigured in test mode.
-      // Retry physical checkout without automatic tax so development can proceed.
-      session = await getStripe().checkout.sessions.create(baseParams);
-    }
+    const session = await getStripe().checkout.sessions.create({
+      ...baseParams,
+      ...(enableAutomaticTax ? { automatic_tax: { enabled: true } } : {}),
+    });
 
     if (user?.email && email && user.email !== email) {
       console.warn("Checkout email differs from signed-in user", { userId: user.id });

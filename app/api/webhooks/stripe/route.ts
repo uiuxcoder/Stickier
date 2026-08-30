@@ -64,8 +64,9 @@ async function findUserId(email: string, metadataUserId?: string | null) {
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin: string) {
   if (!isPaidCheckout(session)) return;
   const imageKey = session.metadata?.imageKey;
+  const hasImageKey = isImageKey(imageKey);
   const email = checkoutEmail(session);
-  if (!email || !isImageKey(imageKey)) return;
+  if (!email) return;
 
   const db = getDb();
   const stripeCustomerId = customerId(session.customer);
@@ -93,25 +94,27 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
 
   const userId = await findUserId(email, metadataUserId);
 
-  await db
-    .insert(orders)
-    .values({
-      id: crypto.randomUUID(),
-      userId,
-      email,
-      stripeSessionId: session.id,
-      kind: isSubscription ? "subscription" : "one-time",
-      subject: session.metadata?.subject || "Your",
-      imageKey,
-      amount: session.amount_total || 0,
-      createdAt: now,
-    })
-    .onConflictDoNothing({ target: orders.stripeSessionId });
+  if (hasImageKey) {
+    await db
+      .insert(orders)
+      .values({
+        id: crypto.randomUUID(),
+        userId,
+        email,
+        stripeSessionId: session.id,
+        kind: isSubscription ? "subscription" : "one-time",
+        subject: session.metadata?.subject || "Your",
+        imageKey,
+        amount: session.amount_total || 0,
+        createdAt: now,
+      })
+      .onConflictDoNothing({ target: orders.stripeSessionId });
 
-  await db
-    .update(generations)
-    .set({ purchasedAt: now, email, ...(userId ? { userId } : {}) })
-    .where(eq(generations.imageKey, imageKey));
+    await db
+      .update(generations)
+      .set({ purchasedAt: now, email, ...(userId ? { userId } : {}) })
+      .where(eq(generations.imageKey, imageKey));
+  }
 
   if (isSubscription && typeof session.subscription === "string") {
     await db
@@ -123,14 +126,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
       });
   }
 
-  const existing = await db
-    .select({ emailSentAt: orders.emailSentAt })
-    .from(orders)
-    .where(eq(orders.stripeSessionId, session.id))
-    .limit(1);
-  if (!existing[0]?.emailSentAt) {
-    await sendDownloadEmail(session, email, origin);
-    await db.update(orders).set({ emailSentAt: new Date().toISOString() }).where(eq(orders.stripeSessionId, session.id));
+  if (hasImageKey) {
+    const existing = await db
+      .select({ emailSentAt: orders.emailSentAt })
+      .from(orders)
+      .where(eq(orders.stripeSessionId, session.id))
+      .limit(1);
+    if (!existing[0]?.emailSentAt) {
+      await sendDownloadEmail(session, email, origin);
+      await db.update(orders).set({ emailSentAt: new Date().toISOString() }).where(eq(orders.stripeSessionId, session.id));
+    }
   }
 }
 

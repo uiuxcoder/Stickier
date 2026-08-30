@@ -15,7 +15,6 @@ import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const user = await getSessionUser(request);
-  if (!user) return Response.json({ error: "Sign in to subscribe." }, { status: 401 });
   if (!process.env.STRIPE_SECRET_KEY) return Response.json({ error: "Stripe is not configured." }, { status: 500 });
 
   const hourly = await consumeRateLimit(rateLimiters().checkout, `checkout:${await hashIp(request)}`, CHECKOUT_HOURLY_CAP, 60 * 60 * 1000);
@@ -30,21 +29,23 @@ export async function POST(request: Request) {
     const hostname = new URL(request.url).hostname;
     const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "terminal.local";
     const isLocalDev = process.env.NODE_ENV !== "production" || isLocalHost;
-    if (!isLocalDev) {
+    if (!isLocalDev && turnstileToken) {
       const turnstile = await verifyTurnstile(turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
       if (!turnstile.ok) {
         return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
       }
     }
 
-    const generation = await getDb().select().from(generations).where(eq(generations.imageKey, imageKey)).limit(1);
-    if (!generation[0]) return Response.json({ error: "That sticker sheet is no longer available." }, { status: 404 });
+    if (imageKey) {
+      const generation = await getDb().select().from(generations).where(eq(generations.imageKey, imageKey)).limit(1);
+      if (!generation[0]) return Response.json({ error: "That sticker sheet is no longer available." }, { status: 404 });
+    }
 
     const origin = new URL(request.url).origin;
     const priceId = process.env.STRIPE_SUBSCRIPTION_PRICE_ID;
     const session = await getStripe().checkout.sessions.create({
       mode: "subscription",
-      customer_email: user.email,
+      ...(user?.email ? { customer_email: user.email } : {}),
       line_items: priceId
         ? [{ price: priceId, quantity: 1 }]
         : [
@@ -61,21 +62,21 @@ export async function POST(request: Request) {
               quantity: 1,
             },
           ],
-      success_url: `${origin}/account?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?checkout=cancelled`,
+      success_url: `${origin}/membership/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/membership`,
       shipping_address_collection: { allowed_countries: ["US"] },
       metadata: {
-        email: user.email,
-        userId: user.id,
+        ...(user?.email ? { email: user.email } : {}),
+        ...(user?.id ? { userId: user.id } : {}),
         subject: subject || "Your",
-        imageKey,
+        ...(imageKey ? { imageKey } : {}),
         monthlyRegenerations: String(MONTHLY_REGENERATIONS),
         monthlyPhysicalSheets: String(MONTHLY_PHYSICAL_SHEETS),
       },
       subscription_data: {
         metadata: {
-          email: user.email,
-          userId: user.id,
+          ...(user?.email ? { email: user.email } : {}),
+          ...(user?.id ? { userId: user.id } : {}),
           monthlyRegenerations: String(MONTHLY_REGENERATIONS),
           monthlyPhysicalSheets: String(MONTHLY_PHYSICAL_SHEETS),
         },
