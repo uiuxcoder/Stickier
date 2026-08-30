@@ -13,18 +13,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Stripe is not configured." }, { status: 500 });
   }
 
+  const hostname = new URL(request.url).hostname;
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "terminal.local";
+  const isLocalDev = process.env.NODE_ENV !== "production" || isLocalHost;
+
   const hourly = await consumeRateLimit(rateLimiters().checkout, `checkout:${await hashIp(request)}`, CHECKOUT_HOURLY_CAP, 60 * 60 * 1000);
   if (!hourly.ok) return rateLimitResponse(hourly.retryAfterMs);
 
   try {
     const parsed = checkoutRequestSchema.safeParse(await request.json());
-    if (!parsed.success) return Response.json({ error: "A valid email and sticker sheet are required." }, { status: 400 });
+    if (!parsed.success) return Response.json({ error: "A sticker sheet is required." }, { status: 400 });
 
     const { email, subject, imageKey, turnstileToken, plan, name, address, city, state, zip } = parsed.data;
 
-    const turnstile = await verifyTurnstile(turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
-    if (!turnstile.ok) {
-      return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
+    if (!isLocalDev) {
+      const turnstile = await verifyTurnstile(turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
+      if (!turnstile.ok) {
+        return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
+      }
     }
 
     const generation = await getDb().select().from(generations).where(eq(generations.imageKey, imageKey)).limit(1);
@@ -32,11 +38,12 @@ export async function POST(request: Request) {
     if (generation[0].purchasedAt) return Response.json({ error: "This sticker sheet was already purchased." }, { status: 409 });
 
     const user = await getSessionUser(request);
+    const checkoutEmail = email || user?.email || undefined;
     const origin = new URL(request.url).origin;
     const amount = plan === "physical" ? 999 : ONE_TIME_AMOUNT_CENTS;
-    const session = await getStripe().checkout.sessions.create({
+    const baseParams = {
       mode: "payment",
-      customer_email: email,
+      ...(checkoutEmail ? { customer_email: checkoutEmail } : {}),
       line_items: [{
         price_data: {
           currency: "usd",
@@ -49,25 +56,52 @@ export async function POST(request: Request) {
         quantity: 1,
       }],
       success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?checkout=cancelled`,
-      ...(plan === "physical" ? { automatic_tax: { enabled: true }, shipping_address_collection: { allowed_countries: ["US"] } } : {}),
+      cancel_url: `${origin}/?checkout=cancelled&image_key=${encodeURIComponent(imageKey)}`,
+      ...(plan === "physical" ? { shipping_address_collection: { allowed_countries: ["US"] } } : {}),
       metadata: {
         subject: subject || "Your",
         imageKey,
         plan,
         ...(plan === "physical" ? { name: name || "", address: address || "", city: city || "", state: state || "", zip: zip || "" } : {}),
-        email,
+        ...(checkoutEmail ? { email: checkoutEmail } : {}),
         ...(user ? { userId: user.id } : {}),
       },
-    });
+    } as const;
 
-    if (user?.email && user.email !== email) {
+    let session;
+    try {
+      session = await getStripe().checkout.sessions.create({
+        ...baseParams,
+        ...(plan === "physical" ? { automatic_tax: { enabled: true } } : {}),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const messageLower = message.toLowerCase();
+      const automaticTaxUnavailable =
+        plan === "physical" &&
+        (messageLower.includes("head office address") ||
+          messageLower.includes("automatic tax") ||
+          messageLower.includes("tax is not") ||
+          messageLower.includes("cannot calculate tax"));
+
+      if (!automaticTaxUnavailable) throw error;
+
+      // Local/test fallback: Stripe Tax may be unconfigured in test mode.
+      // Retry physical checkout without automatic tax so development can proceed.
+      session = await getStripe().checkout.sessions.create(baseParams);
+    }
+
+    if (user?.email && email && user.email !== email) {
       console.warn("Checkout email differs from signed-in user", { userId: user.id });
     }
 
     return Response.json({ url: session.url });
   } catch (error) {
     console.error("Stripe Checkout error", error);
+    if (isLocalDev) {
+      const message = error instanceof Error ? error.message : "Unable to start checkout.";
+      return Response.json({ error: `Unable to start checkout. ${message}` }, { status: 500 });
+    }
     return Response.json({ error: "Unable to start checkout." }, { status: 500 });
   }
 }

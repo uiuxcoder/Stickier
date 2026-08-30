@@ -52,7 +52,7 @@ export default async function AccountPage({
           <span className="eyebrow">YOUR STICKIER ACCOUNT</span>
           <h1>Welcome back,<br /><em>{user.displayName}.</em></h1>
           <p>{user.email}</p>
-          {params.subscription === "success" ? <p role="status">Your membership is active. Regenerations refresh each billing period.</p> : null}
+          {params.subscription === "success" ? <p role="status">Your membership is active. You get 20 regenerations and 3 shipped sticker sheets each billing period.</p> : null}
           {params.verified === "1" ? <p role="status">Your email is confirmed. You&apos;re signed in.</p> : null}
           {lookupFailed ? <p role="alert">We could not load your account details. Please refresh in a moment.</p> : null}
         </div>
@@ -66,8 +66,8 @@ export default async function AccountPage({
         </div>
       </header>
       <section className="account-stats">
-        <article><span>MEMBERSHIP</span><strong>{account.subscriptionStatus}</strong><small>$9.99 / month</small></article>
-        <article><span>REGENERATIONS LEFT</span><strong>{account.regenerationsRemaining}</strong><small>Resets to 20 each billing period</small></article>
+        <article><span>MEMBERSHIP</span><strong>{account.subscriptionStatus}</strong><small>$19.99 / month</small></article>
+        <article><span>REGENERATIONS LEFT</span><strong>{account.regenerationsRemaining}</strong><small>Resets to 20 each billing period + 3 physical sheets shipped monthly</small></article>
       </section>
       <section className="account-history">
         <div className="account-section-head">

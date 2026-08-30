@@ -14,7 +14,7 @@ export default function TermsPage() {
       <h2>Your content</h2>
       <p>You must have the right to use every photo you upload, including photos of other people. Do not upload images of minors without appropriate consent. You grant Stickier a limited license to process those photos solely to generate and deliver your stickers.</p>
       <h2>The product</h2>
-      <p>Results are AI-generated and may vary. Previews are watermarked or reduced-quality. The print-quality file is delivered after payment. Membership includes 20 regenerations per billing period and does not guarantee a specific likeness.</p>
+      <p>Results are AI-generated and may vary. Previews are watermarked or reduced-quality. The print-quality file is delivered after payment. Membership includes 20 regenerations and 3 physical sticker sheets shipped per billing period and does not guarantee a specific likeness.</p>
       <h2>Payments</h2>
       <p>One-time packs and monthly memberships are billed by Stripe. Memberships renew until cancelled. See the <a href="/refunds">refund policy</a> for refunds and cancellations.</p>
     </main>

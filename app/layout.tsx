@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://stickier.app"),
@@ -25,12 +26,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {children}
-        <footer className="site-footer">
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-          <a href="/refunds">Refunds</a>
-          <a href="mailto:hello@stickier.app">Support</a>
-        </footer>
+        <SiteFooter />
       </body>
     </html>
   );

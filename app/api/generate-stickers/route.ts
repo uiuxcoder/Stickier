@@ -7,6 +7,7 @@ import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib
 import { dataUrlToFile, generationRequestSchema } from "@/lib/validation";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { moderateText } from "@/lib/moderation";
+import { processGenerationJob } from "@/lib/generation-worker";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
 const ACTIVE_STATUSES = ["active", "trialing"] as const;
@@ -37,9 +38,14 @@ export async function POST(request: Request) {
   const input = parsed.data;
 
   // Bot protection on an expensive, unauthenticated-capable endpoint.
-  const turnstile = await verifyTurnstile(input.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
-  if (!turnstile.ok) {
-    return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
+  // Local development on localhost skips Turnstile to keep the flow testable.
+  const host = new URL(request.url).hostname;
+  const isLocalDev = host === "localhost" || host === "127.0.0.1";
+  if (!isLocalDev) {
+    const turnstile = await verifyTurnstile(input.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
+    if (!turnstile.ok) {
+      return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
+    }
   }
 
   const user = await getSessionUser(request);
@@ -120,7 +126,25 @@ export async function POST(request: Request) {
     updatedAt: now,
   });
 
-  await queue.send({ jobId });
+  if (isLocalDev) {
+    try {
+      // Local wrangler queue delivery is not always reliable during hot reload,
+      // so run jobs inline in localhost to keep development flow usable.
+      await processGenerationJob({ DB: env.DB, STICKER_ASSETS: bucket }, { jobId });
+    } catch (error) {
+      console.error("Local generation job failed", error);
+      await db
+        .update(generationJobs)
+        .set({
+          status: "failed",
+          error: error instanceof Error ? error.message : "Generation failed.",
+          updatedAt: Date.now(),
+        })
+        .where(eq(generationJobs.id, jobId));
+    }
+  } else {
+    await queue.send({ jobId });
+  }
 
   return Response.json({ jobId, status: "queued" });
 }

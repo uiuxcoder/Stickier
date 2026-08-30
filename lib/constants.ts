@@ -1,6 +1,7 @@
 export const MONTHLY_REGENERATIONS = 20;
+export const MONTHLY_PHYSICAL_SHEETS = 3;
 export const ONE_TIME_AMOUNT_CENTS = 499;
-export const SUBSCRIPTION_AMOUNT_CENTS = 999;
+export const SUBSCRIPTION_AMOUNT_CENTS = 1999;
 export const DOWNLOAD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const IMAGE_KEY_PATTERN = /^stickers\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/i;
 export const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
@@ -20,10 +21,12 @@ export const THEMES = [
   "Christmas",
   "Birthday",
 ] as const;
-export const MOODS = ["Cute", "Funny", "Cozy", "Chaotic", "Dreamy", "Cool", "Sweet", "Playful"] as const;
+// Keep this list aligned with the client mood picker in `app/page.tsx`.
+export const MOODS = ["Cute", "Funny", "Cozy", "Chaotic", "Dreamy", "Cool", "Retro", "Surreal"] as const;
 export const PRODUCTS = ["me", "pet", "partner", "family"] as const;
 export const MAX_REFERENCE_PHOTOS = 6;
-export const MAX_PHOTO_BYTES = 2_500_000;
+// 8MB keeps mobile photos usable in local/prod flows while still bounded.
+export const MAX_PHOTO_BYTES = 8_000_000;
 export const MAX_SPECIAL_REQUEST_CHARS = 500;
 export const ANON_DAILY_PREVIEWS = 2;
 export const GENERATE_HOURLY_CAP = 8;

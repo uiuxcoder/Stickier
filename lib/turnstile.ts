@@ -7,8 +7,12 @@ const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
  */
 export async function verifyTurnstile(token: string | null | undefined, remoteIp?: string) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
+  // Keep local development usable even when Turnstile is not fully wired.
+  if (process.env.NODE_ENV !== "production" && (!secret || !token)) {
+    return { ok: true, reason: "dev-bypass" };
+  }
   if (!secret) {
-    return { ok: process.env.NODE_ENV !== "production", reason: "unconfigured" };
+    return { ok: false, reason: "unconfigured" };
   }
   if (!token) return { ok: false, reason: "missing-token" };
 

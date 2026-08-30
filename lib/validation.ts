@@ -35,11 +35,33 @@ export const generationRequestSchema = z.object({
   turnstileToken: z.string().max(2048).optional(),
 });
 
+const checkoutPlanSchema = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (normalized === "digital") return "digital";
+  if (
+    normalized === "physical" ||
+    normalized === "physical + digital" ||
+    normalized === "digital + physical" ||
+    normalized === "physical and digital" ||
+    normalized === "digital and physical"
+  ) {
+    return "physical";
+  }
+
+  return value;
+}, z.enum(["digital", "physical"]).default("digital"));
+
 export const checkoutRequestSchema = z.object({
-  email: z.string().trim().regex(EMAIL_PATTERN),
+  email: z.string().trim().regex(EMAIL_PATTERN).optional(),
   subject: z.string().trim().max(80).optional(),
   imageKey: z.string().regex(IMAGE_KEY_PATTERN),
-  plan: z.enum(["digital", "physical"]).default("digital"),
+  plan: checkoutPlanSchema,
   name: z.string().trim().max(120).optional(),
   address: z.string().trim().max(200).optional(),
   city: z.string().trim().max(80).optional(),

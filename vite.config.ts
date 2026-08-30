@@ -14,10 +14,21 @@ export default defineConfig(async () => {
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
-  return {
+    return {
+    optimizeDeps: {
+      exclude: ["heic2any"],
+    },
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],
+      // Proxy API calls to the local Wrangler worker so the unbuilt UI can
+      // call the worker's endpoints during development.
+      proxy: {
+        "/api": {
+          target: "http://localhost:8788",
+          changeOrigin: true,
+        },
+      },
       ...(isCodexSeatbeltSandbox
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),

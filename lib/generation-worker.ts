@@ -88,21 +88,32 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
   }
 
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
-  const body = new FormData();
-  body.append("model", model);
-  body.append("prompt", promptFor(input));
-  body.append("size", "1024x1024");
-  body.append("quality", "medium");
-  photos.forEach((photo) => body.append("image[]", photo));
-
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
-    const response = await fetch(photos.length ? OPENAI_EDITS_URL : OPENAI_IMAGES_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body,
-      signal: AbortSignal.timeout(120_000),
-    });
+    let response: Response;
+    if (photos.length) {
+      const body = new FormData();
+      body.append("model", model);
+      body.append("prompt", promptFor(input));
+      body.append("size", "1024x1024");
+      body.append("quality", "medium");
+      photos.forEach((photo) => body.append("image[]", photo));
+
+      response = await fetch(OPENAI_EDITS_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body,
+        signal: AbortSignal.timeout(120_000),
+      });
+    } else {
+      const jsonBody = JSON.stringify({ model, prompt: promptFor(input), size: "1024x1024", quality: "medium" });
+      response = await fetch(OPENAI_IMAGES_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: jsonBody,
+        signal: AbortSignal.timeout(120_000),
+      });
+    }
     result = await response.json();
     if (!response.ok || (!result.data?.[0]?.b64_json && !result.data?.[0]?.url)) {
       throw new Error(result.error?.message || `OpenAI returned ${response.status}`);
