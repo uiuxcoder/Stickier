@@ -28,7 +28,7 @@ Set each secret in a local `.env` file (gitignored) and with `wrangler secret pu
 - `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile bot protection
 - `APP_ORIGIN` — canonical site origin used in auth emails (defaults to `https://stickier.app` in production)
 
-Optional: `STRIPE_PRICE_ID`, `STRIPE_SUBSCRIPTION_PRICE_ID`, `OPENAI_IMAGE_MODEL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+Optional: `STRIPE_PRICE_ID`, `OPENAI_IMAGE_MODEL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 
 Local development can use Cloudflare’s always-pass Turnstile test keys (`1x00000000000000000000AA` / `1x0000000000000000000000000000000AA`). Replace them with a real widget before production.
 

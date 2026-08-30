@@ -29,7 +29,7 @@ export default function MembershipPage() {
     <main className="membership-shell">
       <section className="membership-card">
         <p className="membership-kicker">Sticker Club</p>
-        <h1>$19.99/month</h1>
+        <h1>$14.99/month</h1>
         <p className="membership-summary">20 creations this month. Choose your 3. Ship your 3 anytime before month-end.</p>
         <ul>
           <li>

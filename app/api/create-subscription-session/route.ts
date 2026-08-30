@@ -42,26 +42,23 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
-    const priceId = process.env.STRIPE_SUBSCRIPTION_PRICE_ID;
     const session = await getStripe().checkout.sessions.create({
       mode: "subscription",
       ...(user?.email ? { customer_email: user.email } : {}),
-      line_items: priceId
-        ? [{ price: priceId, quantity: 1 }]
-        : [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: "Stickier monthly membership",
-                  description: `${MONTHLY_REGENERATIONS} sticker regenerations + ${MONTHLY_PHYSICAL_SHEETS} physical sticker sheets shipped each month`,
-                },
-                unit_amount: SUBSCRIPTION_AMOUNT_CENTS,
-                recurring: { interval: "month" },
-              },
-              quantity: 1,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Stickier monthly membership",
+              description: `${MONTHLY_REGENERATIONS} sticker regenerations + ${MONTHLY_PHYSICAL_SHEETS} physical sticker sheets shipped each month`,
             },
-          ],
+            unit_amount: SUBSCRIPTION_AMOUNT_CENTS,
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
+        },
+      ],
       success_url: `${origin}/api/membership/complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/membership`,
       shipping_address_collection: { allowed_countries: ["US"] },
