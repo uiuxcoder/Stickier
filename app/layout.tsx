@@ -3,7 +3,7 @@ import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://stickier.app"),
+  metadataBase: new URL("https://saltysticker.com"),
   title: "Stickier — Your Life as a Sticker Sheet",
   description: "Turn the little things that make you, you into a one-of-one sticker sheet.",
   openGraph: {

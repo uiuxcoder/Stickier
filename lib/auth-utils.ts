@@ -38,6 +38,6 @@ export function safeRelativeReturnPath(value: string | null | undefined): string
 export function appOrigin(request: Request): string {
   const configured = process.env.APP_ORIGIN?.replace(/\/$/, "");
   if (configured) return configured;
-  if (process.env.NODE_ENV === "production") return "https://stickier.app";
+  if (process.env.NODE_ENV === "production") return "https://saltysticker.com";
   return new URL(request.url).origin;
 }
