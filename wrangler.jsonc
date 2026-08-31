@@ -9,6 +9,12 @@
   "vars": {
     "STRIPE_ENABLE_AUTOMATIC_TAX": "true"
   },
+  // The print-asset pipeline decodes, dilates and re-encodes a print-resolution
+  // sheet, which needs seconds of CPU rather than the 30s default's usual
+  // milliseconds. Requires the Workers Paid plan.
+  "limits": {
+    "cpu_ms": 300000
+  },
   "observability": {
     "enabled": true,
     "logs": {
