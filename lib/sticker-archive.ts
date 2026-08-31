@@ -40,36 +40,6 @@ export function makeSheetTransparent(source: Buffer) {
   return Buffer.from(encodePng({ width, height, data: rgba, channels: 4, depth: 8 }));
 }
 
-function removeEdgeConnectedSpill(pixels: Uint8Array, width: number, height: number) {
-  const visited = new Uint8Array(width * height);
-  const queue: number[] = [];
-  const enqueue = (pixel: number) => {
-    if (visited[pixel] || pixels[pixel * 4 + 3] <= 16) return;
-    visited[pixel] = 1;
-    queue.push(pixel);
-  };
-
-  for (let x = 0; x < width; x++) {
-    enqueue(x);
-    enqueue((height - 1) * width + x);
-  }
-  for (let y = 0; y < height; y++) {
-    enqueue(y * width);
-    enqueue(y * width + width - 1);
-  }
-
-  for (let cursor = 0; cursor < queue.length; cursor++) {
-    const pixel = queue[cursor];
-    const x = pixel % width;
-    const y = Math.floor(pixel / width);
-    pixels[pixel * 4 + 3] = 0;
-    if (x > 0) enqueue(pixel - 1);
-    if (x + 1 < width) enqueue(pixel + 1);
-    if (y > 0) enqueue(pixel - width);
-    if (y + 1 < height) enqueue(pixel + width);
-  }
-}
-
 export function buildStickerTiles(sheet: Buffer) {
   const { width, height, rgba } = decodeRgba(sheet);
   const tileWidth = Math.max(1, Math.floor(width / 3));
@@ -99,8 +69,6 @@ export function buildStickerTiles(sheet: Buffer) {
         output.set(rgba.subarray(sourceIndex, sourceIndex + 4), outputIndex);
       }
     }
-    removeEdgeConnectedSpill(output, tileWidth, tileHeight);
-
     return {
       name: `sticker-${String(index + 1).padStart(2, "0")}.png`,
       buffer: Buffer.from(encodePng({ width: tileWidth, height: tileHeight, data: output, channels: 4, depth: 8 })),

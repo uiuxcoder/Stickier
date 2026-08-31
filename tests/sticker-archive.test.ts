@@ -39,10 +39,11 @@ test("download archive contains a transparent sheet and ten transparent stickers
     const png = decodePng(await archive.file(name)!.async("nodebuffer"));
     assert.equal(png.channels, 4);
     assert.equal(png.data.some((value, index) => index % 4 === 3 && value === 0), true, `${name} should contain transparency`);
+    assert.equal(png.data.some((value, index) => index % 4 === 3 && value > 16), true, `${name} should contain artwork`);
   }
 });
 
-test("sticker tiles remove artwork spilling in from a neighboring cell", () => {
+test("sticker tiles preserve artwork that touches the crop edge", () => {
   const width = 30;
   const height = 40;
   const pixels = new Uint8Array(width * height * 4);
@@ -57,6 +58,6 @@ test("sticker tiles remove artwork spilling in from a neighboring cell", () => {
   const source = Buffer.from(encodePng({ width, height, data: pixels, channels: 4, depth: 8 }));
   const first = decodePng(buildStickerTiles(source)[0].buffer);
 
-  assert.equal(first.data[(5 * 10 + 1) * 4 + 3], 0, "edge-connected spill should be transparent");
+  assert.equal(first.data[(5 * 10 + 1) * 4 + 3], 255, "edge-touching sticker artwork should remain");
   assert.equal(first.data[(5 * 10 + 5) * 4 + 3], 255, "centered sticker artwork should remain");
 });
