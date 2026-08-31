@@ -57,6 +57,19 @@ test("forwards progress semantics to the primitive", async () => {
   assert.match(html, /data-state="loading"/);
 });
 
+test("handles empty auth responses without exposing a JSON parser error", async () => {
+  const { readAuthResponse } = await vite.ssrLoadModule("/components/auth-form.tsx");
+
+  await assert.rejects(
+    readAuthResponse(new Response(null, { status: 502 })),
+    /The server did not respond\. Please try again\./,
+  );
+  assert.deepEqual(
+    await readAuthResponse(Response.json({ error: "Unable to create account." }, { status: 500 })),
+    { error: "Unable to create account." },
+  );
+});
+
 test("emits chart themes for the starter's media dark mode", async () => {
   const { ChartStyle } = await vite.ssrLoadModule("/components/ui/chart.tsx");
   const html = renderToStaticMarkup(

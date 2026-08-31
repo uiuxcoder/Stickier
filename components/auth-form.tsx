@@ -43,6 +43,27 @@ const copy: Record<AuthMode, { eyebrow: string; title: string; submit: string; d
   },
 };
 
+type AuthResponse = {
+  error?: string;
+  code?: string;
+  needsVerification?: boolean;
+  emailed?: boolean;
+  user?: { email?: string };
+};
+
+export async function readAuthResponse(response: Response): Promise<AuthResponse> {
+  const text = await response.text();
+  if (!text) {
+    throw new Error("The server did not respond. Please try again.");
+  }
+
+  try {
+    return JSON.parse(text) as AuthResponse;
+  } catch {
+    throw new Error("The server returned an unexpected response. Please try again.");
+  }
+}
+
 export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/" }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
@@ -78,13 +99,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
           returnTo,
         }),
       });
-      const data = (await response.json()) as {
-        error?: string;
-        code?: string;
-        needsVerification?: boolean;
-        emailed?: boolean;
-        user?: { email?: string };
-      };
+      const data = await readAuthResponse(response);
       if (!response.ok) {
         if (data.code === "unverified") setUnverified(true);
         throw new Error(data.error || "Unable to continue.");
@@ -119,7 +134,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
         body: JSON.stringify({ email }),
       });
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
+        const data = await readAuthResponse(response);
         throw new Error(data.error || "Unable to resend.");
       }
       setStatus("If that email still needs confirming, a new link is on its way.");
