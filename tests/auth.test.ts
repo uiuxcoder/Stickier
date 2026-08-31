@@ -54,7 +54,7 @@ test("rejects weak passwords", () => {
 
 test("password hashes verify and reject a wrong password", async () => {
   const stored = await hashPassword("correct-horse-battery");
-  assert.equal(stored.startsWith("pbkdf2$sha256$210000$"), true);
+  assert.equal(stored.startsWith("pbkdf2$sha256$100000$"), true);
   assert.equal(await verifyPassword("correct-horse-battery", stored), true);
   assert.equal(await verifyPassword("wrong-password-battery", stored), false);
   assert.equal(await verifyPassword("correct-horse-battery", "not-a-hash"), false);

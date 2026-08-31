@@ -6,7 +6,7 @@
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./constants.ts";
 import { base64UrlToBytes, bytesToBase64Url, timingSafeEqual } from "./crypto.ts";
 
-const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_SALT_BYTES = 16;
 const PBKDF2_KEY_BYTES = 32;
 const COMMON_PASSWORDS = new Set([
