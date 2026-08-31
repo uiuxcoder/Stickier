@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, DragEvent, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ImagePlus, PawPrint, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -42,36 +42,6 @@ function readLandingVariant(): "v1" | "v2" {
     if (saved === "v1" || saved === "v2") return saved;
   } catch { /* private mode */ }
   return DEFAULT_LANDING_VARIANT;
-}
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (el: HTMLElement, opts: Record<string, unknown>) => string;
-      reset: (id?: string) => void;
-      remove: (id?: string) => void;
-    };
-  }
-}
-
-// Shared across every widget mount so the API script is only appended once.
-let turnstileScript: Promise<void> | null = null;
-function loadTurnstile(): Promise<void> {
-  if (window.turnstile) return Promise.resolve();
-  if (!turnstileScript) {
-    turnstileScript = new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => {
-        turnstileScript = null;
-        reject(new Error("Turnstile failed to load."));
-      };
-      document.head.appendChild(script);
-    });
-  }
-  return turnstileScript;
 }
 
 function Sheet({ name, className = "", clean = false, src = "/latest-dog-person-sticker-sheet-v13.webp" }: { name: string; className?: string; clean?: boolean; src?: string }) {
@@ -219,8 +189,6 @@ export default function Home(){
   const [generatedSlices,setGeneratedSlices]=useState<string[]>([]);
   const [generationError,setGenerationError]=useState("");
   const [tick,setTick]=useState(0);
-  const [turnstileToken,setTurnstileToken]=useState("");
-  const turnstileWidgetId=useRef<string|undefined>(undefined);
   const pollTimer=useRef<number|undefined>(undefined);
   // Always initialize to the default so SSR and hydration match; the real
   // variant is applied in a layout effect before the first client paint.
@@ -232,8 +200,9 @@ export default function Home(){
   const total=3;
   const requestExample='Examples: “Put us in Halloween costumes,” “Give my plant a cute pot.”';
   const currentStep=({photos:1,details:2,mood:3} as Partial<Record<Stage,number>>)[stage]||1;
-  const turnstileSiteKey=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isLocalDev=typeof window!=="undefined"&&["localhost","127.0.0.1"].includes(window.location.hostname);
+  const turnstileSiteKey=false;
+  const mountTurnstile=()=>undefined;
+  const canVerify=true;
 
   useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(x=>Math.min(x+1,3)),2200);return()=>clearInterval(a)},[stage]);
   useEffect(()=>{
@@ -322,24 +291,6 @@ export default function Home(){
     }
   },[generatedImage,generatedImageKey,product,name,groupName,pet,theme,moods,email]);
 
-  // A callback ref, not an effect: the widget container only exists on the
-  // stages that need a token, so mounting has to follow the container rather
-  // than run once when the page loads. Each mount issues its own token, which
-  // keeps the single-use tokens for generation and for checkout distinct.
-  const mountTurnstile=useCallback((node:HTMLDivElement|null)=>{
-    if(!turnstileSiteKey)return;
-    if(!node){
-      if(turnstileWidgetId.current&&window.turnstile)window.turnstile.remove(turnstileWidgetId.current);
-      turnstileWidgetId.current=undefined;
-      setTurnstileToken("");
-      return;
-    }
-    void loadTurnstile().then(()=>{
-      if(!window.turnstile||turnstileWidgetId.current||!node.isConnected)return;
-      turnstileWidgetId.current=window.turnstile.render(node,{sitekey:turnstileSiteKey,callback:(token:string)=>setTurnstileToken(token),"expired-callback":()=>setTurnstileToken("")});
-    }).catch(()=>setGenerationError("We could not load the human-verification widget. Please refresh and try again."));
-  },[turnstileSiteKey]);
-
   useEffect(()=>{const params=new URLSearchParams(window.location.search);const checkout=params.get("checkout");const sessionId=params.get("session_id");const cancelledImageKey=params.get("image_key");const restoreRevealFromSession=()=>{if(generatedImageKey){setStage("reveal");return true}try{const raw=sessionStorage.getItem("stickier-reveal");if(!raw)return false;const saved=JSON.parse(raw) as {generatedImage?:string;generatedImageKey?:string;product?:Product;name?:string;groupName?:string;pet?:{name:string;species:string};theme?:string;moods?:string[];email?:string};if(!saved.generatedImageKey)return false;setGeneratedImage(saved.generatedImage||`/api/preview-stickers?key=${encodeURIComponent(saved.generatedImageKey)}`);setGeneratedImageKey(saved.generatedImageKey);if(saved.product)setProduct(saved.product);if(saved.name)setName(saved.name);if(saved.groupName)setGroupName(saved.groupName);if(saved.pet)setPet(saved.pet);if(saved.theme)setTheme(saved.theme);if(saved.moods)setMoods(saved.moods);if(saved.email)setEmail(current=>current||saved.email!);setStage("reveal");return true}catch{sessionStorage.removeItem("stickier-reveal");return false}};const restoreRevealFromCancelledKey=(key:string|null)=>{if(!key)return false;if(!/^stickers\/.+\.png$/i.test(key))return false;setGeneratedImage(`/api/preview-stickers?key=${encodeURIComponent(key)}`);setGeneratedImageKey(key);setStage("reveal");return true};if(checkout==="cancelled"){const restored=restoreRevealFromSession()||restoreRevealFromCancelledKey(cancelledImageKey);if(!restored){setCheckoutNotice("Checkout was cancelled. Regenerate your preview to continue.")}else{queueMicrotask(()=>setCheckoutNotice("Checkout was cancelled. Your preview is still here if you want to try again."))}window.history.replaceState({},"",window.location.pathname);return}if(!sessionId){if(checkout)window.history.replaceState({},"",window.location.pathname);return}
     // Poll checkout-status until the webhook has recorded the order.
     let attempts=0;
@@ -403,7 +354,7 @@ export default function Home(){
     try{
       const keys=[...photoKeys,...referencePhotoKeys];
       const dataUrls=[...photoDataUrls,...referencePhotoDataUrls];
-      const response=await fetch("/api/generate-stickers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoKeys:keys,photos:dataUrls,subject,product,companion:"skip",species:pet.species,theme,moods,specialRequest,turnstileToken})});
+      const response=await fetch("/api/generate-stickers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoKeys:keys,photos:dataUrls,subject,product,companion:"skip",species:pet.species,theme,moods,specialRequest})});
       const data=await response.json() as {jobId?:string;error?:string};
       if(!response.ok||!data.jobId)throw new Error(data.error||"Unable to start generation.");
       const jobId=data.jobId;
@@ -431,17 +382,12 @@ export default function Home(){
   const beginAnotherSheet=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setProduct("me");setName("");setGroupName("");setPet({name:"",species:"Dog"});setTheme("Classic");setStage("photos")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
   const openPayment=()=>{if(isActiveMember)return;setPaymentPlan("physical");setCheckoutError("");setPaymentOpen(true)};
-  const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
-  const startSubscription=async()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_started",{plan:"membership"});try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
+  const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
+  const startSubscription=async()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_started",{plan:"membership"});try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
   const back:Partial<Record<Stage,Stage>>={photos:"home",details:skipPhotoStep?"home":"photos",mood:"details",reveal:"mood"};
   const confirmationSheetSrc = checkoutSessionId
     ? `/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`
     : downloadUrl || generatedImage || "/sticker-sheet.png";
-  // Turnstile tokens are single-use, so every gated action needs its own live
-  // token from the widget mounted on that stage.
-  const canVerify=isLocalDev?true:(turnstileSiteKey?Boolean(turnstileToken):true);
-  const canGenerate=canVerify;
-
   return <main className={`shell ${stage}${isV2Home?" landing-v2":""}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>SALTY STICKER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>{
     if(stage==="home"&&landingVariant==="v2"){track("header_upload_click");if(heroFileInputRef.current){heroFileInputRef.current.click();return}}
     if(stage==="home"||stage==="samples"){setSkipPhotoStep(false);setStage("photos")}else{restart()}
@@ -456,7 +402,7 @@ export default function Home(){
   {["photos","details","mood"].includes(stage)&&<section className="wizard enter"><aside><div><h2>This is where it gets personal.</h2></div><img className="wizard-latest-sheet" src="/halloween-girl-dog-sticker-sheet-v15.webp" alt="Ten Halloween stickers featuring a witch and her dog in a ghost costume"/></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>back[stage]==="home"?restart():setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
   {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos,"wizard")} onRemove={removeMainPhoto}/>{photoBusy&&<p className="upload-status">Converting your photo…</p>}{photoError&&<p className="upload-error">{photoError}</p>}<div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
   {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos,"reference")} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
+  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div><div className="wizard-actions"><span/><Button className="red-btn" onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}
 
   {stage==="generating"&&<section className="generate loading-state enter"><div className="printer" aria-label="Blank sticker sheet printing"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy loading-copy"><h2>Your stickers are coming to life.</h2><strong>Usually ready in 30–60 seconds</strong><ol className="loading-steps">{loadingSteps.map((step,index)=><li className={index<tick?"complete":index===tick?"active":"upcoming"} key={step}>{index<tick?<span>✓</span>:index===tick?<span className="loading-spinner"/>:<span>○</span>}{index===tick?<b>{step}</b>:step}</li>)}</ol><b className="hang-tight">Hang tight — don&apos;t refresh.</b></div></section>}

@@ -4,7 +4,6 @@ import { generations } from "@/db/schema";
 import { CHECKOUT_HOURLY_CAP, ONE_TIME_AMOUNT_CENTS } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { checkoutRequestSchema } from "@/lib/validation";
 import { eq } from "drizzle-orm";
 
@@ -13,10 +12,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Stripe is not configured." }, { status: 500 });
   }
 
-  const hostname = new URL(request.url).hostname;
-  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "terminal.local";
-  const isLocalDev = process.env.NODE_ENV !== "production" || isLocalHost;
-
   const hourly = await consumeRateLimit(rateLimiters().checkout, `checkout:${await hashIp(request)}`, CHECKOUT_HOURLY_CAP, 60 * 60 * 1000);
   if (!hourly.ok) return rateLimitResponse(hourly.retryAfterMs);
 
@@ -24,14 +19,7 @@ export async function POST(request: Request) {
     const parsed = checkoutRequestSchema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: "A sticker sheet is required." }, { status: 400 });
 
-    const { email, subject, imageKey, turnstileToken, plan, name, address, city, state, zip } = parsed.data;
-
-    if (!isLocalDev) {
-      const turnstile = await verifyTurnstile(turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
-      if (!turnstile.ok) {
-        return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
-      }
-    }
+    const { email, subject, imageKey, plan, name, address, city, state, zip } = parsed.data;
 
     const generation = await getDb().select().from(generations).where(eq(generations.imageKey, imageKey)).limit(1);
     if (!generation[0]) return Response.json({ error: "That sticker sheet is no longer available." }, { status: 404 });

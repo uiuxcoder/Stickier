@@ -9,7 +9,6 @@ import {
 } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { subscriptionRequestSchema } from "@/lib/validation";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -35,17 +34,7 @@ export async function POST(request: Request) {
     const parsed = subscriptionRequestSchema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: "A sticker sheet is required." }, { status: 400 });
 
-    const { subject, imageKey, turnstileToken } = parsed.data;
-
-    const hostname = new URL(request.url).hostname;
-    const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "terminal.local";
-    const isLocalDev = process.env.NODE_ENV !== "production" || isLocalHost;
-    if (!isLocalDev && turnstileToken) {
-      const turnstile = await verifyTurnstile(turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined);
-      if (!turnstile.ok) {
-        return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
-      }
-    }
+    const { subject, imageKey } = parsed.data;
 
     if (imageKey) {
       const generation = await getDb().select().from(generations).where(eq(generations.imageKey, imageKey)).limit(1);

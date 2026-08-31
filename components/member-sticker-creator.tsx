@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, DragEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Sparkles, Trash2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
@@ -21,41 +21,6 @@ const LOADING_STEPS = [
   "Bringing your stickers to life",
   "Adding the finishing touches",
 ];
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (element: HTMLElement, options: Record<string, unknown>) => string;
-      remove: (id?: string) => void;
-    };
-  }
-}
-
-let turnstileScript: Promise<void> | null = null;
-
-function loadTurnstile() {
-  if (window.turnstile) return Promise.resolve();
-  if (!turnstileScript) {
-    turnstileScript = new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>('script[src*="challenges.cloudflare.com/turnstile"]');
-      if (existing) {
-        existing.addEventListener("load", () => resolve(), { once: true });
-        existing.addEventListener("error", () => reject(new Error("Turnstile failed to load.")), { once: true });
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => {
-        turnstileScript = null;
-        reject(new Error("Turnstile failed to load."));
-      };
-      document.head.appendChild(script);
-    });
-  }
-  return turnstileScript;
-}
 
 async function uploadPhoto(file: File) {
   const prep = await fetch("/api/upload-photo", {
@@ -82,11 +47,7 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [loadingStep, setLoadingStep] = useState(0);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const turnstileWidgetId = useRef<string>();
   const pollTimer = useRef<number>();
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isLocalDev = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   function reset() {
     photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
@@ -97,7 +58,6 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
     setUploading(false);
     setError("");
     setLoadingStep(0);
-    setTurnstileToken("");
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
   }
 
@@ -116,26 +76,6 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
     const interval = window.setInterval(() => setLoadingStep((current) => Math.min(current + 1, LOADING_STEPS.length - 1)), 2200);
     return () => window.clearInterval(interval);
   }, [stage]);
-
-  const mountTurnstile = useCallback((node: HTMLDivElement | null) => {
-    if (!turnstileSiteKey) return;
-    if (!node) {
-      if (turnstileWidgetId.current && window.turnstile) window.turnstile.remove(turnstileWidgetId.current);
-      turnstileWidgetId.current = undefined;
-      setTurnstileToken("");
-      return;
-    }
-    void loadTurnstile()
-      .then(() => {
-        if (!window.turnstile || turnstileWidgetId.current || !node.isConnected) return;
-        turnstileWidgetId.current = window.turnstile.render(node, {
-          sitekey: turnstileSiteKey,
-          callback: (token: string) => setTurnstileToken(token),
-          "expired-callback": () => setTurnstileToken(""),
-        });
-      })
-      .catch(() => setError("We could not load human verification. Please close this window and try again."));
-  }, [turnstileSiteKey]);
 
   async function addPhotos(files: FileList | null) {
     if (!files) return;
@@ -189,7 +129,6 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
           theme: "Classic",
           moods,
           specialRequest: description,
-          turnstileToken,
         }),
       });
       const data = (await response.json()) as { jobId?: string; error?: string };
@@ -224,7 +163,6 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
   }
 
   const step = stage === "photos" ? 1 : stage === "details" ? 2 : 3;
-  const canGenerate = isLocalDev || !turnstileSiteKey || Boolean(turnstileToken);
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
@@ -263,11 +201,10 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
               </div>
             ) : null}
 
-            {stage === "mood" && turnstileSiteKey ? <div ref={mountTurnstile} className="turnstile-widget" /> : null}
             {error ? <p className="club-create-error" role="alert">{error}</p> : null}
             <div className="club-create-actions">
               {stage !== "photos" ? <button type="button" className="club-secondary-button" onClick={() => setStage(stage === "mood" ? "details" : "photos")}><ArrowLeft size={14} /> Back</button> : <span />}
-              <button type="button" className="club-primary-button" disabled={stage === "photos" ? photos.length === 0 || uploading : stage === "mood" ? !canGenerate : false} onClick={() => stage === "photos" ? setStage("details") : stage === "details" ? setStage("mood") : void generate()}>
+              <button type="button" className="club-primary-button" disabled={stage === "photos" ? photos.length === 0 || uploading : false} onClick={() => stage === "photos" ? setStage("details") : stage === "details" ? setStage("mood") : void generate()}>
                 {stage === "mood" ? <>Create stickers <Sparkles size={14} /></> : <>Next <ArrowRight size={14} /></>}
               </button>
             </div>

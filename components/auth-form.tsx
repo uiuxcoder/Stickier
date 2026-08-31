@@ -1,19 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (el: HTMLElement, opts: Record<string, unknown>) => string;
-      reset: (id?: string) => void;
-      remove: (id?: string) => void;
-    };
-  }
-}
 
 type AuthMode = "signin" | "signup" | "forgot" | "reset";
 
@@ -61,32 +51,6 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
   const [status, setStatus] = useState(notice || "");
   const [loading, setLoading] = useState(false);
   const [unverified, setUnverified] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const turnstileRef = useRef<HTMLDivElement | null>(null);
-  const turnstileWidgetId = useRef<string | undefined>(undefined);
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-
-  useEffect(() => {
-    if (!turnstileSiteKey) return;
-    const render = () => {
-      if (turnstileRef.current && window.turnstile && !turnstileWidgetId.current) {
-        turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
-          sitekey: turnstileSiteKey,
-          callback: (value: string) => setTurnstileToken(value),
-          "expired-callback": () => setTurnstileToken(""),
-        });
-      }
-    };
-    if (window.turnstile) {
-      render();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-    script.async = true;
-    script.onload = render;
-    document.head.appendChild(script);
-  }, [turnstileSiteKey]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -111,7 +75,6 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
           password,
           fullName: fullName || undefined,
           token,
-          turnstileToken: turnstileToken || undefined,
         }),
       });
       const data = (await response.json()) as {
@@ -140,10 +103,6 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
       window.location.assign(returnTo || "/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to continue.");
-      if (turnstileWidgetId.current && window.turnstile) {
-        window.turnstile.reset(turnstileWidgetId.current);
-        setTurnstileToken("");
-      }
     } finally {
       setLoading(false);
     }
@@ -156,7 +115,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
       const response = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, turnstileToken: turnstileToken || undefined }),
+        body: JSON.stringify({ email }),
       });
       if (!response.ok) {
         const data = (await response.json()) as { error?: string };
@@ -172,7 +131,6 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
   };
 
   const fields = copy[mode];
-  const canSubmit = turnstileSiteKey ? Boolean(turnstileToken) : true;
 
   return (
     <section className="auth-card">
@@ -221,7 +179,6 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
             />
           </label>
         ) : null}
-        {turnstileSiteKey ? <div ref={turnstileRef} className="turnstile-widget" /> : null}
         {error ? <p role="alert">{error}</p> : null}
         {status ? <p role="status">{status}</p> : null}
         {unverified ? (
@@ -229,7 +186,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
             RESEND CONFIRMATION EMAIL
           </button>
         ) : null}
-        <Button className="red-btn" type="submit" disabled={loading || !canSubmit}>
+        <Button className="red-btn" type="submit" disabled={loading}>
           {loading ? "PLEASE WAIT…" : fields.submit} <ArrowRight />
         </Button>
       </form>

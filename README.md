@@ -25,12 +25,9 @@ Set each secret in a local `.env` file (gitignored) and with `wrangler secret pu
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `SESSION_SECRET` — signs session cookies, email links, and photo-upload tokens
-- `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile bot protection
 - `APP_ORIGIN` — canonical site origin used in auth emails (defaults to `https://stickier.app` in production)
 
-Optional: `STRIPE_PRICE_ID`, `OPENAI_IMAGE_MODEL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
-
-Local development can use Cloudflare’s always-pass Turnstile test keys (`1x00000000000000000000AA` / `1x0000000000000000000000000000000AA`). Replace them with a real widget before production.
+Optional: `STRIPE_PRICE_ID`, `OPENAI_IMAGE_MODEL`.
 
 Run `npm run dev` to build once and start both the Vite frontend on port 5173 and
 the Wrangler API worker on port 8788. The launcher stops both processes together

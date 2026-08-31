@@ -4,7 +4,6 @@ import { mintSessionCookie, verifyEmailToken } from "@/lib/auth";
 import { enforceAuthRateLimit, jsonUser } from "@/lib/auth-http";
 import { sha256Hex } from "@/lib/crypto";
 import { hashPassword, passwordErrorMessage, passwordIssue } from "@/lib/password";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { resetPasswordRequestSchema } from "@/lib/validation";
 import { and, eq, gt } from "drizzle-orm";
 
@@ -22,11 +21,6 @@ export async function POST(request: Request) {
   const parsed = resetPasswordRequestSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: "This reset link is invalid or has expired." }, { status: 400 });
-  }
-
-  const turnstile = await verifyTurnstile(parsed.data.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
-  if (!turnstile.ok) {
-    return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
   }
 
   const issue = passwordIssue(parsed.data.password);

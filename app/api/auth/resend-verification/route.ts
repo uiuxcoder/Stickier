@@ -6,7 +6,6 @@ import { enforceAuthRateLimit } from "@/lib/auth-http";
 import { normalizeEmail } from "@/lib/auth-utils";
 import { FORGOT_PASSWORD_HOURLY_CAP } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse } from "@/lib/rate-limit";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { resendVerificationRequestSchema } from "@/lib/validation";
 import { eq } from "drizzle-orm";
 
@@ -32,11 +31,6 @@ export async function POST(request: Request) {
   const parsed = resendVerificationRequestSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: "Enter a valid email." }, { status: 400 });
-  }
-
-  const turnstile = await verifyTurnstile(parsed.data.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
-  if (!turnstile.ok) {
-    return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
   }
 
   const email = normalizeEmail(parsed.data.email);
