@@ -69,36 +69,95 @@ async function readCheckoutResponse(response: Response): Promise<{url?:string;er
 }
 
 // The model rarely centers each sticker inside its grid cell, so a fixed grid
-// cut looks off-center. Trim the pure-white margin around the artwork and
-// re-center it on a square canvas with an even white border that stands in
-// for the die-cut outline.
+// cut looks off-center, and a neighbouring sticker can bleed a sliver across the
+// gutter. Erase anything that bled in, then trim the white margin and re-center
+// on a square canvas with an even white border standing in for the die-cut
+// outline. This mirrors the download pipeline so the preview shows what the
+// customer receives.
 function centerStickerArtwork(cell: HTMLCanvasElement): string {
   const context = cell.getContext("2d", { willReadFrequently: true });
   if (!context) return cell.toDataURL("image/png");
   const width = cell.width;
   const height = cell.height;
-  let pixels: Uint8ClampedArray;
+  let image: ImageData;
   try {
-    pixels = context.getImageData(0, 0, width, height).data;
+    image = context.getImageData(0, 0, width, height);
   } catch {
     return cell.toDataURL("image/png");
   }
+  const pixels = image.data;
+  const total = width * height;
+  const isArtwork = (pixel: number) => {
+    const offset = pixel * 4;
+    if (pixels[offset + 3] <= 16) return false;
+    return pixels[offset] < 238 || pixels[offset + 1] < 238 || pixels[offset + 2] < 238;
+  };
+
+  const label = new Int32Array(total).fill(-1);
+  const queue = new Int32Array(total);
+  const sizes: number[] = [];
+  const touchesEdge: boolean[] = [];
+  for (let start = 0; start < total; start++) {
+    if (label[start] !== -1 || !isArtwork(start)) continue;
+    const current = sizes.length;
+    let head = 0;
+    let tail = 0;
+    let edge = false;
+    label[start] = current;
+    queue[tail++] = start;
+    while (head < tail) {
+      const pixel = queue[head++];
+      const x = pixel % width;
+      const y = (pixel - x) / width;
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) edge = true;
+      const visit = (neighbour: number) => {
+        if (label[neighbour] !== -1 || !isArtwork(neighbour)) return;
+        label[neighbour] = current;
+        queue[tail++] = neighbour;
+      };
+      if (x > 0) visit(pixel - 1);
+      if (x + 1 < width) visit(pixel + 1);
+      if (y > 0) visit(pixel - width);
+      if (y + 1 < height) visit(pixel + width);
+    }
+    sizes.push(tail);
+    touchesEdge.push(edge);
+  }
+  if (!sizes.length) return cell.toDataURL("image/png");
+
+  let largest = 0;
+  for (let index = 1; index < sizes.length; index++) if (sizes[index] > sizes[largest]) largest = index;
+  // A sliver bleeding in from the next cell has to cross this cell's edge, while
+  // a prop that floats free of the character sits wholly inside it. Keep the
+  // sticker itself plus any interior piece big enough not to be resampling
+  // speckle, and drop everything that reaches an edge.
+  const minInteriorSize = Math.max(8, sizes[largest] * 0.005);
+  const kept = sizes.map((size, index) => index === largest || (!touchesEdge[index] && size >= minInteriorSize));
+
   let top = height;
   let left = width;
   let right = -1;
   let bottom = -1;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const offset = (y * width + x) * 4;
-      if (pixels[offset + 3] <= 16) continue;
-      if (pixels[offset] >= 238 && pixels[offset + 1] >= 238 && pixels[offset + 2] >= 238) continue;
+  for (let pixel = 0; pixel < total; pixel++) {
+    const component = label[pixel];
+    if (component === -1) continue;
+    if (kept[component]) {
+      const x = pixel % width;
+      const y = (pixel - x) / width;
       if (x < left) left = x;
       if (x > right) right = x;
       if (y < top) top = y;
       if (y > bottom) bottom = y;
+    } else {
+      const offset = pixel * 4;
+      pixels[offset] = 255;
+      pixels[offset + 1] = 255;
+      pixels[offset + 2] = 255;
+      pixels[offset + 3] = 255;
     }
   }
   if (right < 0) return cell.toDataURL("image/png");
+  context.putImageData(image, 0, 0);
   const artWidth = right - left + 1;
   const artHeight = bottom - top + 1;
   const margin = Math.max(10, Math.round(Math.max(artWidth, artHeight) * 0.09));
@@ -403,7 +462,7 @@ export default function Home(){
             setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setStage("reveal");track("preview_rendered");return;
           }
           if(status.status==="failed")throw new Error(status.error||"Generation failed.");
-          if(attempts++<90){pollTimer.current=window.setTimeout(poll,2000);return}
+          if(attempts++<180){pollTimer.current=window.setTimeout(poll,2000);return}
           throw new Error("Generation is taking longer than expected. Please try again.");
         }catch(error){
           setGenerationError(error instanceof Error?error.message:"Unable to generate stickers.");setStage("reveal");
@@ -442,7 +501,7 @@ export default function Home(){
   {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div><div className="wizard-actions"><span/><Button className="red-btn" onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}
 
-  {stage==="generating"&&<section className="generate loading-state enter"><div className="printer" aria-label="Blank sticker sheet printing"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy loading-copy"><h2>Your stickers are coming to life.</h2><strong>Usually ready in 30–60 seconds</strong><ol className="loading-steps">{loadingSteps.map((step,index)=><li className={index<tick?"complete":index===tick?"active":"upcoming"} key={step}>{index<tick?<span>✓</span>:index===tick?<span className="loading-spinner"/>:<span>○</span>}{index===tick?<b>{step}</b>:step}</li>)}</ol><b className="hang-tight">Hang tight — don&apos;t refresh.</b></div></section>}
+  {stage==="generating"&&<section className="generate loading-state enter"><div className="printer" aria-label="Blank sticker sheet printing"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy loading-copy"><h2>Your stickers are coming to life.</h2><strong>Usually ready in 2–3 minutes</strong><ol className="loading-steps">{loadingSteps.map((step,index)=><li className={index<tick?"complete":index===tick?"active":"upcoming"} key={step}>{index<tick?<span>✓</span>:index===tick?<span className="loading-spinner"/>:<span>○</span>}{index===tick?<b>{step}</b>:step}</li>)}</ol><b className="hang-tight">Hang tight — don&apos;t refresh.</b></div></section>}
   {stage==="reveal"&&<section className="reveal-page enter"><div className="reveal-head"><div><h2>{isActiveMember?"We've added them to your creations!":"Your stickers are ready!"}</h2>{isActiveMember?<p>These are included in your subscription.</p>:null}{generationError&&<p role="alert">{generationError}</p>}{checkoutError&&<p role="alert">{checkoutError}</p>}</div><div className="reveal-side">{isActiveMember?<div className="member-reveal-saved"><a className="member-download-primary" href={`/api/download-stickers?image_key=${encodeURIComponent(generatedImageKey)}`} download><Download/> DOWNLOAD STICKERS</a><a className="member-portal-secondary" href="/account">RETURN TO PORTAL <ArrowRight/></a></div>:<><div className="reveal-actions"><Button className="red-btn" onClick={openPayment} disabled={Boolean(generationError)||!generatedImageKey}>MAKE THEM MINE <ArrowRight/></Button></div>{paymentOpen&&turnstileSiteKey&&!generationError&&generatedImageKey?<div ref={mountTurnstile} className="turnstile-widget reveal-turnstile"/>:null}</>}</div></div><div className="reveal-body"><div className="sticker-grid">{positions.map((pos,i)=><div className={`sticker-tile ${i===9?"sticker-tile-last":""}`} key={i}><span>{String(i+1).padStart(2,"0")}</span><div className="sticker-image" style={generatedSlices[i]?{backgroundImage:`url(${generatedSlices[i]})`,backgroundSize:"contain",backgroundPosition:"center",backgroundRepeat:"no-repeat"}:{backgroundImage:`url(${generatedImage||"/sticker-sheet.png"})`,backgroundPosition:pos,backgroundSize:"300% 400%",backgroundRepeat:"no-repeat"}}/><small className="cell-watermark cell-watermark-one" aria-hidden="true">SALTY STICKER · PREVIEW</small><small className="cell-watermark cell-watermark-two" aria-hidden="true">SALTY STICKER · PREVIEW</small><small className="cell-watermark cell-watermark-three" aria-hidden="true">SALTY STICKER · PREVIEW</small></div>)}</div><aside className="full-sheet-preview"><div><span>THE FULL SHEET</span></div><Sheet name={subject} clean src={generatedImage||"/sticker-sheet.png"}/></aside></div></section>}
   {stage==="confirmation"&&<section className="confirmation enter"><div className="check"><Check/></div><div className="eyebrow">PURCHASE COMPLETE</div><h2>{purchasedPlan==="physical"?"Your stickers are officially yours":"They’re yours"}</h2>{purchasedPlan==="physical"?<><p><b>Your physical sticker pack is being made.</b></p><p>Your digital stickers are ready now, and we sent a copy to <b>{email||"your email"}</b>. You can also download your sticker sheet now.</p></>:<p>We sent a copy to <b>{email||"your email"}</b>. You can also download your sticker sheet now.</p>}<Sheet name={subject} className="confirmation-sheet" clean src={confirmationSheetSrc}/><div className="confirmation-actions"><a className="download-btn" href={checkoutSessionId?`/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`:downloadUrl||"#"} aria-disabled={!checkoutSessionId&&!downloadUrl} download><Download/> DOWNLOAD STICKERS</a><Button className="link" onClick={beginAnotherSheet}>MAKE ANOTHER <ArrowRight/></Button></div></section>}
 

@@ -15,7 +15,14 @@ import {
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
-const STYLE_REFERENCE_KEY = "references/chibi-style-v15.webp";
+const STYLE_REFERENCE_KEY = "references/sticker-style-v16.webp";
+const DEFAULT_IMAGE_MODEL = "gpt-image-2";
+// 3:4 portrait so the 3-column by 4-row layout lands on square cells. Each cell
+// is 768x768, which prints a ~2.5in die-cut sticker at 300 DPI without upscaling.
+const IMAGE_SIZE = "2304x3072";
+const IMAGE_QUALITY = "high";
+// High-quality sheets at this size regularly take over two minutes to render.
+const GENERATION_TIMEOUT_MS = 480_000;
 
 export type GenerationJobMessage = {
   jobId: string;
@@ -159,7 +166,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
   const styleReference = await loadStyleReference(env);
   if (styleReference) photos.push(styleReference);
 
-  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const prompt = promptFor(input, Boolean(styleReference));
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
@@ -168,8 +175,8 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
       const body = buildOpenAIImageEditBody({
         model,
         prompt,
-        quality: "medium",
-        size: "1024x1024",
+        quality: IMAGE_QUALITY,
+        size: IMAGE_SIZE,
         background: "opaque",
         photos,
       });
@@ -178,14 +185,14 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}` },
         body,
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
       });
     } else {
       const jsonBody = JSON.stringify({
         model,
         prompt,
-        size: "1024x1024",
-        quality: "medium",
+        size: IMAGE_SIZE,
+        quality: IMAGE_QUALITY,
         background: "opaque",
         output_format: "png",
       });
@@ -193,7 +200,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: jsonBody,
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
       });
     }
     result = await response.json();

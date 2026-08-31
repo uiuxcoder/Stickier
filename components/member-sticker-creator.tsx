@@ -148,7 +148,7 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
             return;
           }
           if (status.status === "failed") throw new Error(status.error || "Generation failed.");
-          if (attempts++ >= 90) throw new Error("Generation is taking longer than expected. Please try again.");
+          if (attempts++ >= 180) throw new Error("Generation is taking longer than expected. Please try again.");
           pollTimer.current = window.setTimeout(poll, 2000);
         } catch (pollError) {
           setError(pollError instanceof Error ? pollError.message : "Unable to generate stickers.");
@@ -213,7 +213,7 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
           <div className="club-create-loading" role="status" aria-live="polite">
             <div className="loading-spinner" />
             <DialogTitle>Your stickers are coming to life.</DialogTitle>
-            <DialogDescription>Usually ready in 30–60 seconds. Don&apos;t close this window.</DialogDescription>
+            <DialogDescription>Usually ready in 2–3 minutes. Don&apos;t close this window.</DialogDescription>
             <ol>{LOADING_STEPS.map((item, index) => <li className={index < loadingStep ? "complete" : index === loadingStep ? "active" : ""} key={item}><span>{index < loadingStep ? "✓" : index === loadingStep ? "•" : "○"}</span>{item}</li>)}</ol>
           </div>
         )}

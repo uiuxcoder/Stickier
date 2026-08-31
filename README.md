@@ -52,6 +52,11 @@ Forward Stripe test webhooks with `npm run dev:webhooks` while `npm run dev` is 
   sheet to R2; the browser polls `/api/generation-status`.
 - **Uploads**: photos go straight to R2 via `/api/upload-photo` (signed,
   short-lived tokens), not through a JSON body.
+- **Image output**: `gpt-image-2` at `2304x3072`, quality `high`. The 3:4 canvas
+  makes the 3-column by 4-row layout land on square 768px cells, so each
+  extracted sticker prints at roughly 2.5in at 300 DPI with no upscaling step.
+  A sheet takes about two minutes to render; the stale-job, worker and client
+  poll timeouts are all sized around that.
 - **Billing**: Stripe webhooks populate `orders`/`subscriptions`; reads
   (`/api/checkout-status`, `/api/download-stickers`) are served from D1.
 
@@ -66,6 +71,13 @@ wrangler queues create stickier-generation-dlq
 The D1 database (`stickier-db`), R2 bucket (`stickier-assets`), Images binding,
 and three rate-limit namespaces are declared in `wrangler.jsonc`. Add an R2
 lifecycle rule to expire the `uploads/` prefix (reference photos) after 24 hours.
+
+The bucket must also hold the style-anchor sheet the generator sends to OpenAI as
+its final reference image, at the key named by `STYLE_REFERENCE_KEY` in
+`lib/generation-worker.ts`. It has to be a pure-white-background sheet laid out on
+the same 3-column by 4-row grid as the prompt asks for; a reference with a
+different layout, aspect ratio, or background tint will drag the output away from
+the written instructions.
 
 Point Stripe webhooks at `/api/webhooks/stripe` for `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, and `customer.subscription.deleted`.
 

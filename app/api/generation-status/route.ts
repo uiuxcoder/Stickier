@@ -3,7 +3,10 @@ import { getDb } from "@/db";
 import { generationJobs } from "@/db/schema";
 import { and, eq, lt } from "drizzle-orm";
 
-const STALE_PROCESSING_MS = 2 * 60 * 1000;
+// Must stay above the worker's own OpenAI timeout. A print-resolution sheet
+// takes a couple of minutes, and requeueing one that is still rendering would
+// pay for the same sheet twice.
+const STALE_PROCESSING_MS = 10 * 60 * 1000;
 
 /**
  * Poll the status of a queued sticker-generation job. The client calls this on
