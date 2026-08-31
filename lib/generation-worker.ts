@@ -21,8 +21,8 @@ const DEFAULT_IMAGE_MODEL = "gpt-image-2";
 // 3:4 portrait so the 3-column by 4-row layout lands on square cells. Each cell
 // is 768x768, which prints a ~2.5in die-cut sticker at 300 DPI without upscaling.
 const IMAGE_SIZE = "2304x3072";
-const IMAGE_QUALITY = "high";
-// High-quality sheets at this size regularly take over two minutes to render.
+const IMAGE_QUALITY = "medium";
+// Large sheets can take over two minutes to render.
 const GENERATION_TIMEOUT_MS = 480_000;
 
 export type GenerationJobMessage = {

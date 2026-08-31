@@ -484,7 +484,7 @@ export default function Home(){
   const confirmationSheetSrc = checkoutSessionId
     ? `/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`
     : downloadUrl || generatedImage || "/sticker-sheet.png";
-  return <main className={`shell ${stage}${isV2Home?" landing-v2":""}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>SALTY STICKER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>{
+  return <main className={`shell ${stage}${isV2Home?" landing-v2":""}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>SALTY STICKER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<><a className="nav-account" href="/account">ACCOUNT</a><form className="nav-signout-form" action="/api/auth/signout" method="post"><button className="nav-signout" type="submit">SIGN OUT</button></form></>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>{
     if(stage==="home"&&landingVariant==="v2"){track("header_upload_click");if(heroFileInputRef.current){heroFileInputRef.current.click();return}}
     if(stage==="home"||stage==="samples"){setSkipPhotoStep(false);setStage("photos")}else{restart()}
   }}>{stage==="home"||stage==="samples"?(landingVariant==="v2"?"MAKE STICKERS":"CREATE MINE"):"EXIT STUDIO"}</button></div></nav>}
