@@ -10,6 +10,11 @@ export function getStripe() {
   });
 }
 
+export function automaticTaxEnabled() {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  return process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true" && Boolean(secret) && !secret!.startsWith("sk_test_");
+}
+
 export function subscriptionIdFromInvoice(invoice: Stripe.Invoice) {
   const subscription = invoice.parent?.subscription_details?.subscription;
   if (typeof subscription === "string") return subscription;

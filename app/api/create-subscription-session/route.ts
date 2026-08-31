@@ -8,7 +8,7 @@ import {
   SUBSCRIPTION_AMOUNT_CENTS,
 } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
-import { getStripe } from "@/lib/stripe";
+import { automaticTaxEnabled, getStripe } from "@/lib/stripe";
 import { subscriptionRequestSchema } from "@/lib/validation";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
-    const enableAutomaticTax = process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true";
+    const enableAutomaticTax = automaticTaxEnabled();
     const session = await getStripe().checkout.sessions.create({
       mode: "subscription",
       ...(user?.email ? { customer_email: user.email } : {}),

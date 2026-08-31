@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { generations } from "@/db/schema";
 import { CHECKOUT_HOURLY_CAP, ONE_TIME_AMOUNT_CENTS } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
-import { getStripe } from "@/lib/stripe";
+import { automaticTaxEnabled, getStripe } from "@/lib/stripe";
 import { checkoutRequestSchema } from "@/lib/validation";
 import { isLocalHostname } from "@/lib/turnstile";
 import { eq } from "drizzle-orm";
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       },
     } as const;
 
-    const enableAutomaticTax = process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true";
+    const enableAutomaticTax = automaticTaxEnabled();
 
     const session = await getStripe().checkout.sessions.create({
       ...baseParams,

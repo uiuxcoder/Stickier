@@ -1,7 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EMAIL_PATTERN, IMAGE_KEY_PATTERN } from "../lib/constants.ts";
-import { checkoutShippingLines, isPaidCheckout, periodEndFromSubscription, subscriptionIdFromInvoice } from "../lib/stripe.ts";
+import { automaticTaxEnabled, checkoutShippingLines, isPaidCheckout, periodEndFromSubscription, subscriptionIdFromInvoice } from "../lib/stripe.ts";
+
+test("automatic tax stays off for Stripe test-mode keys", () => {
+  const previousSecret = process.env.STRIPE_SECRET_KEY;
+  const previousSetting = process.env.STRIPE_ENABLE_AUTOMATIC_TAX;
+  process.env.STRIPE_SECRET_KEY = "sk_test_example";
+  process.env.STRIPE_ENABLE_AUTOMATIC_TAX = "true";
+  try {
+    assert.equal(automaticTaxEnabled(), false);
+    process.env.STRIPE_SECRET_KEY = "sk_live_example";
+    assert.equal(automaticTaxEnabled(), true);
+  } finally {
+    if (previousSecret === undefined) delete process.env.STRIPE_SECRET_KEY;
+    else process.env.STRIPE_SECRET_KEY = previousSecret;
+    if (previousSetting === undefined) delete process.env.STRIPE_ENABLE_AUTOMATIC_TAX;
+    else process.env.STRIPE_ENABLE_AUTOMATIC_TAX = previousSetting;
+  }
+});
 
 test("accepts generated sticker object keys only", () => {
   assert.equal(IMAGE_KEY_PATTERN.test("stickers/11111111-1111-1111-1111-111111111111.png"), true);
