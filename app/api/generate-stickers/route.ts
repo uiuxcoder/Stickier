@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
 
   const host = new URL(request.url).hostname;
-  const isLocalDev = isLocalHostname(host);
+  const isLocalDev = isLocalHostname(host) || process.env.LOCAL_DEV === "1";
 
   const user = await getSessionUser(request);
   const db = getDb();
@@ -82,7 +82,10 @@ export async function POST(request: Request) {
     .filter(Boolean)
     .join("\n");
   const moderation = await moderateText(textToModerate);
-  if (!moderation.allowed) {
+  const moderationBlocked =
+    !moderation.allowed &&
+    !(isLocalDev && moderation.reason === "moderation-unavailable");
+  if (moderationBlocked) {
     if (reservedUserId) {
       await db.update(users).set({ regenerationsRemaining: sql`${users.regenerationsRemaining} + 1` }).where(eq(users.id, reservedUserId));
     }
