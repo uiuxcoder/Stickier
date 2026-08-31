@@ -25,7 +25,7 @@ export function buildOpenAIImageEditBody({
   body.append("output_format", outputFormat);
   if (quality) body.append("quality", quality);
   for (const photo of photos) {
-    body.append("image", photo);
+    body.append("image[]", photo);
   }
   return body;
 }
