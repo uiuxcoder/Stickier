@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EMAIL_PATTERN, IMAGE_KEY_PATTERN } from "../lib/constants.ts";
+import { purchaseEmailContent, purchaseEmailKind } from "../lib/purchase-email.ts";
 import { automaticTaxEnabled, checkoutShippingLines, isPaidCheckout, periodEndFromSubscription, subscriptionIdFromInvoice } from "../lib/stripe.ts";
+import type Stripe from "stripe";
 
 test("automatic tax stays off for Stripe test-mode keys", () => {
   const previousSecret = process.env.STRIPE_SECRET_KEY;
@@ -28,6 +30,22 @@ test("accepts generated sticker object keys only", () => {
 test("requires a simple email shape", () => {
   assert.equal(EMAIL_PATTERN.test("you@example.com"), true);
   assert.equal(EMAIL_PATTERN.test("nope"), false);
+});
+
+test("classifies and renders purchase confirmation emails", () => {
+  const session = (mode: "payment" | "subscription", metadata: Record<string, string>) =>
+    ({ id: "cs_test_123", mode, metadata }) as Stripe.Checkout.Session;
+
+  assert.equal(purchaseEmailKind(session("payment", { plan: "digital", imageKey: "generated/a.png" })), "digital");
+  assert.equal(purchaseEmailKind(session("payment", { plan: "physical", imageKey: "generated/a.png" })), "physical");
+  assert.equal(purchaseEmailKind(session("subscription", { imageKey: "generated/a.png" })), "membership-with-stickers");
+  assert.equal(purchaseEmailKind(session("subscription", {})), "membership-top-up");
+
+  const digital = purchaseEmailContent(session("payment", { plan: "digital" }), "https://saltysticker.com");
+  assert.match(digital.html, /cs_test_123/);
+  const topUp = purchaseEmailContent(session("subscription", {}), "https://saltysticker.com");
+  assert.doesNotMatch(topUp.html, /download-stickers/);
+  assert.match(topUp.html, /https:\/\/saltysticker\.com\/account/);
 });
 
 test("reads Stripe invoice subscription ids from parent details", () => {

@@ -10,6 +10,10 @@ const DISTANCE_CEILING = 0xffff;
 // Width of the synthesized die-cut border, as a fraction of the sheet's short edge.
 const BORDER_RATIO = 0.0075;
 
+export function downloadArchiveKey(imageKey: string) {
+  return imageKey.replace(/^stickers\//, "downloads/").replace(/\.png$/i, ".zip");
+}
+
 function decodeRgba(source: Buffer) {
   const decoded = decodePng(source);
   const { width, height, channels, data } = decoded;
@@ -336,5 +340,7 @@ export async function buildDownloadArchive(source: Buffer) {
 
   addDieCutBorder(rgba, width, height, borderRadius);
   zip.file("full-sheet.png", Buffer.from(encodePng({ width, height, data: rgba, channels: 4, depth: 8 })));
-  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  // The entries are already-compressed PNGs, so deflating again costs Worker CPU
+  // for almost no size gain.
+  return zip.generateAsync({ type: "nodebuffer", compression: "STORE" });
 }

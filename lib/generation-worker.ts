@@ -4,6 +4,7 @@ import * as schema from "@/db/schema";
 import { generationJobs, generations, users } from "@/db/schema";
 import { promptFor, type GenerationInput } from "@/lib/prompt";
 import { IMAGE_KEY_PATTERN } from "@/lib/constants";
+import { buildDownloadArchive, downloadArchiveKey } from "@/lib/sticker-archive";
 import { buildOpenAIImageEditBody } from "@/lib/openai-image";
 import {
   imageFileName,
@@ -227,6 +228,10 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
 
   await env.STICKER_ASSETS.put(imageKey, imageBytes, {
     httpMetadata: { contentType: "image/png" },
+  });
+  const archive = await buildDownloadArchive(Buffer.from(imageBytes));
+  await env.STICKER_ASSETS.put(downloadArchiveKey(imageKey), archive, {
+    httpMetadata: { contentType: "application/zip" },
   });
 
   const now = Date.now();

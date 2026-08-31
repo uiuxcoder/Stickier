@@ -1,8 +1,8 @@
 import Stripe from "stripe";
-import { Resend } from "resend";
 import { getDb } from "@/db";
 import { generations, orders, stripeEvents, subscriptions, users } from "@/db/schema";
 import { MONTHLY_REGENERATIONS } from "@/lib/constants";
+import { sendPurchaseEmail } from "@/lib/purchase-email";
 import {
   checkoutEmail,
   customerId,
@@ -34,20 +34,6 @@ async function markProcessed(event: Stripe.Event) {
     .insert(stripeEvents)
     .values({ id: event.id, type: event.type, createdAt: Date.now() })
     .onConflictDoNothing({ target: stripeEvents.id });
-}
-
-async function sendDownloadEmail(session: Stripe.Checkout.Session, email: string, origin: string) {
-  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
-    throw new Error("Resend is not configured.");
-  }
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const result = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to: email,
-    subject: "Your Salty Sticker download is ready",
-    html: `<p>Your personalized sticker sheet is ready.</p><p><a href="${origin}/api/download-stickers?session_id=${encodeURIComponent(session.id)}">Download your stickers</a></p><p>This download link expires in 7 days.</p>`,
-  });
-  if (result.error) throw new Error(result.error.message);
 }
 
 /** Resolve the app user for a checkout, preferring the linked userId. */
@@ -133,9 +119,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
       .where(eq(orders.stripeSessionId, session.id))
       .limit(1);
     if (!existing[0]?.emailSentAt) {
-      await sendDownloadEmail(session, email, origin);
+      await sendPurchaseEmail(session, email, origin);
       await db.update(orders).set({ emailSentAt: new Date().toISOString() }).where(eq(orders.stripeSessionId, session.id));
     }
+  } else if (isSubscription) {
+    await sendPurchaseEmail(session, email, origin);
   }
 }
 

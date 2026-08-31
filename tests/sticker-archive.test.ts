@@ -3,7 +3,11 @@ import test from "node:test";
 import { decode as decodePng, encode as encodePng } from "fast-png";
 import JSZip from "jszip";
 
-import { buildDownloadArchive, buildStickerTiles } from "../lib/sticker-archive.ts";
+import { buildDownloadArchive, buildStickerTiles, downloadArchiveKey } from "../lib/sticker-archive.ts";
+
+test("maps generated sticker images to stored download archives", () => {
+  assert.equal(downloadArchiveKey("stickers/example.png"), "downloads/example.zip");
+});
 
 const CELL = 100;
 const SHEET_WIDTH = CELL * 3;
@@ -147,4 +151,25 @@ test("a prop drawn free of the character is kept", () => {
 
   // Dropping the prop would crop at x=60 and leave a tile about 40px wide.
   assert.ok(first.width > 60, "the floating prop should be kept alongside the character");
+});
+
+test("a sticker running off its own cell edge is kept", () => {
+  const pixels = new Uint8Array(SHEET_WIDTH * SHEET_HEIGHT * 4).fill(255);
+
+  // A single sticker overflowing the left and top edges of its cell. Dropping
+  // everything that touches an edge would erase the whole tile.
+  for (let y = 0; y < 60; y++) {
+    for (let x = 0; x < 60; x++) paint(pixels, x, y, ART);
+  }
+
+  const source = Buffer.from(
+    encodePng({ width: SHEET_WIDTH, height: SHEET_HEIGHT, data: pixels, channels: 4, depth: 8 })
+  );
+  const first = decodePng(buildStickerTiles(source)[0].buffer);
+
+  assert.ok(
+    first.data.some((value, index) => index % 4 === 3 && value === 255),
+    "the sticker should survive even though it reaches the cell edge"
+  );
+  assert.ok(first.width > 55, "the sticker should be kept at close to its full width");
 });
