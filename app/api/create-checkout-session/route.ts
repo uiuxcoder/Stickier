@@ -5,9 +5,11 @@ import { CHECKOUT_HOURLY_CAP, ONE_TIME_AMOUNT_CENTS } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { checkoutRequestSchema } from "@/lib/validation";
+import { isLocalHostname } from "@/lib/turnstile";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
+  const isLocalDev = isLocalHostname(new URL(request.url).hostname);
   if (!process.env.STRIPE_SECRET_KEY) {
     return Response.json({ error: "Stripe is not configured." }, { status: 500 });
   }

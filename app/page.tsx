@@ -58,6 +58,16 @@ function GenericStickerSheet() {
   return <div className="printer-placeholder-grid" aria-label="Ten empty sticker placeholders">{Array.from({length:10},(_,index)=><span key={index}/>)}</div>;
 }
 
+async function readCheckoutResponse(response: Response): Promise<{url?:string;error?:string}> {
+  const body = await response.text();
+  if (!body) return {error:"The checkout service did not respond. Please try again."};
+  try {
+    return JSON.parse(body) as {url?:string;error?:string};
+  } catch {
+    return {error:"The checkout service returned an invalid response. Please try again."};
+  }
+}
+
 // The model rarely centers each sticker inside its grid cell, so a fixed grid
 // cut looks off-center. Trim the pure-white margin around the artwork and
 // re-center it on a square canvas with an even white border that stands in
@@ -382,8 +392,8 @@ export default function Home(){
   const beginAnotherSheet=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setProduct("me");setName("");setGroupName("");setPet({name:"",species:"Dog"});setTheme("Classic");setStage("photos")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
   const openPayment=()=>{if(isActiveMember)return;setPaymentPlan("physical");setCheckoutError("");setPaymentOpen(true)};
-  const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
-  const startSubscription=async()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_started",{plan:"membership"});try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
+  const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan})});const data=await readCheckoutResponse(response);if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
+  const startSubscription=async()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_started",{plan:"membership"});try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey})});const data=await readCheckoutResponse(response);if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
   const back:Partial<Record<Stage,Stage>>={photos:"home",details:skipPhotoStep?"home":"photos",mood:"details",reveal:"mood"};
   const confirmationSheetSrc = checkoutSessionId
     ? `/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`
