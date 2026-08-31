@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { Check, Download, LockKeyhole, Mail, MapPin } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
-import { checkoutShippingLines, getStripe } from "@/lib/stripe";
+import { checkoutShippingLines, getStripe, isPaidCheckout } from "@/lib/stripe";
 import { JoinStickerClubButton } from "@/components/join-sticker-club-button";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +45,12 @@ export default async function MembershipSuccessPage({
   const params = await searchParams;
   const stripe = process.env.STRIPE_SECRET_KEY ? getStripe() : null;
   const sessionId = params.session_id;
+  const isDevelopmentPreview = process.env.NODE_ENV !== "production" && params.preview_plan === "digital";
 
   let email = (await resolveCheckoutEmail(request, sessionId)) || "your email";
   let stickerPreviewUrl = "/sticker-sheet.png";
   let shippingAddress = ["Shipping address provided at checkout"];
-  let orderNumber = sessionId
+  const orderNumber = sessionId
     ? sessionId.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()
     : "PENDING";
   let orderDate = formatDate(Date.now());
@@ -64,8 +65,9 @@ export default async function MembershipSuccessPage({
   let tax = 0;
   let total = 999;
   let currency = "usd";
+  let checkoutConfirmed = isDevelopmentPreview;
 
-  if (process.env.NODE_ENV !== "production" && params.preview_plan === "digital") {
+  if (isDevelopmentPreview) {
     purchasePlan = "digital";
     productName = "Digital Sticker Sheet";
     subtotal = 499;
@@ -75,6 +77,8 @@ export default async function MembershipSuccessPage({
   if (stripe && sessionId) {
     try {
       const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (!isPaidCheckout(session)) throw new Error("Checkout is not paid.");
+      checkoutConfirmed = true;
       const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 1 });
       const lineItem = lineItems.data[0];
 
@@ -111,6 +115,18 @@ export default async function MembershipSuccessPage({
     } catch {
       // Keep graceful fallback copy when Stripe session cannot be loaded.
     }
+  }
+
+  if (!checkoutConfirmed) {
+    return (
+      <main className="membership-welcome-page membership-welcome-error">
+        <section>
+          <h1>We couldn&apos;t confirm that purchase.</h1>
+          <p>No download has been released. If you completed payment, check your confirmation email or contact support.</p>
+          <Link href="/">Return to your stickers</Link>
+        </section>
+      </main>
+    );
   }
 
   const isDigital = purchasePlan === "digital";

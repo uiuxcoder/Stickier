@@ -5,14 +5,11 @@ import { DOWNLOAD_HOURLY_CAP, DOWNLOAD_WINDOW_MS } from "@/lib/constants";
 import { getSessionUser } from "@/lib/auth";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { buildDownloadArchive, downloadArchiveKey } from "@/lib/sticker-archive";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, isPaidCheckout } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
 import { and, eq } from "drizzle-orm";
 
-async function resolveImageKey(sessionId: string, fallbackKey?: string | null) {
-  const explicitKey = fallbackKey && isImageKey(fallbackKey) ? fallbackKey : null;
-  if (explicitKey) return explicitKey;
-
+async function resolveImageKey(sessionId: string) {
   const order = await getDb()
     .select({ imageKey: orders.imageKey, createdAt: orders.createdAt })
     .from(orders)
@@ -26,6 +23,7 @@ async function resolveImageKey(sessionId: string, fallbackKey?: string | null) {
 
   try {
     const session = await getStripe().checkout.sessions.retrieve(sessionId);
+    if (!isPaidCheckout(session)) return null;
     const imageKey = typeof session.metadata?.imageKey === "string" ? session.metadata.imageKey : null;
     if (isImageKey(imageKey)) return imageKey;
   } catch (error) {
@@ -67,7 +65,7 @@ export async function GET(request: Request) {
 
   try {
     const resolvedKey = sessionId
-      ? await resolveImageKey(sessionId, imageKey)
+      ? await resolveImageKey(sessionId)
       : await resolveMemberImageKey(request, imageKey);
     if (!resolvedKey) return new Response("Download unavailable", { status: 404 });
 

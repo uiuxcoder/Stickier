@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
 import { buildClearSessionCookie, getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { generationJobs, generations, orders, subscriptions, users } from "@/db/schema";
+import { generationJobs, generations, membershipDrops, orders, subscriptions, users } from "@/db/schema";
+import { UPLOAD_KEY_PATTERN } from "@/lib/constants";
+import { downloadArchiveKey } from "@/lib/sticker-archive";
 import { getStripe } from "@/lib/stripe";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -39,20 +41,32 @@ export async function POST(request: Request) {
       }
     }
 
-    const userGenerations = await db
-      .select({ imageKey: generations.imageKey })
-      .from(generations)
-      .where(eq(generations.userId, user.id));
+    const [userGenerations, userJobs] = await Promise.all([
+      db.select({ imageKey: generations.imageKey }).from(generations).where(eq(generations.userId, user.id)),
+      db.select({ photoKeys: generationJobs.photoKeys }).from(generationJobs).where(eq(generationJobs.userId, user.id)),
+    ]);
 
     if (bucket) {
       for (const row of userGenerations) {
-        await bucket.delete(row.imageKey).catch((error) =>
+        await bucket.delete([row.imageKey, downloadArchiveKey(row.imageKey)]).catch((error) =>
           console.error("Failed to delete image", row.imageKey, error)
         );
+      }
+      const uploadKeys = userJobs.flatMap((row) => {
+        try {
+          const keys = JSON.parse(row.photoKeys) as unknown;
+          return Array.isArray(keys) ? keys.filter((key): key is string => typeof key === "string" && UPLOAD_KEY_PATTERN.test(key)) : [];
+        } catch {
+          return [];
+        }
+      });
+      if (uploadKeys.length > 0) {
+        await bucket.delete(uploadKeys).catch((error) => console.error("Failed to delete uploaded photos", error));
       }
     }
 
     await db.delete(generationJobs).where(eq(generationJobs.userId, user.id));
+    await db.delete(membershipDrops).where(eq(membershipDrops.userId, user.id));
     await db.delete(generations).where(eq(generations.userId, user.id));
     await db.delete(orders).where(eq(orders.userId, user.id));
     await db.delete(subscriptions).where(eq(subscriptions.userId, user.id));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, ChevronDown, CreditCard, Download, MapPin, PackageCheck, Sparkles, XCircle } from "lucide-react";
@@ -17,16 +17,11 @@ type StickerCard = {
   createdAt: number;
 };
 
-type StoredDrop = {
+type MembershipDrop = {
   monthKey: string;
-  selectedIds: string[];
-  submittedIds: string[];
-  submittedAt: number | null;
-  history: {
-    monthKey: string;
-    stickerIds: string[];
-    submittedAt: number;
-  }[];
+  stickerIds: string[];
+  submittedAt: number;
+  status: DropStatus;
 };
 
 type DashboardProps = {
@@ -35,6 +30,7 @@ type DashboardProps = {
   remainingCreations: number;
   stickers: StickerCard[];
   shippingAddress: string[];
+  drops: MembershipDrop[];
 };
 
 type MembershipAction = "address" | "payment" | "cancel";
@@ -57,15 +53,6 @@ function formatStickerDate(timestamp: number) {
   return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
-function statusFromSubmittedAt(submittedAt: number): DropStatus {
-  const elapsedMs = Date.now() - submittedAt;
-  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-  if (elapsedDays >= 8) return "delivered";
-  if (elapsedDays >= 5) return "shipped";
-  if (elapsedDays >= 2) return "printing";
-  return "submitted";
-}
-
 function statusLabel(status: DropStatus) {
   if (status === "submitted") return "Submitted";
   if (status === "printing") return "Printing";
@@ -73,18 +60,17 @@ function statusLabel(status: DropStatus) {
   return "Delivered";
 }
 
-export function MemberDashboard({ userId, isActive, remainingCreations, stickers, shippingAddress = [] }: DashboardProps) {
+export function MemberDashboard({ isActive, remainingCreations, stickers, shippingAddress = [], drops }: DashboardProps) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
-  const localStorageKey = `stickier-club:${userId}`;
   const thisMonthKey = useMemo(() => monthKeyFromDate(new Date()), []);
   const thisMonthLabel = useMemo(() => monthLabelFromKey(thisMonthKey), [thisMonthKey]);
+  const initialDrop = drops.find((drop) => drop.monthKey === thisMonthKey) ?? null;
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [submittedIds, setSubmittedIds] = useState<string[]>([]);
-  const [submittedAt, setSubmittedAt] = useState<number | null>(null);
-  const [history, setHistory] = useState<StoredDrop["history"]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [currentDrop, setCurrentDrop] = useState<MembershipDrop | null>(initialDrop);
+  const [dropError, setDropError] = useState("");
+  const [dropSubmitting, setDropSubmitting] = useState(false);
   const [shipConfirmOpen, setShipConfirmOpen] = useState(false);
   const [shipDialogStage, setShipDialogStage] = useState<ShipDialogStage>("review");
   const [shippingAddressConfirmed, setShippingAddressConfirmed] = useState(false);
@@ -92,74 +78,9 @@ export function MemberDashboard({ userId, isActive, remainingCreations, stickers
   const [membershipAction, setMembershipAction] = useState<MembershipAction | null>(null);
   const [creatorOpen, setCreatorOpen] = useState(false);
 
-  useEffect(() => {
-    let nextState: StoredDrop = {
-      monthKey: thisMonthKey,
-      selectedIds: [],
-      submittedIds: [],
-      submittedAt: null,
-      history: [],
-    };
-
-    try {
-      const raw = window.localStorage.getItem(localStorageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredDrop;
-        const safeParsed: StoredDrop = {
-          monthKey: typeof parsed.monthKey === "string" ? parsed.monthKey : thisMonthKey,
-          selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
-          submittedIds: Array.isArray(parsed.submittedIds) ? parsed.submittedIds : [],
-          submittedAt: typeof parsed.submittedAt === "number" ? parsed.submittedAt : null,
-          history: Array.isArray(parsed.history) ? parsed.history : [],
-        };
-
-        if (safeParsed.monthKey !== thisMonthKey) {
-          if (safeParsed.submittedIds.length === 3 && safeParsed.submittedAt) {
-            safeParsed.history = [
-              {
-                monthKey: safeParsed.monthKey,
-                stickerIds: safeParsed.submittedIds,
-                submittedAt: safeParsed.submittedAt,
-              },
-              ...safeParsed.history,
-            ];
-          }
-          nextState = {
-            monthKey: thisMonthKey,
-            selectedIds: [],
-            submittedIds: [],
-            submittedAt: null,
-            history: safeParsed.history,
-          };
-        } else {
-          nextState = safeParsed;
-        }
-      }
-    } catch {
-      // Ignore parse issues and reset to default state.
-    }
-
-    setSelectedIds(nextState.selectedIds);
-    setSubmittedIds(nextState.submittedIds);
-    setSubmittedAt(nextState.submittedAt);
-    setHistory(nextState.history);
-    setIsHydrated(true);
-  }, [localStorageKey, thisMonthKey]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    const snapshot: StoredDrop = {
-      monthKey: thisMonthKey,
-      selectedIds,
-      submittedIds,
-      submittedAt,
-      history,
-    };
-    window.localStorage.setItem(localStorageKey, JSON.stringify(snapshot));
-  }, [history, isHydrated, localStorageKey, selectedIds, submittedAt, submittedIds, thisMonthKey]);
-
-  const selectedCount = submittedIds.length === 3 ? submittedIds.length : selectedIds.length;
-  const canPickForDrop = isActive && submittedIds.length === 0;
+  const submittedIds = currentDrop?.stickerIds ?? [];
+  const selectedCount = currentDrop ? currentDrop.stickerIds.length : selectedIds.length;
+  const canPickForDrop = isActive && !currentDrop;
   const canShip = canPickForDrop && selectedIds.length === 3;
   const usedCreations = Math.max(0, MONTHLY_CREATIONS - Math.max(0, Math.min(MONTHLY_CREATIONS, remainingCreations)));
   const creationProgress = `${(usedCreations / MONTHLY_CREATIONS) * 100}%`;
@@ -178,12 +99,25 @@ export function MemberDashboard({ userId, isActive, remainingCreations, stickers
     });
   }
 
-  function submitDrop() {
+  async function submitDrop() {
     if (!canShip || !shippingAddressConfirmed || shippingAddress.length === 0) return;
-    const now = Date.now();
-    setSubmittedIds(selectedIds);
-    setSubmittedAt(now);
-    setShipDialogStage("confirmed");
+    setDropError("");
+    setDropSubmitting(true);
+    try {
+      const response = await fetch("/api/membership/drop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stickerIds: selectedIds }),
+      });
+      const data = await response.json() as MembershipDrop & { error?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to submit this month’s stickers.");
+      setCurrentDrop(data);
+      setShipDialogStage("confirmed");
+    } catch (error) {
+      setDropError(error instanceof Error ? error.message : "Unable to submit this month’s stickers.");
+    } finally {
+      setDropSubmitting(false);
+    }
   }
 
   function setShipDialogOpen(open: boolean) {
@@ -192,12 +126,9 @@ export function MemberDashboard({ userId, isActive, remainingCreations, stickers
     setShipConfirmOpen(open);
   }
 
-  const orders = [
-    ...(submittedIds.length === 3 && submittedAt
-      ? [{ monthKey: thisMonthKey, stickerIds: submittedIds, submittedAt }]
-      : []),
-    ...history.filter((order) => order.monthKey !== thisMonthKey || order.submittedAt !== submittedAt),
-  ];
+  const orders = currentDrop
+    ? [currentDrop, ...drops.filter((drop) => drop.monthKey !== currentDrop.monthKey)]
+    : drops;
 
   return (
     <main className="club-shell">
@@ -323,12 +254,11 @@ export function MemberDashboard({ userId, isActive, remainingCreations, stickers
         ) : (
           <div className="club-past-grid">
             {orders.map((order) => {
-              const status = statusFromSubmittedAt(order.submittedAt);
               return (
                 <article key={`${order.monthKey}-${order.submittedAt}`}>
                   <header>
                     <h3>{monthLabelFromKey(order.monthKey)} order</h3>
-                    <span>{statusLabel(status)}</span>
+                    <span>{statusLabel(order.status)}</span>
                   </header>
                   <div className="club-past-previews">
                     {order.stickerIds.map((id) => {
@@ -414,13 +344,14 @@ export function MemberDashboard({ userId, isActive, remainingCreations, stickers
                 <strong>$0.00</strong>
                 <small>Included with your Sticker Club membership</small>
               </div>
+              {dropError ? <p role="alert">{dropError}</p> : null}
               <DialogFooter className="club-ship-actions">
                 <button type="button" className="club-secondary-button" onClick={() => setShipDialogOpen(false)}>
                   Keep editing
                 </button>
                 {shippingAddress.length > 0 ? (
-                  <button type="button" className="club-primary-button" disabled={!shippingAddressConfirmed} onClick={submitDrop}>
-                    Confirm and ship
+                  <button type="button" className="club-primary-button" disabled={!shippingAddressConfirmed || dropSubmitting} onClick={() => void submitDrop()}>
+                    {dropSubmitting ? "Submitting..." : "Confirm and ship"}
                   </button>
                 ) : (
                   <form action="/api/account/portal" method="post">

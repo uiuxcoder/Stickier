@@ -24,6 +24,7 @@ Set each secret in a local `.env` file (gitignored) and with `wrangler secret pu
 - `STRIPE_WEBHOOK_SECRET`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
+- `FULFILLMENT_EMAIL` — receives new monthly Sticker Club drop submissions (defaults to `support@saltysticker.com`)
 - `SESSION_SECRET` — signs session cookies, email links, and photo-upload tokens
 - `APP_ORIGIN` — canonical site origin used in auth emails and OAuth (defaults to `https://saltysticker.com` in production)
 - `GOOGLE_CLIENT_ID` — Google OAuth web application client ID

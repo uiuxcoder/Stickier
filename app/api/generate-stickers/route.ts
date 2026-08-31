@@ -92,51 +92,70 @@ export async function POST(request: Request) {
     );
   }
 
-  // Persist photos: inline data URLs are uploaded to R2 now; pre-uploaded keys
-  // are passed through. The job stores only R2 keys, never raw bytes.
-  const photoKeys: string[] = [...input.photoKeys];
-  for (const [index, dataUrl] of input.photos.entries()) {
-    const file = dataUrlToFile(dataUrl, index);
-    if (!file) continue;
-    const key = `uploads/${crypto.randomUUID()}/${crypto.randomUUID()}.${extensionForImageType(file.type)}`;
-    await bucket.put(key, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type },
-    });
-    photoKeys.push(key);
-  }
-
   const jobId = crypto.randomUUID();
-  const now = Date.now();
-  await db.insert(generationJobs).values({
-    id: jobId,
-    userId: reservedUserId ?? user?.id ?? null,
-    email: user?.email ?? null,
-    status: "queued",
-    inputJson: JSON.stringify(input),
-    photoKeys: JSON.stringify(photoKeys),
-    reservedQuota: reservedUserId ? 1 : 0,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const uploadedKeys: string[] = [];
+  let jobInserted = false;
 
-  if (isLocalDev) {
-    try {
+  try {
+    // Persist photos: inline data URLs are uploaded to R2 now; pre-uploaded keys
+    // are passed through. The job stores only R2 keys, never raw bytes.
+    const photoKeys: string[] = [...input.photoKeys];
+    for (const [index, dataUrl] of input.photos.entries()) {
+      const file = dataUrlToFile(dataUrl, index);
+      if (!file) continue;
+      const key = `uploads/${crypto.randomUUID()}/${crypto.randomUUID()}.${extensionForImageType(file.type)}`;
+      await bucket.put(key, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type },
+      });
+      uploadedKeys.push(key);
+      photoKeys.push(key);
+    }
+
+    const now = Date.now();
+    await db.insert(generationJobs).values({
+      id: jobId,
+      userId: reservedUserId ?? user?.id ?? null,
+      email: user?.email ?? null,
+      status: "queued",
+      inputJson: JSON.stringify(input),
+      photoKeys: JSON.stringify(photoKeys),
+      reservedQuota: reservedUserId ? 1 : 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    jobInserted = true;
+
+    if (isLocalDev) {
       // Local wrangler queue delivery is not always reliable during hot reload,
       // so run jobs inline in localhost to keep development flow usable.
-      await processGenerationJob({ DB: env.DB, STICKER_ASSETS: bucket, IMAGES: env.IMAGES }, { jobId });
-    } catch (error) {
-      console.error("Local generation job failed", error);
-      await db
-        .update(generationJobs)
-        .set({
-          status: "failed",
-          error: error instanceof Error ? error.message : "Generation failed.",
-          updatedAt: Date.now(),
-        })
-        .where(eq(generationJobs.id, jobId));
+      try {
+        await processGenerationJob({ DB: env.DB, STICKER_ASSETS: bucket, IMAGES: env.IMAGES }, { jobId });
+      } catch (error) {
+        console.error("Local generation job failed", error);
+        await db
+          .update(generationJobs)
+          .set({
+            status: "failed",
+            error: error instanceof Error ? error.message : "Generation failed.",
+            reservedQuota: 0,
+            updatedAt: Date.now(),
+          })
+          .where(eq(generationJobs.id, jobId));
+        if (reservedUserId) {
+          await db.update(users).set({ regenerationsRemaining: sql`${users.regenerationsRemaining} + 1` }).where(eq(users.id, reservedUserId));
+        }
+      }
+    } else {
+      await queue.send({ jobId });
     }
-  } else {
-    await queue.send({ jobId });
+  } catch (error) {
+    console.error("Generation submission failed", error);
+    if (jobInserted) await db.delete(generationJobs).where(eq(generationJobs.id, jobId)).catch(() => undefined);
+    if (uploadedKeys.length > 0) await bucket.delete(uploadedKeys).catch(() => undefined);
+    if (reservedUserId) {
+      await db.update(users).set({ regenerationsRemaining: sql`${users.regenerationsRemaining} + 1` }).where(eq(users.id, reservedUserId));
+    }
+    return Response.json({ error: "Unable to start generation. Please try again." }, { status: 500 });
   }
 
   return Response.json({ jobId, status: "queued" });

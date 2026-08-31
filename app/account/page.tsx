@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { generations, subscriptions, users } from "@/db/schema";
+import { generations, membershipDrops, subscriptions, users } from "@/db/schema";
 import { MemberDashboard } from "@/components/member-dashboard";
 import { MONTHLY_REGENERATIONS } from "@/lib/constants";
 import { getStripe } from "@/lib/stripe";
@@ -20,10 +20,11 @@ export default async function AccountPage() {
   let isActive = false;
   let stickerCards: { id: string; imageUrl: string; createdAt: number }[] = [];
   let shippingAddress: string[] = [];
+  let drops: { monthKey: string; stickerIds: string[]; submittedAt: number; status: "submitted" | "printing" | "shipped" | "delivered" }[] = [];
 
   try {
     const db = getDb();
-    const [profile, activeSubscription, allGenerations] = await Promise.all([
+    const [profile, activeSubscription, allGenerations, allDrops] = await Promise.all([
       db.select().from(users).where(eq(users.id, user.id)).limit(1),
       db
         .select()
@@ -32,6 +33,7 @@ export default async function AccountPage() {
         .orderBy(desc(subscriptions.createdAt))
         .limit(1),
       db.select().from(generations).where(eq(generations.userId, user.id)).orderBy(desc(generations.createdAt)),
+      db.select().from(membershipDrops).where(eq(membershipDrops.userId, user.id)).orderBy(desc(membershipDrops.submittedAt)),
     ]);
 
     isActive = Boolean(activeSubscription[0]);
@@ -43,6 +45,19 @@ export default async function AccountPage() {
       imageUrl: `/api/preview-stickers?key=${encodeURIComponent(generation.imageKey)}`,
       createdAt: generation.createdAt,
     }));
+    drops = allDrops.flatMap((drop) => {
+      let stickerIds: unknown;
+      try {
+        stickerIds = JSON.parse(drop.stickerIds);
+      } catch {
+        return [];
+      }
+      if (!Array.isArray(stickerIds) || !stickerIds.every((id) => typeof id === "string")) return [];
+      const status = ["submitted", "printing", "shipped", "delivered"].includes(drop.status)
+        ? drop.status as "submitted" | "printing" | "shipped" | "delivered"
+        : "submitted";
+      return [{ monthKey: drop.monthKey, stickerIds, submittedAt: drop.submittedAt, status }];
+    });
 
     const stripeCustomerId = profile[0]?.stripeCustomerId;
     if (stripeCustomerId && process.env.STRIPE_SECRET_KEY) {
@@ -72,11 +87,11 @@ export default async function AccountPage() {
 
   return (
     <MemberDashboard
-      userId={user.id}
       isActive={isActive}
       remainingCreations={remainingCreations}
       stickers={stickerCards}
       shippingAddress={shippingAddress}
+      drops={drops}
     />
   );
 }

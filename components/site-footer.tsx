@@ -10,13 +10,11 @@ const FLOW_STAGES: FlowStage[] = ["photos", "details", "mood", "generating", "re
 export function SiteFooter() {
   const pathname = usePathname();
   const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [isStudioFlowStage, setIsStudioFlowStage] = useState(false);
+  const [observedStudioFlowStage, setIsStudioFlowStage] = useState(false);
+  const isStudioFlowStage = pathname === "/" && observedStudioFlowStage;
 
   useEffect(() => {
-    if (pathname !== "/") {
-      setIsStudioFlowStage(false);
-      return;
-    }
+    if (pathname !== "/") return;
 
     const checkStage = () => {
       const shell = document.querySelector("main.shell");

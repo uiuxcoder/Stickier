@@ -12,28 +12,37 @@ import {
   subscriptionIdFromInvoice,
 } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 
-/**
- * Record the event only after it has been processed successfully. Recording it
- * first and deleting on failure leaves a window where a crashed isolate makes a
- * paid event look delivered and it is never retried. Stripe retries on any
- * non-2xx, so on failure we simply return 500 and let the redelivery reprocess.
- */
-async function hasProcessed(eventId: string) {
-  const rows = await getDb()
-    .select({ id: stripeEvents.id })
-    .from(stripeEvents)
-    .where(eq(stripeEvents.id, eventId))
-    .limit(1);
-  return rows.length > 0;
+const STALE_EVENT_CLAIM_MS = 5 * 60 * 1000;
+
+async function claimEvent(event: Stripe.Event): Promise<"claimed" | "processed" | "busy"> {
+  const db = getDb();
+  const now = Date.now();
+  const inserted = await db
+    .insert(stripeEvents)
+    .values({ id: event.id, type: event.type, status: "processing", createdAt: now, updatedAt: now })
+    .onConflictDoNothing({ target: stripeEvents.id })
+    .returning({ id: stripeEvents.id });
+  if (inserted[0]) return "claimed";
+
+  const existing = await db.select({ status: stripeEvents.status, updatedAt: stripeEvents.updatedAt })
+    .from(stripeEvents).where(eq(stripeEvents.id, event.id)).limit(1);
+  if (existing[0]?.status === "processed") return "processed";
+  if (existing[0] && existing[0].updatedAt < now - STALE_EVENT_CLAIM_MS) {
+    const reclaimed = await db.update(stripeEvents)
+      .set({ status: "processing", type: event.type, updatedAt: now })
+      .where(and(eq(stripeEvents.id, event.id), lt(stripeEvents.updatedAt, now - STALE_EVENT_CLAIM_MS)))
+      .returning({ id: stripeEvents.id });
+    if (reclaimed[0]) return "claimed";
+  }
+  return "busy";
 }
 
-async function markProcessed(event: Stripe.Event) {
-  await getDb()
-    .insert(stripeEvents)
-    .values({ id: event.id, type: event.type, createdAt: Date.now() })
-    .onConflictDoNothing({ target: stripeEvents.id });
+async function markProcessed(eventId: string) {
+  await getDb().update(stripeEvents)
+    .set({ status: "processed", updatedAt: Date.now() })
+    .where(eq(stripeEvents.id, eventId));
 }
 
 /** Resolve the app user for a checkout, preferring the linked userId. */
@@ -227,8 +236,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (await hasProcessed(event.id)) {
+    const claim = await claimEvent(event);
+    if (claim === "processed") {
       return Response.json({ received: true, duplicate: true });
+    }
+    if (claim === "busy") {
+      return Response.json({ error: "Webhook event is already processing." }, { status: 409 });
     }
 
     if (event.type === "checkout.session.completed") {
@@ -239,11 +252,11 @@ export async function POST(request: Request) {
       await handleSubscriptionChange(event.data.object);
     }
 
-    await markProcessed(event);
+    await markProcessed(event.id);
     return Response.json({ received: true });
   } catch (error) {
     console.error("Stripe webhook processing failed", event.id, error);
-    // Do not record the event: returning 500 makes Stripe redeliver it.
+    await getDb().delete(stripeEvents).where(and(eq(stripeEvents.id, event.id), eq(stripeEvents.status, "processing"))).catch(() => undefined);
     return Response.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }

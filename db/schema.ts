@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -80,10 +80,29 @@ export const generationJobs = sqliteTable(
   (table) => [index("generation_jobs_user_id_idx").on(table.userId)],
 );
 
+export const membershipDrops = sqliteTable(
+  "membership_drops",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    monthKey: text("month_key").notNull(),
+    stickerIds: text("sticker_ids").notNull(),
+    shippingAddress: text("shipping_address").notNull(),
+    status: text("status").notNull().default("submitted"),
+    submittedAt: integer("submitted_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("membership_drops_user_month_idx").on(table.userId, table.monthKey),
+    index("membership_drops_status_idx").on(table.status),
+  ],
+);
+
 export const stripeEvents = sqliteTable("stripe_events", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),
+  status: text("status").notNull().default("processed"),
   createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull().default(0),
 });
 
 export const rateLimits = sqliteTable("rate_limits", {

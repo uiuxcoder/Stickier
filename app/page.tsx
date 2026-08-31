@@ -3,7 +3,7 @@
 import { ChangeEvent, DragEvent, startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ImagePlus, PawPrint, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LandingV2 } from "@/components/landing-v2";
 import { setLandingVariant, track, trackOnce } from "@/lib/analytics";
 import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
@@ -313,6 +313,7 @@ export default function Home(){
     trackOnce("landing_view");
   },[]);
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- These mount-only effects restore state from browser URL and session storage. */
   // Land directly on the photo-upload step when arriving from an external
   // "make another sheet" link (e.g. the post-checkout success page).
   useEffect(()=>{
@@ -410,6 +411,7 @@ export default function Home(){
     return()=>{if(pollTimer.current)window.clearTimeout(pollTimer.current)};
   },[]);
   useEffect(()=>{if(["photos","details","mood"].includes(stage))window.scrollTo({top:0,left:0,behavior:"auto"})},[stage]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   type Setter=(x:string[]|((prev:string[])=>string[]))=>void;
   const load=async(files:FileList|null,setter:Setter,setKeys:Setter,setData:Setter,current:string[],source?:"home"|"hero"|"wizard"|"reference")=>{
