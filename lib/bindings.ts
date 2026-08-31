@@ -30,7 +30,7 @@ export async function createPreviewResponse(
   const result = await images
     .input(body)
     .transform({ width: PREVIEW_WIDTH, fit: "scale-down" })
-    .output({ format: "jpeg", quality: PREVIEW_QUALITY });
+    .output({ format: "image/jpeg", quality: PREVIEW_QUALITY });
   const response = await result.response();
   const headers = new Headers(response.headers);
   headers.set("Content-Type", "image/jpeg");
