@@ -25,7 +25,9 @@ Set each secret in a local `.env` file (gitignored) and with `wrangler secret pu
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `SESSION_SECRET` — signs session cookies, email links, and photo-upload tokens
-- `APP_ORIGIN` — canonical site origin used in auth emails (defaults to `https://stickier.app` in production)
+- `APP_ORIGIN` — canonical site origin used in auth emails and OAuth (defaults to `https://saltysticker.com` in production)
+- `GOOGLE_CLIENT_ID` — Google OAuth web application client ID
+- `GOOGLE_CLIENT_SECRET` — Google OAuth web application client secret
 
 Optional: `STRIPE_PRICE_ID`, `OPENAI_IMAGE_MODEL`.
 
@@ -42,10 +44,15 @@ Forward Stripe test webhooks with `npm run dev:webhooks` while `npm run dev` is 
   compatibility. The Vite plugin auto-discovers it; do not duplicate bindings in
   `vite.config.ts`.
 - **Auth**: identity is an HMAC-signed session cookie (`SESSION_SECRET`). Email and
-  password sign-up / sign-in are the production path (`/signup`, `/signin`). New
+  password or Google sign-up / sign-in are available at `/signup` and `/signin`. New
   accounts confirm email through Resend. The OpenAI Sites `oai-authenticated-user-*`
   headers remain only a sign-in hint, never trusted on their own. Users carry a
   surrogate ID; orders, subscriptions and generations link to it.
+
+For Google sign-in, create an OAuth 2.0 Web application in Google Cloud Console. Add
+`http://localhost:5173/api/auth/google/callback` and
+`https://saltysticker.com/api/auth/google/callback` as authorized redirect URIs,
+then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` locally and as Wrangler secrets.
 - **Generation**: `POST /api/generate-stickers` validates, runs Turnstile and
   moderation, reserves quota, and enqueues a job on the `GENERATION_QUEUE`
   Cloudflare Queue. The Worker `queue` consumer calls OpenAI and writes the

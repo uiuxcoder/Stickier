@@ -14,17 +14,18 @@ import { and, eq, inArray } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const user = await getSessionUser(request);
+  if (!user) {
+    return Response.json({ error: "Create an account or sign in to join Sticker Club." }, { status: 401 });
+  }
   if (!process.env.STRIPE_SECRET_KEY) return Response.json({ error: "Stripe is not configured." }, { status: 500 });
 
-  if (user) {
-    const activeMembership = await getDb()
-      .select({ id: subscriptions.stripeSubscriptionId })
-      .from(subscriptions)
-      .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
-      .limit(1);
-    if (activeMembership[0]) {
-      return Response.json({ error: "Your Sticker Club membership is already active." }, { status: 409 });
-    }
+  const activeMembership = await getDb()
+    .select({ id: subscriptions.stripeSubscriptionId })
+    .from(subscriptions)
+    .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
+    .limit(1);
+  if (activeMembership[0]) {
+    return Response.json({ error: "Your Sticker Club membership is already active." }, { status: 409 });
   }
 
   const hourly = await consumeRateLimit(rateLimiters().checkout, `checkout:${await hashIp(request)}`, CHECKOUT_HOURLY_CAP, 60 * 60 * 1000);
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     const enableAutomaticTax = automaticTaxEnabled();
     const session = await getStripe().checkout.sessions.create({
       mode: "subscription",
-      ...(user?.email ? { customer_email: user.email } : {}),
+      customer_email: user.email,
       ...(enableAutomaticTax ? { automatic_tax: { enabled: true } } : {}),
       line_items: [
         {
@@ -65,8 +66,8 @@ export async function POST(request: Request) {
       cancel_url: `${origin}/membership`,
       shipping_address_collection: { allowed_countries: ["US"] },
       metadata: {
-        ...(user?.email ? { email: user.email } : {}),
-        ...(user?.id ? { userId: user.id } : {}),
+        email: user.email,
+        userId: user.id,
         subject: subject || "Your",
         ...(imageKey ? { imageKey } : {}),
         monthlyRegenerations: String(MONTHLY_REGENERATIONS),
@@ -74,8 +75,8 @@ export async function POST(request: Request) {
       },
       subscription_data: {
         metadata: {
-          ...(user?.email ? { email: user.email } : {}),
-          ...(user?.id ? { userId: user.id } : {}),
+          email: user.email,
+          userId: user.id,
           monthlyRegenerations: String(MONTHLY_REGENERATIONS),
           monthlyPhysicalSheets: String(MONTHLY_PHYSICAL_SHEETS),
         },

@@ -86,6 +86,7 @@ export const signUpRequestSchema = z.object({
   email: emailField,
   password: passwordField,
   fullName: z.string().trim().max(80).optional(),
+  returnTo: z.string().max(2048).optional(),
   turnstileToken: turnstileField,
 });
 

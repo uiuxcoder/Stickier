@@ -10,19 +10,7 @@ export default function MembershipPage() {
   async function beginCheckout() {
     setIsLoading(true);
     setError("");
-    try {
-      const response = await fetch("/api/create-subscription-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: "membership-page" }),
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) throw new Error(data.error || "Unable to start checkout.");
-      window.location.assign(data.url);
-    } catch (checkoutError) {
-      setError(checkoutError instanceof Error ? checkoutError.message : "Unable to start checkout.");
-      setIsLoading(false);
-    }
+    window.location.assign("/membership/checkout?source=membership-page");
   }
 
   return (

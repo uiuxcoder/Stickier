@@ -75,6 +75,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
           password,
           fullName: fullName || undefined,
           token,
+          returnTo,
         }),
       });
       const data = (await response.json()) as {
@@ -137,6 +138,14 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
       <span className="eyebrow">{fields.eyebrow}</span>
       <h1>{fields.title}</h1>
       <p>{fields.description}</p>
+      {mode === "signin" || mode === "signup" ? (
+        <>
+          <a className="google-auth-button" href={`/api/auth/google?return_to=${encodeURIComponent(returnTo)}`}>
+            <span aria-hidden="true">G</span> Continue with Google
+          </a>
+          <div className="auth-divider"><span>OR</span></div>
+        </>
+      ) : null}
       <form className="auth-form" onSubmit={submit}>
         {mode !== "reset" ? (
           <label>

@@ -314,9 +314,10 @@ export async function establishSession(
   return mintSessionCookie({ id: userId, email, fullName: displayName === email ? null : displayName }, request);
 }
 
-export async function issueEmailVerificationLink(userId: string, email: string, request: Request): Promise<string> {
+export async function issueEmailVerificationLink(userId: string, email: string, request: Request, returnTo = "/account?verified=1"): Promise<string> {
   const token = await createEmailToken("verify", userId, email, EMAIL_VERIFY_TTL_MS);
-  return `${appOrigin(request)}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+  const params = new URLSearchParams({ token, return_to: returnTo });
+  return `${appOrigin(request)}/api/auth/verify-email?${params}`;
 }
 
 export async function issuePasswordResetLink(userId: string, email: string, request: Request): Promise<string> {

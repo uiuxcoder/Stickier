@@ -2,7 +2,7 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { mintSessionCookie, verifyEmailToken } from "@/lib/auth";
 import { jsonUser } from "@/lib/auth-http";
-import { appOrigin } from "@/lib/auth-utils";
+import { appOrigin, safeRelativeReturnPath } from "@/lib/auth-utils";
 import { eq } from "drizzle-orm";
 
 function redirectTo(request: Request, path: string, setCookie?: string) {
@@ -12,7 +12,9 @@ function redirectTo(request: Request, path: string, setCookie?: string) {
 }
 
 export async function GET(request: Request) {
-  const token = new URL(request.url).searchParams.get("token");
+  const requestUrl = new URL(request.url);
+  const token = requestUrl.searchParams.get("token");
+  const returnTo = safeRelativeReturnPath(requestUrl.searchParams.get("return_to"));
   if (!token) return redirectTo(request, "/signin?error=invalid_link");
 
   const payload = await verifyEmailToken(token, "verify");
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
 
   await db.update(users).set({ emailVerifiedAt: Date.now() }).where(eq(users.id, existing[0].id));
   const { setCookie } = await mintSessionCookie(existing[0], request);
-  return redirectTo(request, "/account?verified=1", setCookie);
+  return redirectTo(request, returnTo, setCookie);
 }
 
 export async function POST(request: Request) {

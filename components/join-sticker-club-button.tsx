@@ -14,19 +14,10 @@ export function JoinStickerClubButton({ imageKey, subject }: JoinStickerClubButt
   async function handleClick() {
     setIsLoading(true);
     setError("");
-    try {
-      const response = await fetch("/api/create-subscription-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: "digital-success", imageKey, subject }),
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) throw new Error(data.error || "Unable to start checkout.");
-      window.location.assign(data.url);
-    } catch (checkoutError) {
-      setError(checkoutError instanceof Error ? checkoutError.message : "Unable to start checkout.");
-      setIsLoading(false);
-    }
+    const params = new URLSearchParams({ source: "digital-success" });
+    if (imageKey) params.set("image_key", imageKey);
+    if (subject) params.set("subject", subject);
+    window.location.assign(`/membership/checkout?${params}`);
   }
 
   return (

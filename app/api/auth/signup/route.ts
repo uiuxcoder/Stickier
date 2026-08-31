@@ -6,7 +6,7 @@ import {
 } from "@/lib/auth";
 import { sendAlreadyRegisteredEmail, sendVerificationEmail, authEmailOptional } from "@/lib/auth-email";
 import { enforceAuthRateLimit, jsonUser } from "@/lib/auth-http";
-import { appOrigin, normalizeEmail } from "@/lib/auth-utils";
+import { appOrigin, normalizeEmail, safeRelativeReturnPath } from "@/lib/auth-utils";
 import { SIGNUP_HOURLY_CAP } from "@/lib/constants";
 import { hashPassword, passwordErrorMessage, passwordIssue } from "@/lib/password";
 import { consumeRateLimit, hashIp, rateLimitResponse } from "@/lib/rate-limit";
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
 
   const email = normalizeEmail(parsed.data.email);
   const fullName = parsed.data.fullName?.trim() || null;
+  const returnTo = safeRelativeReturnPath(parsed.data.returnTo);
   const passwordHash = await hashPassword(parsed.data.password);
   const db = getDb();
   const now = Date.now();
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const verifyUrl = await issueEmailVerificationLink(userId, email, request);
+    const verifyUrl = await issueEmailVerificationLink(userId, email, request, returnTo);
     if (process.env.NODE_ENV !== "production") console.info("Verification URL", verifyUrl);
     const sent = await sendVerificationEmail(email, verifyUrl);
     if (!sent.ok) {

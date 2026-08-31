@@ -3,6 +3,7 @@ import test from "node:test";
 import { passwordErrorMessage, passwordIssue, hashPassword, verifyPassword } from "../lib/password.ts";
 import { normalizeEmail, safeRelativeReturnPath } from "../lib/auth-utils.ts";
 import { timingSafeEqual } from "../lib/crypto.ts";
+import { createGoogleOAuthState, googleOAuthCookie, googleOAuthOrigin, verifyGoogleOAuthState } from "../lib/google-oauth.ts";
 
 test("normalizes emails for account lookup", () => {
   assert.equal(normalizeEmail("  You@Example.COM "), "you@example.com");
@@ -11,11 +12,36 @@ test("normalizes emails for account lookup", () => {
 test("return_to stays on-site and off auth/api routes", () => {
   assert.equal(safeRelativeReturnPath("/account"), "/account");
   assert.equal(safeRelativeReturnPath("/account?subscription=success"), "/account?subscription=success");
+  assert.equal(safeRelativeReturnPath("/membership/checkout?source=purchase-modal"), "/membership/checkout?source=purchase-modal");
   assert.equal(safeRelativeReturnPath("https://evil.example/"), "/");
   assert.equal(safeRelativeReturnPath("//evil.example"), "/");
   assert.equal(safeRelativeReturnPath("/signin"), "/");
   assert.equal(safeRelativeReturnPath("/api/auth/signout"), "/");
   assert.equal(safeRelativeReturnPath("/signin-with-chatgpt"), "/");
+});
+
+test("Google OAuth state binds a safe return path and rejects tampering", async () => {
+  const now = 1_800_000_000_000;
+  const state = await createGoogleOAuthState("/membership/checkout?source=purchase-modal", "test-secret", now);
+  assert.equal((await verifyGoogleOAuthState(state, "test-secret", now))?.returnTo, "/membership/checkout?source=purchase-modal");
+  assert.equal(await verifyGoogleOAuthState(`${state}x`, "test-secret", now), null);
+  assert.equal(await verifyGoogleOAuthState(state, "test-secret", now + 11 * 60 * 1000), null);
+
+  const unsafe = await createGoogleOAuthState("https://evil.example", "test-secret", now);
+  assert.equal((await verifyGoogleOAuthState(unsafe, "test-secret", now))?.returnTo, "/");
+});
+
+test("Google OAuth uses the browser-facing local development origin", () => {
+  const previousOrigin = process.env.APP_ORIGIN;
+  process.env.APP_ORIGIN = "https://localhost:8788";
+  try {
+    const request = new Request("https://localhost:8788/api/auth/google");
+    assert.equal(googleOAuthOrigin(request), "http://localhost:5173");
+    assert.equal(googleOAuthCookie("state", request).includes("; Secure"), false);
+  } finally {
+    if (previousOrigin === undefined) delete process.env.APP_ORIGIN;
+    else process.env.APP_ORIGIN = previousOrigin;
+  }
 });
 
 test("rejects weak passwords", () => {
