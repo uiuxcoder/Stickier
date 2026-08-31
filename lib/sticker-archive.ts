@@ -1,6 +1,10 @@
 import { decode as decodePng, encode as encodePng } from "fast-png";
 import JSZip from "jszip";
 
+export function downloadArchiveKey(imageKey: string) {
+  return imageKey.replace(/^stickers\//, "downloads/").replace(/\.png$/i, ".zip");
+}
+
 function decodeRgba(source: Buffer) {
   const decoded = decodePng(source);
   const { width, height, channels, data } = decoded;
@@ -109,5 +113,5 @@ export async function buildDownloadArchive(source: Buffer) {
   const zip = new JSZip();
   zip.file("full-sheet.png", sheet);
   for (const tile of buildStickerTiles(sheet)) zip.file(tile.name, tile.buffer);
-  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  return zip.generateAsync({ type: "nodebuffer", compression: "STORE" });
 }

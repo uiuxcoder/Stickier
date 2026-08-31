@@ -4,7 +4,7 @@ import { generations, orders } from "@/db/schema";
 import { DOWNLOAD_HOURLY_CAP, DOWNLOAD_WINDOW_MS } from "@/lib/constants";
 import { getSessionUser } from "@/lib/auth";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
-import { buildDownloadArchive } from "@/lib/sticker-archive";
+import { buildDownloadArchive, downloadArchiveKey } from "@/lib/sticker-archive";
 import { getStripe } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
 import { and, eq } from "drizzle-orm";
@@ -79,6 +79,18 @@ export async function GET(request: Request) {
       return new Response("Download unavailable", { status: 404 });
     }
 
+    const filename = `stickier-stickers-${resolvedKey.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.zip`;
+    const storedArchive = await bucket.get(downloadArchiveKey(resolvedKey));
+    if (storedArchive?.body) {
+      return new Response(storedArchive.body, {
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename=${filename}`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
     const image = await bucket.get(resolvedKey);
     if (!image?.body) return new Response("Download unavailable", { status: 404 });
 
@@ -88,7 +100,7 @@ export async function GET(request: Request) {
     return new Response(archive, {
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename=stickier-stickers-${resolvedKey.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.zip`,
+        "Content-Disposition": `attachment; filename=${filename}`,
         "Cache-Control": "private, no-store",
       },
     });

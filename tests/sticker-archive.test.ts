@@ -3,7 +3,11 @@ import test from "node:test";
 import { decode as decodePng, encode as encodePng } from "fast-png";
 import JSZip from "jszip";
 
-import { buildDownloadArchive, buildStickerTiles } from "../lib/sticker-archive.ts";
+import { buildDownloadArchive, buildStickerTiles, downloadArchiveKey } from "../lib/sticker-archive.ts";
+
+test("maps generated sticker images to stored download archives", () => {
+  assert.equal(downloadArchiveKey("stickers/example.png"), "downloads/example.zip");
+});
 
 test("download archive contains a transparent sheet and ten transparent stickers", async () => {
   const width = 30;
