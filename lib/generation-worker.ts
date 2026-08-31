@@ -4,7 +4,6 @@ import * as schema from "@/db/schema";
 import { generationJobs, generations, users } from "@/db/schema";
 import { promptFor, type GenerationInput } from "@/lib/prompt";
 import { IMAGE_KEY_PATTERN } from "@/lib/constants";
-import { buildPrintAssets, downloadArchiveKey, printSheetKey } from "@/lib/sticker-archive";
 import {
   buildOpenAIImageEditBody,
   GENERATION_IMAGE_QUALITY,
@@ -228,19 +227,12 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     return;
   }
 
+  // Print assets are built lazily by the download route and the Stripe webhook.
+  // Building them here costs more CPU than a queue invocation is allowed and
+  // kills the job before it can be marked succeeded.
   await env.STICKER_ASSETS.put(imageKey, imageBytes, {
     httpMetadata: { contentType: "image/png" },
   });
-  const { archive, printSheet } = await buildPrintAssets(Buffer.from(imageBytes));
-  await Promise.all([
-    env.STICKER_ASSETS.put(downloadArchiveKey(imageKey), archive, {
-      httpMetadata: { contentType: "application/zip" },
-    }),
-    env.STICKER_ASSETS.put(printSheetKey(imageKey), printSheet, {
-      httpMetadata: { contentType: "image/png" },
-      customMetadata: { dpi: "300", printSize: "4x6" },
-    }),
-  ]);
 
   const now = Date.now();
   await db.insert(generations).values({
