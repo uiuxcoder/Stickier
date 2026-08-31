@@ -859,3 +859,11 @@ nav{height:88px;padding:0 var(--space-10)}
    React swaps variants before first paint */
 html.landing-v2-boot .shell.home>.split,
 html.landing-v2-boot .shell.home .nav-cta{visibility:hidden}
+
+/* Generated layouts are model-driven, so fixed cell crops can cut through a
+  pose. Present the intact sheet at its natural ratio on the reveal screen. */
+.reveal-body{grid-template-columns:minmax(0,760px);justify-content:center}
+.reveal-body .sticker-grid{display:none}
+.reveal-body .full-sheet-preview{position:relative;top:auto;width:100%}
+.reveal-body .full-sheet-preview>.sheet{width:min(100%,640px)}
+.reveal-body .full-sheet-preview>.sheet img{width:100%;height:auto;aspect-ratio:auto;object-fit:contain}
