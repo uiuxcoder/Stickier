@@ -436,9 +436,13 @@ export function MemberDashboard({ userId, isActive, remainingCreations, stickers
               <DialogHeader>
                 <DialogTitle>Your order is confirmed.</DialogTitle>
                 <DialogDescription>
-                  Your {thisMonthLabel} stickers are submitted. We&apos;ll make them and ship them to your confirmed address.
+                  Your {thisMonthLabel} stickers are submitted. We&apos;ll send you an email confirmation when they&apos;ve been shipped.
                 </DialogDescription>
               </DialogHeader>
+              <div className="club-confirmed-address">
+                <div><MapPin size={18} /><strong>Shipping to</strong></div>
+                <address>{shippingAddress.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}</address>
+              </div>
               <div className="club-order-total">
                 <span>Subtotal</span>
                 <strong>$0.00</strong>

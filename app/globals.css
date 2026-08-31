@@ -534,6 +534,9 @@ nav{height:88px;padding:0 var(--space-10)}
 .club-ship-success{display:grid;justify-items:center;gap:18px;padding:14px 0 4px;text-align:center}
 .club-ship-success>svg{width:52px;height:52px;padding:11px;border:1px solid #111;background:#b9d65a}
 .club-ship-success [data-slot="dialog-header"]{text-align:center}
+.club-confirmed-address{width:100%;display:grid;gap:8px;padding:14px;border:1px solid #111;background:#fff;text-align:left}
+.club-confirmed-address>div{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.club-confirmed-address address{display:grid;gap:2px;padding-left:26px;font:normal 14px/1.35 Georgia,serif}
 .club-ship-success .club-order-total{width:100%;text-align:left}
 .club-ship-success>.club-primary-button{min-width:130px}
 .club-primary-button,.club-secondary-button{height:42px;border:1px solid #111;padding:0 14px;font-size:10px;font-weight:900;letter-spacing:.08em;cursor:pointer}
