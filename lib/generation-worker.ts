@@ -152,6 +152,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
         prompt: promptFor(input),
         quality: "medium",
         size: "1024x1024",
+        background: "opaque",
         photos,
       });
 
@@ -167,7 +168,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
         prompt: promptFor(input),
         size: "1024x1024",
         quality: "medium",
-        background: "transparent",
+        background: "opaque",
         output_format: "png",
       });
       response = await fetch(OPENAI_IMAGES_URL, {

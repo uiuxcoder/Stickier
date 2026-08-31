@@ -13,7 +13,7 @@ export function buildOpenAIImageEditBody({
   prompt,
   quality,
   size = "1024x1024",
-  background = "transparent",
+  background = "opaque",
   outputFormat = "png",
   photos,
 }: OpenAIImageEditBodyInput) {

@@ -17,7 +17,7 @@ test("edit payload uses the current OpenAI multipart field names", () => {
   assert.equal(form.get("model"), "gpt-image-1");
   assert.equal(form.get("prompt"), "Make this a sticker sheet");
   assert.equal(form.get("quality"), "medium");
-  assert.equal(form.get("background"), "transparent");
+  assert.equal(form.get("background"), "opaque");
   assert.equal(form.get("output_format"), "png");
   assert.equal(form.getAll("image").length, 2);
   assert.equal(form.getAll("image")[0]?.name, "one.png");
