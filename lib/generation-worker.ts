@@ -15,7 +15,7 @@ import {
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
-const STYLE_REFERENCE_PATH = "/halloween-girl-dog-sticker-sheet-v15.webp";
+const STYLE_REFERENCE_KEY = "references/chibi-style-v15.webp";
 
 export type GenerationJobMessage = {
   jobId: string;
@@ -30,18 +30,16 @@ type ImagesBinding = {
 };
 
 type QueueEnv = {
-  ASSETS?: Fetcher;
   DB: D1Database;
   STICKER_ASSETS: R2Bucket;
   IMAGES?: ImagesBinding;
 };
 
 async function loadStyleReference(env: QueueEnv): Promise<File | null> {
-  if (!env.ASSETS) return null;
   try {
-    const response = await env.ASSETS.fetch(new Request(`https://assets.local${STYLE_REFERENCE_PATH}`));
-    if (!response.ok) throw new Error(`Asset returned ${response.status}`);
-    const bytes = await response.arrayBuffer();
+    const object = await env.STICKER_ASSETS.get(STYLE_REFERENCE_KEY);
+    if (!object) throw new Error("Style reference is missing from R2");
+    const bytes = await object.arrayBuffer();
     const contentType = sniffImageType(bytes);
     if (!isOpenAIImageType(contentType)) throw new Error("Asset is not an OpenAI-compatible image");
     return new File([bytes], imageFileName("style-reference-final", contentType), { type: contentType });
