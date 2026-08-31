@@ -268,6 +268,7 @@ export default function Home(){
   // Slices are not stored; the effect above rebuilds them from generatedImage.
   useEffect(()=>{
     if(new URLSearchParams(window.location.search).get("session_id"))return;
+    if(new URLSearchParams(window.location.search).get("recover_job"))return;
     let saved:{generatedImage?:string;generatedImageKey?:string;product?:Product;name?:string;groupName?:string;pet?:{name:string;species:string};theme?:string;moods?:string[];email?:string};
     try{
       const raw=sessionStorage.getItem("stickier-reveal");
@@ -290,6 +291,32 @@ export default function Home(){
       if(saved.email)setEmail(current=>current||saved.email!);
       setStage("reveal");
     });
+  },[]);
+
+  useEffect(()=>{
+    const jobId=new URLSearchParams(window.location.search).get("recover_job");
+    if(!jobId||!/^[0-9a-f-]{36}$/i.test(jobId))return;
+    let cancelled=false;
+    let attempts=0;
+    setGenerationError("");
+    setStage("generating");
+    const poll=async()=>{
+      try{
+        const response=await fetch(`/api/generation-status?jobId=${encodeURIComponent(jobId)}`);
+        const status=await response.json() as {status?:string;imageKey?:string;previewUrl?:string;error?:string};
+        if(cancelled)return;
+        if(status.status==="succeeded"&&status.imageKey&&status.previewUrl){setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setStage("reveal");window.history.replaceState({},"",window.location.pathname);return}
+        if(status.status==="failed")throw new Error(status.error||"Generation failed.");
+        if(attempts++<180){pollTimer.current=window.setTimeout(poll,2000);return}
+        throw new Error("Generation is taking longer than expected. Please try again.");
+      }catch(error){
+        if(cancelled)return;
+        setGenerationError(error instanceof Error?error.message:"Unable to recover this generation.");
+        setStage("reveal");
+      }
+    };
+    void poll();
+    return()=>{cancelled=true;if(pollTimer.current)window.clearTimeout(pollTimer.current)};
   },[]);
 
   useEffect(()=>{
