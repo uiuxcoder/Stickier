@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     try {
       // Local wrangler queue delivery is not always reliable during hot reload,
       // so run jobs inline in localhost to keep development flow usable.
-      await processGenerationJob({ DB: env.DB, STICKER_ASSETS: bucket, IMAGES: env.IMAGES }, { jobId });
+      await processGenerationJob({ ASSETS: env.ASSETS, DB: env.DB, STICKER_ASSETS: bucket, IMAGES: env.IMAGES }, { jobId });
     } catch (error) {
       console.error("Local generation job failed", error);
       await db

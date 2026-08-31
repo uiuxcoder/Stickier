@@ -3,9 +3,12 @@ import type { z } from "zod";
 
 export type GenerationInput = z.infer<typeof generationRequestSchema>;
 
-export function promptFor(input: GenerationInput): string {
+export function promptFor(input: GenerationInput, hasStyleReference = false): string {
   const details = [
     `Subject: ${input.subject || "the person in the reference photos"}`,
+    hasStyleReference
+      ? "Style reference: The FINAL provided image is a STYLE-ONLY sample sheet. Match its polished hand-drawn chibi rendering, expressive eye and facial finish, clean linework, warm dimensional shading, detailed hair or fur, and premium die-cut treatment. Do not copy or depict that sample's person, dog, clothing, costumes, theme, props, poses, composition, or background. Derive identity and requested content only from the earlier customer photos and this written request."
+      : "",
     input.product === "pet" && input.species ? `Animal: ${input.species}` : "",
     input.companion && input.companion !== "skip"
       ? `Required companion: a separate ${input.companion === "pet" ? input.species || "pet" : "person"} named ${input.companionName || "the companion"}. Include this companion clearly in multiple stickers. Do not replace or omit the companion.`

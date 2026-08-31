@@ -15,6 +15,7 @@ import {
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
+const STYLE_REFERENCE_PATH = "/halloween-girl-dog-sticker-sheet-v15.webp";
 
 export type GenerationJobMessage = {
   jobId: string;
@@ -29,10 +30,26 @@ type ImagesBinding = {
 };
 
 type QueueEnv = {
+  ASSETS?: Fetcher;
   DB: D1Database;
   STICKER_ASSETS: R2Bucket;
   IMAGES?: ImagesBinding;
 };
+
+async function loadStyleReference(env: QueueEnv): Promise<File | null> {
+  if (!env.ASSETS) return null;
+  try {
+    const response = await env.ASSETS.fetch(new Request(`https://assets.local${STYLE_REFERENCE_PATH}`));
+    if (!response.ok) throw new Error(`Asset returned ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    const contentType = sniffImageType(bytes);
+    if (!isOpenAIImageType(contentType)) throw new Error("Asset is not an OpenAI-compatible image");
+    return new File([bytes], imageFileName("style-reference-final", contentType), { type: contentType });
+  } catch (error) {
+    console.error("Failed to load the bundled style reference", error);
+    return null;
+  }
+}
 
 /**
  * Re-encode a reference photo that OpenAI would reject. Apple's HDR JPEGs embed
@@ -141,15 +158,18 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     const { bytes, contentType } = await sanitizeReferencePhoto(env, stored, storedType);
     photos.push(new File([bytes], imageFileName(`reference-${index}`, contentType), { type: contentType }));
   }
+  const styleReference = await loadStyleReference(env);
+  if (styleReference) photos.push(styleReference);
 
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const prompt = promptFor(input, Boolean(styleReference));
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
     if (photos.length) {
       const body = buildOpenAIImageEditBody({
         model,
-        prompt: promptFor(input),
+        prompt,
         quality: "medium",
         size: "1024x1024",
         background: "opaque",
@@ -165,7 +185,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     } else {
       const jsonBody = JSON.stringify({
         model,
-        prompt: promptFor(input),
+        prompt,
         size: "1024x1024",
         quality: "medium",
         background: "opaque",
