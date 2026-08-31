@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { generations, subscriptions, users } from "@/db/schema";
 import { MemberDashboard } from "@/components/member-dashboard";
 import { MONTHLY_REGENERATIONS } from "@/lib/constants";
+import { getStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function AccountPage() {
   let remainingCreations = 0;
   let isActive = false;
   let stickerCards: { id: string; imageUrl: string; createdAt: number }[] = [];
+  let shippingAddress: string[] = [];
 
   try {
     const db = getDb();
@@ -41,9 +43,40 @@ export default async function AccountPage() {
       imageUrl: `/api/preview-stickers?key=${encodeURIComponent(generation.imageKey)}`,
       createdAt: generation.createdAt,
     }));
+
+    const stripeCustomerId = profile[0]?.stripeCustomerId;
+    if (stripeCustomerId && process.env.STRIPE_SECRET_KEY) {
+      try {
+        const customer = await getStripe().customers.retrieve(stripeCustomerId);
+        if (!customer.deleted) {
+          const address = customer.shipping?.address || customer.address;
+          if (address) {
+            shippingAddress = [
+              customer.shipping?.name || customer.name,
+              address.line1,
+              address.line2,
+              [address.city, address.state, address.postal_code].filter(Boolean).join(" "),
+              address.country,
+            ]
+              .map((line) => (line || "").trim())
+              .filter(Boolean);
+          }
+        }
+      } catch (error) {
+        console.error("Shipping address lookup failed", error);
+      }
+    }
   } catch (error) {
     console.error("Account lookup failed", error);
   }
 
-  return <MemberDashboard userId={user.id} email={user.email} isActive={isActive} remainingCreations={remainingCreations} stickers={stickerCards} />;
+  return (
+    <MemberDashboard
+      userId={user.id}
+      isActive={isActive}
+      remainingCreations={remainingCreations}
+      stickers={stickerCards}
+      shippingAddress={shippingAddress}
+    />
+  );
 }

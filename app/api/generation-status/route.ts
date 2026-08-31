@@ -1,6 +1,9 @@
+import { env } from "cloudflare:workers";
 import { getDb } from "@/db";
 import { generationJobs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
+
+const STALE_PROCESSING_MS = 2 * 60 * 1000;
 
 /**
  * Poll the status of a queued sticker-generation job. The client calls this on
@@ -16,6 +19,7 @@ export async function GET(request: Request) {
       status: generationJobs.status,
       imageKey: generationJobs.imageKey,
       error: generationJobs.error,
+      updatedAt: generationJobs.updatedAt,
     })
     .from(generationJobs)
     .where(eq(generationJobs.id, jobId))
@@ -23,6 +27,32 @@ export async function GET(request: Request) {
 
   const job = rows[0];
   if (!job) return Response.json({ error: "Job not found." }, { status: 404 });
+
+  if (job.status === "processing" && job.updatedAt < Date.now() - STALE_PROCESSING_MS) {
+    const now = Date.now();
+    const claimed = await getDb()
+      .update(generationJobs)
+      .set({ status: "queued", updatedAt: now })
+      .where(and(
+        eq(generationJobs.id, jobId),
+        eq(generationJobs.status, "processing"),
+        lt(generationJobs.updatedAt, now - STALE_PROCESSING_MS)
+      ))
+      .returning({ id: generationJobs.id });
+    if (claimed[0]) {
+      try {
+        await env.GENERATION_QUEUE.send({ jobId });
+      } catch (error) {
+        console.error("Failed to requeue stale generation", jobId, error);
+        await getDb()
+          .update(generationJobs)
+          .set({ status: "failed", error: "Generation could not be restarted.", updatedAt: Date.now() })
+          .where(eq(generationJobs.id, jobId));
+        return Response.json({ status: "failed", imageKey: null, previewUrl: null, error: "Generation could not be restarted." });
+      }
+      return Response.json({ status: "queued", imageKey: null, previewUrl: null, error: null });
+    }
+  }
 
   return Response.json({
     status: job.status,

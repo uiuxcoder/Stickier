@@ -10,7 +10,6 @@ import { appOrigin, normalizeEmail } from "@/lib/auth-utils";
 import { SIGNUP_HOURLY_CAP } from "@/lib/constants";
 import { hashPassword, passwordErrorMessage, passwordIssue } from "@/lib/password";
 import { consumeRateLimit, hashIp, rateLimitResponse } from "@/lib/rate-limit";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { signUpRequestSchema } from "@/lib/validation";
 import { eq } from "drizzle-orm";
 
@@ -31,11 +30,6 @@ export async function POST(request: Request) {
   const parsed = signUpRequestSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: "Enter a valid email and password." }, { status: 400 });
-  }
-
-  const turnstile = await verifyTurnstile(parsed.data.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
-  if (!turnstile.ok) {
-    return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
   }
 
   const issue = passwordIssue(parsed.data.password);

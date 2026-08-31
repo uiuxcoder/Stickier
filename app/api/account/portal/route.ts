@@ -15,7 +15,7 @@ async function resolvePortalConfiguration(origin: string) {
   if (stickierConfiguration) return stickierConfiguration.id;
 
   const configuration = await stripe.billingPortal.configurations.create({
-    name: "Stickier membership",
+    name: "Salty Sticker membership",
     default_return_url: `${origin}/account`,
     business_profile: {
       headline: "Manage your Sticker Club membership",

@@ -10,6 +10,11 @@ export function getStripe() {
   });
 }
 
+export function automaticTaxEnabled() {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  return process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true" && Boolean(secret) && !secret!.startsWith("sk_test_");
+}
+
 export function subscriptionIdFromInvoice(invoice: Stripe.Invoice) {
   const subscription = invoice.parent?.subscription_details?.subscription;
   if (typeof subscription === "string") return subscription;
@@ -29,6 +34,22 @@ export function customerId(value: string | Stripe.Customer | Stripe.DeletedCusto
 
 export function checkoutEmail(session: Stripe.Checkout.Session) {
   return session.customer_details?.email || session.customer_email || session.metadata?.email || null;
+}
+
+export function checkoutShippingLines(session: Stripe.Checkout.Session) {
+  const shipping = session.collected_information?.shipping_details;
+  const address = shipping?.address || session.customer_details?.address;
+  if (!address) return [];
+
+  return [
+    shipping?.name || session.customer_details?.name,
+    address.line1,
+    address.line2,
+    [address.city, address.state, address.postal_code].filter(Boolean).join(" "),
+    address.country,
+  ]
+    .map((line) => (line || "").trim())
+    .filter(Boolean);
 }
 
 export function isPaidCheckout(session: Stripe.Checkout.Session) {

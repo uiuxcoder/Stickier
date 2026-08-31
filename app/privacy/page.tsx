@@ -1,16 +1,16 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — Stickier",
-  description: "How Stickier collects, uses, and retains photos, emails, and generated artwork.",
+  title: "Privacy Policy — Salty Sticker™",
+  description: "How Salty Sticker collects, uses, and retains photos, emails, and generated artwork.",
 };
 
 export default function PrivacyPage() {
   return (
     <main className="legal-page">
-      <p><Link href="/">← Stickier</Link></p>
+      <p><Link href="/">← Salty Sticker™</Link></p>
       <h1>Privacy Policy</h1>
-      <p>Stickier generates personalized sticker sheets from photos you upload. This page explains what we collect and why.</p>
+      <p>Salty Sticker generates personalized sticker sheets from photos you upload. This page explains what we collect and why.</p>
       <h2>What we collect</h2>
       <ul>
         <li>Photos you upload for sticker generation</li>

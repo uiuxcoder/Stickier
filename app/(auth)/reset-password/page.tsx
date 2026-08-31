@@ -1,8 +1,8 @@
 import { AuthForm } from "@/components/auth-form";
 
 export const metadata = {
-  title: "Choose a new password — Stickier",
-  description: "Set a new password for your Stickier account.",
+  title: "Choose a new password — Salty Sticker™",
+  description: "Set a new password for your Salty Sticker account.",
 };
 
 export default async function ResetPasswordPage({

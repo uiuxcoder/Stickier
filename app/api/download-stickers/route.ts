@@ -1,13 +1,13 @@
 import { env } from "cloudflare:workers";
-import { decode as decodePng, encode as encodePng } from "fast-png";
-import JSZip from "jszip";
 import { getDb } from "@/db";
-import { orders } from "@/db/schema";
+import { generations, orders } from "@/db/schema";
 import { DOWNLOAD_HOURLY_CAP, DOWNLOAD_WINDOW_MS } from "@/lib/constants";
+import { getSessionUser } from "@/lib/auth";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
+import { buildDownloadArchive } from "@/lib/sticker-archive";
 import { getStripe } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 async function resolveImageKey(sessionId: string, fallbackKey?: string | null) {
   const explicitKey = fallbackKey && isImageKey(fallbackKey) ? fallbackKey : null;
@@ -35,70 +35,17 @@ async function resolveImageKey(sessionId: string, fallbackKey?: string | null) {
   return null;
 }
 
-function buildStickerTiles(sheet: Buffer) {
-  const decoded = decodePng(sheet);
-  const { width, height, channels, data } = decoded;
+async function resolveMemberImageKey(request: Request, imageKey: string | null) {
+  if (!imageKey || !isImageKey(imageKey)) return null;
+  const user = await getSessionUser(request);
+  if (!user) return null;
 
-  // Normalize to 8-bit RGBA regardless of the source PNG's color type so the
-  // tile-cropping math below can assume 4 bytes per pixel.
-  const rgba = new Uint8Array(width * height * 4);
-  for (let i = 0, pixel = 0; pixel < width * height; pixel++, i += channels) {
-    const r = data[i];
-    const g = channels >= 3 ? data[i + 1] : r;
-    const b = channels >= 3 ? data[i + 2] : r;
-    const a = channels === 2 ? data[i + 1] : channels === 4 ? data[i + 3] : 255;
-    const o = pixel * 4;
-    rgba[o] = r;
-    rgba[o + 1] = g;
-    rgba[o + 2] = b;
-    rgba[o + 3] = a;
-  }
-
-  const tileWidth = Math.max(1, Math.floor(width / 3));
-  const tileHeight = Math.max(1, Math.floor(height / 4));
-  const cells = [
-    { row: 0, col: 0 },
-    { row: 0, col: 1 },
-    { row: 0, col: 2 },
-    { row: 1, col: 0 },
-    { row: 1, col: 1 },
-    { row: 1, col: 2 },
-    { row: 2, col: 0 },
-    { row: 2, col: 1 },
-    { row: 2, col: 2 },
-    { row: 3, col: 1 },
-  ];
-
-  return cells.map((cell, index) => {
-    const x = Math.min(width - tileWidth, cell.col * tileWidth);
-    const y = Math.min(height - tileHeight, cell.row * tileHeight);
-    const out = new Uint8Array(tileWidth * tileHeight * 4);
-
-    for (let py = 0; py < tileHeight; py++) {
-      for (let px = 0; px < tileWidth; px++) {
-        const srcIndex = ((y + py) * width + (x + px)) * 4;
-        const dstIndex = (py * tileWidth + px) * 4;
-        out[dstIndex] = rgba[srcIndex];
-        out[dstIndex + 1] = rgba[srcIndex + 1];
-        out[dstIndex + 2] = rgba[srcIndex + 2];
-        out[dstIndex + 3] = rgba[srcIndex + 3];
-      }
-    }
-
-    return {
-      name: `sticker-${String(index + 1).padStart(2, "0")}.png`,
-      buffer: encodePng({ width: tileWidth, height: tileHeight, data: out, channels: 4, depth: 8 }),
-    };
-  });
-}
-
-async function buildDownloadArchive(sheetBuffer: Buffer) {
-  const zip = new JSZip();
-  zip.file("full-sheet.png", sheetBuffer);
-  for (const tile of buildStickerTiles(sheetBuffer)) {
-    zip.file(tile.name, tile.buffer);
-  }
-  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  const generation = await getDb()
+    .select({ imageKey: generations.imageKey })
+    .from(generations)
+    .where(and(eq(generations.imageKey, imageKey), eq(generations.userId, user.id)))
+    .limit(1);
+  return generation[0]?.imageKey ?? null;
 }
 
 /**
@@ -119,7 +66,9 @@ export async function GET(request: Request) {
   if (!sessionId && !imageKey) return new Response("Download unavailable", { status: 404 });
 
   try {
-    const resolvedKey = sessionId ? await resolveImageKey(sessionId, imageKey) : (imageKey && isImageKey(imageKey) ? imageKey : null);
+    const resolvedKey = sessionId
+      ? await resolveImageKey(sessionId, imageKey)
+      : await resolveMemberImageKey(request, imageKey);
     if (!resolvedKey) return new Response("Download unavailable", { status: 404 });
 
     const order = sessionId

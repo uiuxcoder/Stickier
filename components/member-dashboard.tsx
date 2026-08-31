@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, PackageCheck, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Check, ChevronDown, CreditCard, Download, MapPin, PackageCheck, Sparkles, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MemberStickerCreator } from "@/components/member-sticker-creator";
 
-type DropStatus = "submitted" | "printing" | "shipped";
+type DropStatus = "submitted" | "printing" | "shipped" | "delivered";
 
 type StickerCard = {
   id: string;
@@ -28,11 +31,14 @@ type StoredDrop = {
 
 type DashboardProps = {
   userId: string;
-  email: string;
   isActive: boolean;
   remainingCreations: number;
   stickers: StickerCard[];
+  shippingAddress: string[];
 };
+
+type MembershipAction = "address" | "payment" | "cancel";
+type ShipDialogStage = "review" | "confirmed";
 
 const MONTHLY_CREATIONS = 20;
 const MONTH_LABELS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -54,6 +60,7 @@ function formatStickerDate(timestamp: number) {
 function statusFromSubmittedAt(submittedAt: number): DropStatus {
   const elapsedMs = Date.now() - submittedAt;
   const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+  if (elapsedDays >= 8) return "delivered";
   if (elapsedDays >= 5) return "shipped";
   if (elapsedDays >= 2) return "printing";
   return "submitted";
@@ -62,10 +69,13 @@ function statusFromSubmittedAt(submittedAt: number): DropStatus {
 function statusLabel(status: DropStatus) {
   if (status === "submitted") return "Submitted";
   if (status === "printing") return "Printing";
-  return "Shipped";
+  if (status === "shipped") return "Shipped";
+  return "Delivered";
 }
 
-export function MemberDashboard({ userId, email, isActive, remainingCreations, stickers }: DashboardProps) {
+export function MemberDashboard({ userId, isActive, remainingCreations, stickers, shippingAddress = [] }: DashboardProps) {
+  const router = useRouter();
+  const [, startRefresh] = useTransition();
   const localStorageKey = `stickier-club:${userId}`;
   const thisMonthKey = useMemo(() => monthKeyFromDate(new Date()), []);
   const thisMonthLabel = useMemo(() => monthLabelFromKey(thisMonthKey), [thisMonthKey]);
@@ -76,6 +86,11 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
   const [history, setHistory] = useState<StoredDrop["history"]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
   const [shipConfirmOpen, setShipConfirmOpen] = useState(false);
+  const [shipDialogStage, setShipDialogStage] = useState<ShipDialogStage>("review");
+  const [shippingAddressConfirmed, setShippingAddressConfirmed] = useState(false);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
+  const [membershipAction, setMembershipAction] = useState<MembershipAction | null>(null);
+  const [creatorOpen, setCreatorOpen] = useState(false);
 
   useEffect(() => {
     let nextState: StoredDrop = {
@@ -164,27 +179,44 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
   }
 
   function submitDrop() {
-    if (!canShip) return;
+    if (!canShip || !shippingAddressConfirmed || shippingAddress.length === 0) return;
     const now = Date.now();
     setSubmittedIds(selectedIds);
     setSubmittedAt(now);
-    setShipConfirmOpen(false);
+    setShipDialogStage("confirmed");
   }
 
-  const currentDropStatus = submittedAt ? statusFromSubmittedAt(submittedAt) : null;
-  const submittedStickerCards = submittedIds.map((id) => stickersById.get(id)).filter(Boolean) as StickerCard[];
+  function setShipDialogOpen(open: boolean) {
+    setShippingAddressConfirmed(false);
+    setShipDialogStage("review");
+    setShipConfirmOpen(open);
+  }
+
+  const orders = [
+    ...(submittedIds.length === 3 && submittedAt
+      ? [{ monthKey: thisMonthKey, stickerIds: submittedIds, submittedAt }]
+      : []),
+    ...history.filter((order) => order.monthKey !== thisMonthKey || order.submittedAt !== submittedAt),
+  ];
 
   return (
     <main className="club-shell">
       <header className="club-topbar">
         <Link className="club-logo" href="/">
-          STICKIER<sup>TM</sup>
+          SALTY STICKER<sup>TM</sup>
         </Link>
-        <p>Sticker Club</p>
         <div className="club-menu" aria-label="Account menu">
-          <form action="/api/account/portal" method="post">
-            <button type="submit">Manage Membership</button>
-          </form>
+          <button type="button" className="club-how-trigger" onClick={() => setHowItWorksOpen(true)}>How it works</button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="club-manage-trigger">Manage Membership <ChevronDown size={13} /></button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="club-manage-menu">
+              <DropdownMenuItem onSelect={() => setMembershipAction("address")}><MapPin /> Update shipping address</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setMembershipAction("payment")}><CreditCard /> Update payment method</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => setMembershipAction("cancel")}><XCircle /> Cancel membership</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <form action="/api/auth/signout" method="post">
             <button type="submit">Sign Out</button>
           </form>
@@ -221,53 +253,27 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
                 <i aria-hidden="true"><span style={{ width: selectionProgress }} /></i>
               </article>
             </div>
-            <div className="club-actions-row">
-              <small>{Math.max(0, remainingCreations)} creations left in {thisMonthLabel}</small>
-              <Link className="club-primary-link" href="/?start=upload">
-                Create a sticker
-              </Link>
-              {submittedIds.length === 3 ? (
-                <div className="club-submitted-pill" role="status">
-                  <PackageCheck size={16} />
-                  Your {thisMonthLabel} drop is being made ✦
-                </div>
-              ) : selectedIds.length > 0 ? (
-                <Button className="club-ship-button" disabled={!canShip} onClick={() => setShipConfirmOpen(true)}>
-                  Ship my 3 stickers
-                </Button>
-              ) : null}
-            </div>
-            {submittedIds.length === 3 && currentDropStatus ? (
-              <div className="club-submitted-block">
-                <div className="club-submitted-meta">
-                  <p>{thisMonthLabel} drop {statusLabel(currentDropStatus).toLowerCase()}</p>
-                  <strong>{Math.max(0, remainingCreations)} sticker creations still available this month</strong>
-                </div>
-                <div className="club-submitted-previews">
-                  {submittedStickerCards.map((sticker) => (
-                    <img key={sticker.id} src={sticker.imageUrl} alt="Submitted sticker preview" />
-                  ))}
-                </div>
-                <p className="club-status-line">Status: {statusLabel(currentDropStatus)}</p>
-              </div>
-            ) : null}
           </>
         )}
       </section>
 
       <section className="club-gallery">
         <div className="club-gallery-head">
-          <p className="club-kicker">Your archive</p>
-          <h2>Your creations.</h2>
-          <p>{canPickForDrop ? "Pick your favorites for this month." : "Your picks are locked for this month after shipping."}</p>
+          <div>
+            <h2>Your creations.</h2>
+            <p>{canPickForDrop ? "Pick your favorites for this month." : "Your picks are locked for this month after shipping."}</p>
+          </div>
+          <div className="club-gallery-actions">
+            <button type="button" className="club-primary-link" onClick={() => setCreatorOpen(true)}>Create a sticker</button>
+            <Button className="club-ship-button" disabled={!canShip} onClick={() => setShipDialogOpen(true)}>
+              Ship selected stickers
+            </Button>
+          </div>
         </div>
         {stickers.length === 0 ? (
           <div className="club-empty-gallery">
             <Sparkles size={18} />
             <p>No stickers yet. Make your first set to start your monthly drop.</p>
-            <Link className="club-primary-link" href="/?start=upload">
-              Start making stickers
-            </Link>
           </div>
         ) : (
           <div className="club-sticker-grid">
@@ -276,6 +282,15 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
               const lockedBySubmission = submittedIds.length === 3 && !submittedIds.includes(sticker.id);
               return (
                 <article className="club-sticker-card" key={sticker.id}>
+                  <a
+                    className="club-download-creation"
+                    href={`/api/download-stickers?image_key=${encodeURIComponent(sticker.id)}`}
+                    download
+                    aria-label="Download creation as ZIP"
+                    title="Download creation as ZIP"
+                  >
+                    <Download size={16} />
+                  </a>
                   <img src={sticker.imageUrl} alt="Sticker creation preview" />
                   <div>
                     <p>{formatStickerDate(sticker.createdAt)}</p>
@@ -301,43 +316,25 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
         )}
       </section>
 
-      <section className="club-how">
-        <h2>How your membership works</h2>
-        <div>
-          <article>
-            <h3>1. Make</h3>
-            <p>Create up to 20 stickers this month.</p>
-          </article>
-          <article>
-            <h3>2. Pick</h3>
-            <p>Choose your favorite 3.</p>
-          </article>
-          <article>
-            <h3>3. Ship</h3>
-            <p>Submit your 3 anytime before month-end and we&apos;ll mail them to you.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="club-past" id="past-drops">
-        <h2>Past drops</h2>
-        {history.length === 0 ? (
-          <p>Your submitted monthly drops will appear here.</p>
+      <section className="club-past" id="orders">
+        <h2>Orders</h2>
+        {orders.length === 0 ? (
+          <p>Your monthly orders will appear here as soon as you submit them.</p>
         ) : (
           <div className="club-past-grid">
-            {history.map((drop) => {
-              const status = statusFromSubmittedAt(drop.submittedAt);
+            {orders.map((order) => {
+              const status = statusFromSubmittedAt(order.submittedAt);
               return (
-                <article key={`${drop.monthKey}-${drop.submittedAt}`}>
+                <article key={`${order.monthKey}-${order.submittedAt}`}>
                   <header>
-                    <h3>{monthLabelFromKey(drop.monthKey)} drop</h3>
+                    <h3>{monthLabelFromKey(order.monthKey)} order</h3>
                     <span>{statusLabel(status)}</span>
                   </header>
                   <div className="club-past-previews">
-                    {drop.stickerIds.map((id) => {
+                    {order.stickerIds.map((id) => {
                       const sticker = stickersById.get(id);
                       if (!sticker) return null;
-                      return <img key={id} src={sticker.imageUrl} alt="Past drop sticker preview" />;
+                      return <img key={id} src={sticker.imageUrl} alt="Ordered sticker preview" />;
                     })}
                   </div>
                 </article>
@@ -347,47 +344,144 @@ export function MemberDashboard({ userId, email, isActive, remainingCreations, s
         )}
       </section>
 
-      <section className="club-account-tools" id="membership-settings">
-        <div>
-          <p className="club-kicker">Membership settings</p>
-          <h2>Account &amp; delivery</h2>
-          <p>Signed in as {email}. Billing and delivery details are securely managed by Stripe.</p>
-        </div>
-        <div className="club-account-actions">
-          <form action="/api/account/portal" method="post">
-            <button type="submit" name="action" value="address">Change shipping address</button>
-          </form>
-          <form action="/api/account/portal" method="post">
-            <button type="submit" name="action" value="payment">Update credit card</button>
-          </form>
-          <form action="/api/account/portal" method="post">
-            <button className="club-danger-action" type="submit" name="action" value="cancel">Cancel membership</button>
-          </form>
-        </div>
-      </section>
-
-      <Dialog open={shipConfirmOpen} onOpenChange={setShipConfirmOpen}>
-        <DialogContent className="club-ship-modal" showCloseButton={false}>
+      <Dialog open={howItWorksOpen} onOpenChange={setHowItWorksOpen}>
+        <DialogContent className="club-how-modal">
           <DialogHeader>
-            <DialogTitle>Ready to send these?</DialogTitle>
+            <DialogTitle>How Sticker Club works</DialogTitle>
+            <DialogDescription>Create, choose, and ship your monthly favorites.</DialogDescription>
+          </DialogHeader>
+          <div className="club-how-steps">
+            <article><strong>1</strong><div><h3>Make</h3><p>Create up to 20 sticker sheets this month.</p></div></article>
+            <article><strong>2</strong><div><h3>Pick</h3><p>Select your favorite 3 from Your Creations.</p></div></article>
+            <article><strong>3</strong><div><h3>Ship</h3><p>When all 3 are selected, submit them and we&apos;ll mail them to you.</p></div></article>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <MemberStickerCreator
+        open={creatorOpen}
+        onOpenChange={setCreatorOpen}
+        onCreated={() => startRefresh(() => router.refresh())}
+      />
+
+      <Dialog open={shipConfirmOpen} onOpenChange={setShipDialogOpen}>
+        <DialogContent className="club-ship-modal" showCloseButton={false}>
+          {shipDialogStage === "review" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Are you sure?</DialogTitle>
+                <DialogDescription>
+                  Confirm your 3 stickers and shipping address. Once submitted, your picks can&apos;t be changed.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="club-ship-preview-grid">
+                {selectedIds.map((id) => {
+                  const sticker = stickersById.get(id);
+                  if (!sticker) return null;
+                  return <img key={id} src={sticker.imageUrl} alt="Sticker selected for shipping" />;
+                })}
+              </div>
+              <div className="club-shipping-confirmation">
+                <div className="club-shipping-heading">
+                  <MapPin size={18} />
+                  <strong>Shipping to</strong>
+                  {shippingAddress.length > 0 ? (
+                    <form action="/api/account/portal" method="post">
+                      <input type="hidden" name="action" value="address" />
+                      <button type="submit">Change address</button>
+                    </form>
+                  ) : null}
+                </div>
+                {shippingAddress.length > 0 ? (
+                  <>
+                    <address>{shippingAddress.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}</address>
+                    <label htmlFor="confirm-shipping-address">
+                      <input
+                        id="confirm-shipping-address"
+                        type="checkbox"
+                        checked={shippingAddressConfirmed}
+                        onChange={(event) => setShippingAddressConfirmed(event.target.checked)}
+                      />
+                      I confirm this shipping address is correct.
+                    </label>
+                  </>
+                ) : (
+                  <p>Add a shipping address before submitting this month&apos;s order.</p>
+                )}
+              </div>
+              <div className="club-order-total">
+                <span>Subtotal</span>
+                <strong>$0.00</strong>
+                <small>Included with your Sticker Club membership</small>
+              </div>
+              <DialogFooter className="club-ship-actions">
+                <button type="button" className="club-secondary-button" onClick={() => setShipDialogOpen(false)}>
+                  Keep editing
+                </button>
+                {shippingAddress.length > 0 ? (
+                  <button type="button" className="club-primary-button" disabled={!shippingAddressConfirmed} onClick={submitDrop}>
+                    Confirm and ship
+                  </button>
+                ) : (
+                  <form action="/api/account/portal" method="post">
+                    <input type="hidden" name="action" value="address" />
+                    <button type="submit" className="club-primary-button">Add shipping address</button>
+                  </form>
+                )}
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="club-ship-success">
+              <PackageCheck aria-hidden="true" />
+              <DialogHeader>
+                <DialogTitle>Your order is confirmed.</DialogTitle>
+                <DialogDescription>
+                  Your {thisMonthLabel} stickers are submitted. We&apos;ll send you an email confirmation when they&apos;ve been shipped.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="club-confirmed-address">
+                <div><MapPin size={18} /><strong>Shipping to</strong></div>
+                <address>{shippingAddress.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}</address>
+              </div>
+              <div className="club-order-total">
+                <span>Subtotal</span>
+                <strong>$0.00</strong>
+                <small>Included with your Sticker Club membership</small>
+              </div>
+              <button type="button" className="club-primary-button" onClick={() => setShipDialogOpen(false)}>Done</button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={membershipAction !== null} onOpenChange={(open) => { if (!open) setMembershipAction(null); }}>
+        <DialogContent className="club-manage-modal">
+          <DialogHeader>
+            <DialogTitle>
+              {membershipAction === "address" ? "Update shipping address" : membershipAction === "payment" ? "Update payment method" : "Cancel membership"}
+            </DialogTitle>
             <DialogDescription>
-              We&apos;ll make and mail these 3 as your {thisMonthLabel} Sticker Drop. Once submitted, your picks can&apos;t be changed.
+              {membershipAction === "address"
+                ? "Update the address Stripe will use for your future Sticker Club deliveries."
+                : membershipAction === "payment"
+                  ? "Update the payment method Stripe will use for future monthly charges."
+                  : "Your membership will remain active through the end of your current billing period, and you will not be charged next month. You can still use this month’s 20-generation allowance and submit your 3 stickers for shipping if you haven’t already."}
             </DialogDescription>
           </DialogHeader>
-          <div className="club-ship-preview-grid">
-            {selectedIds.map((id) => {
-              const sticker = stickersById.get(id);
-              if (!sticker) return null;
-              return <img key={id} src={sticker.imageUrl} alt="Sticker selected for shipping" />;
-            })}
+          <div className="club-manage-note">
+            {membershipAction === "cancel" ? <PackageCheck size={20} /> : <CreditCard size={20} />}
+            <p>{membershipAction === "cancel" ? "Your remaining current-period benefits stay available after you schedule cancellation." : "You’ll continue securely in Stripe to save this change."}</p>
           </div>
-          <DialogFooter className="club-ship-actions">
-            <button type="button" className="club-secondary-button" onClick={() => setShipConfirmOpen(false)}>
-              Keep editing
-            </button>
-            <button type="button" className="club-primary-button" onClick={submitDrop}>
-              Yes, ship these 3
-            </button>
+          <DialogFooter className="club-manage-modal-actions">
+            <button type="button" className="club-secondary-button" onClick={() => setMembershipAction(null)}>Go back</button>
+            {membershipAction ? (
+              <form action="/api/account/portal" method="post">
+                <input type="hidden" name="action" value={membershipAction} />
+                <button type="submit" className={membershipAction === "cancel" ? "club-danger-button" : "club-primary-button"}>
+                  {membershipAction === "cancel" ? "Continue to cancellation" : "Continue to Stripe"}
+                </button>
+              </form>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

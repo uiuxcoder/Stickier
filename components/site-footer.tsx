@@ -63,7 +63,7 @@ export function SiteFooter() {
             aria-labelledby="support-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="support-kicker">STICKIER SUPPORT</p>
+            <p className="support-kicker">SALTY STICKER SUPPORT</p>
             <h2 id="support-title">{supportTitle}</h2>
             <p>
               Email us and we will help with orders, downloads, billing, or anything else.

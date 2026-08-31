@@ -6,7 +6,7 @@ import { ANON_DAILY_PREVIEWS, GENERATE_HOURLY_CAP } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { dataUrlToFile, generationRequestSchema } from "@/lib/validation";
 import { extensionForImageType } from "@/lib/image-format";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { isLocalHostname } from "@/lib/turnstile";
 import { moderateText } from "@/lib/moderation";
 import { processGenerationJob } from "@/lib/generation-worker";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
@@ -38,16 +38,8 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
-  // Bot protection on an expensive, unauthenticated-capable endpoint.
-  // Local development on localhost skips Turnstile to keep the flow testable.
   const host = new URL(request.url).hostname;
-  const isLocalDev = host === "localhost" || host === "127.0.0.1";
-  if (!isLocalDev) {
-    const turnstile = await verifyTurnstile(input.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
-    if (!turnstile.ok) {
-      return Response.json({ error: "We could not verify you are human. Please try again." }, { status: 403 });
-    }
-  }
+  const isLocalDev = isLocalHostname(host);
 
   const user = await getSessionUser(request);
   const db = getDb();

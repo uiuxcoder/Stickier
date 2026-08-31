@@ -15,6 +15,7 @@ import {
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
+const STYLE_REFERENCE_KEY = "references/chibi-style-v15.webp";
 
 export type GenerationJobMessage = {
   jobId: string;
@@ -33,6 +34,20 @@ type QueueEnv = {
   STICKER_ASSETS: R2Bucket;
   IMAGES?: ImagesBinding;
 };
+
+async function loadStyleReference(env: QueueEnv): Promise<File | null> {
+  try {
+    const object = await env.STICKER_ASSETS.get(STYLE_REFERENCE_KEY);
+    if (!object) throw new Error("Style reference is missing from R2");
+    const bytes = await object.arrayBuffer();
+    const contentType = sniffImageType(bytes);
+    if (!isOpenAIImageType(contentType)) throw new Error("Asset is not an OpenAI-compatible image");
+    return new File([bytes], imageFileName("style-reference-final", contentType), { type: contentType });
+  } catch (error) {
+    console.error("Failed to load the bundled style reference", error);
+    return null;
+  }
+}
 
 /**
  * Re-encode a reference photo that OpenAI would reject. Apple's HDR JPEGs embed
@@ -141,17 +156,21 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     const { bytes, contentType } = await sanitizeReferencePhoto(env, stored, storedType);
     photos.push(new File([bytes], imageFileName(`reference-${index}`, contentType), { type: contentType }));
   }
+  const styleReference = await loadStyleReference(env);
+  if (styleReference) photos.push(styleReference);
 
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const prompt = promptFor(input, Boolean(styleReference));
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
     if (photos.length) {
       const body = buildOpenAIImageEditBody({
         model,
-        prompt: promptFor(input),
+        prompt,
         quality: "medium",
         size: "1024x1024",
+        background: "opaque",
         photos,
       });
 
@@ -162,7 +181,14 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
         signal: AbortSignal.timeout(120_000),
       });
     } else {
-      const jsonBody = JSON.stringify({ model, prompt: promptFor(input), size: "1024x1024", quality: "medium" });
+      const jsonBody = JSON.stringify({
+        model,
+        prompt,
+        size: "1024x1024",
+        quality: "medium",
+        background: "opaque",
+        output_format: "png",
+      });
       response = await fetch(OPENAI_IMAGES_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },

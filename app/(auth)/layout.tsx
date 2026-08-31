@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="grain" />
       <nav>
         <Link className="logo" href="/">
-          STICKIER<sup>™</sup>
+          SALTY STICKER<sup>™</sup>
         </Link>
         <span>YOUR ACCOUNT</span>
         <div className="nav-end">

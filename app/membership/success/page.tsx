@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { Check, Download, LockKeyhole, Mail, MapPin } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
-import { getStripe } from "@/lib/stripe";
+import { checkoutShippingLines, getStripe } from "@/lib/stripe";
 import { JoinStickerClubButton } from "@/components/join-sticker-club-button";
 
 export const dynamic = "force-dynamic";
@@ -97,13 +97,8 @@ export default async function MembershipSuccessPage({
         orderDate = formatDate(session.created * 1000);
       }
 
-      const address = session.customer_details?.address;
-      if (address) {
-        const lines = [address.line1, address.line2, [address.city, address.state, address.postal_code].filter(Boolean).join(" "), address.country]
-          .map((line) => (line || "").trim())
-          .filter(Boolean);
-        if (lines.length > 0) shippingAddress = lines;
-      }
+      const addressLines = checkoutShippingLines(session);
+      if (addressLines.length > 0) shippingAddress = addressLines;
 
       if (lineItem?.description) productName = lineItem.description;
       else if (isSubscription) productName = "Sticker Club Membership";
@@ -123,7 +118,7 @@ export default async function MembershipSuccessPage({
   return (
     <main className="order-confirmation-page">
       <header className="order-confirmation-nav">
-        <Link href="/" className="order-confirmation-logo">STICKIER<sup>™</sup></Link>
+        <Link href="/" className="order-confirmation-logo">SALTY STICKER<sup>™</sup></Link>
         <span><LockKeyhole size={15} /> Secure checkout</span>
       </header>
 
@@ -133,7 +128,7 @@ export default async function MembershipSuccessPage({
             <span className="order-confirmation-check"><Check size={28} strokeWidth={2.5} /></span>
             <div>
               <h1>Thank you!</h1>
-              <p>{isDigital ? "Your sticker sheet is ready to download." : "Your sticker order is confirmed."}</p>
+              <p>{isDigital ? "Your sticker sheet is ready to download." : <>Your sticker order is confirmed.<br />We&apos;ll send you an email confirmation when they&apos;re on the way.</>}</p>
             </div>
           </div>
 
@@ -154,7 +149,7 @@ export default async function MembershipSuccessPage({
             <Link href="/?start=upload" className="order-confirmation-secondary">Create another sticker</Link>
           </div>
 
-          {isDigital && !isSubscription ? (
+          {!isSubscription ? (
             <aside className="order-confirmation-club">
               <div>
                 <small>Make it a monthly thing</small>

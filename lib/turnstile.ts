@@ -1,5 +1,13 @@
 const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
+export function isLocalHostname(hostname: string) {
+  return hostname === "localhost"
+    || hostname.endsWith(".localhost")
+    || hostname === "127.0.0.1"
+    || hostname === "::1"
+    || hostname === "terminal.local";
+}
+
 /**
  * Verify a Cloudflare Turnstile token. When no secret is configured (local
  * development), verification is skipped so the app remains usable; in
@@ -8,8 +16,8 @@ const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 export async function verifyTurnstile(token: string | null | undefined, remoteIp?: string, requestUrl?: string) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   const hostname = requestUrl ? new URL(requestUrl).hostname : "";
-  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "terminal.local";
-  if (isLocalHost || (process.env.NODE_ENV !== "production" && (!secret || !token))) {
+  const isLocalHost = isLocalHostname(hostname);
+  if (process.env.LOCAL_DEV === "1" || isLocalHost || (process.env.NODE_ENV !== "production" && (!secret || !token))) {
     return { ok: true, reason: "dev-bypass" };
   }
   if (!secret) {

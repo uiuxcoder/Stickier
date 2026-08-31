@@ -75,7 +75,7 @@ process.once("SIGTERM", () => {
 start(
   "API worker",
   path.join(projectRoot, "node_modules", ".bin", `wrangler${executableExtension}`),
-  ["dev", "--port", "8788"]
+  ["dev", "--port", "8788", "--var", "LOCAL_DEV:1"]
 );
 start(
   "frontend",
