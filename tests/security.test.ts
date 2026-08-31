@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { IMAGE_KEY_PATTERN, UPLOAD_KEY_PATTERN } from "../lib/constants.ts";
 import { base64UrlToBytes, bytesToBase64Url, hmacSign, hmacVerify } from "../lib/crypto.ts";
+import { isLocalHostname, verifyTurnstile } from "../lib/turnstile.ts";
 
 const SECRET = "test-secret-key-for-unit-tests";
 
@@ -53,4 +54,30 @@ test("image keys remain constrained to generated sticker objects", () => {
   assert.equal(IMAGE_KEY_PATTERN.test("stickers/11111111-1111-1111-1111-111111111111.png"), true);
   assert.equal(IMAGE_KEY_PATTERN.test("stickers/../secret.png"), false);
   assert.equal(IMAGE_KEY_PATTERN.test("uploads/11111111-1111-1111-1111-111111111111/abc.png"), false);
+});
+
+test("local development hostnames bypass external verification", () => {
+  assert.equal(isLocalHostname("localhost"), true);
+  assert.equal(isLocalHostname("sticker-era.localhost"), true);
+  assert.equal(isLocalHostname("127.0.0.1"), true);
+  assert.equal(isLocalHostname("example.com"), false);
+  assert.equal(isLocalHostname("localhost.example.com"), false);
+});
+
+test("the explicit local development flag bypasses Turnstile", async () => {
+  const previousLocalDev = process.env.LOCAL_DEV;
+  const previousSecret = process.env.TURNSTILE_SECRET_KEY;
+  try {
+    process.env.LOCAL_DEV = "1";
+    process.env.TURNSTILE_SECRET_KEY = "production-like-secret";
+    assert.deepEqual(await verifyTurnstile("invalid-token", undefined, "https://example.com/api"), {
+      ok: true,
+      reason: "dev-bypass",
+    });
+  } finally {
+    if (previousLocalDev === undefined) delete process.env.LOCAL_DEV;
+    else process.env.LOCAL_DEV = previousLocalDev;
+    if (previousSecret === undefined) delete process.env.TURNSTILE_SECRET_KEY;
+    else process.env.TURNSTILE_SECRET_KEY = previousSecret;
+  }
 });

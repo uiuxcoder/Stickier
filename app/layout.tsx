@@ -4,11 +4,11 @@ import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://saltysticker.com"),
-  title: "Stickier — Turn Your Photos Into Custom Stickers",
-  description: "Upload a selfie, your pet, or your bestie and get 10 custom stickers. See them before you pay.",
+  title: "Salty Sticker™ — Your Life as a Sticker Sheet",
+  description: "Turn the little things that make you, you into a one-of-one sticker sheet.",
   openGraph: {
-    title: "Stickier — Turn Your Photos Into Custom Stickers",
-    description: "Upload a photo and get 10 custom stickers. See them before you pay.",
+    title: "Salty Sticker™ — Your Life as a Sticker Sheet",
+    description: "Turn photos into a one-of-one sticker sheet.",
     type: "website",
   },
   icons: {

@@ -1,6 +1,6 @@
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { generations } from "@/db/schema";
+import { generations, subscriptions } from "@/db/schema";
 import {
   CHECKOUT_HOURLY_CAP,
   MONTHLY_PHYSICAL_SHEETS,
@@ -11,11 +11,22 @@ import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib
 import { getStripe } from "@/lib/stripe";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { subscriptionRequestSchema } from "@/lib/validation";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const user = await getSessionUser(request);
   if (!process.env.STRIPE_SECRET_KEY) return Response.json({ error: "Stripe is not configured." }, { status: 500 });
+
+  if (user) {
+    const activeMembership = await getDb()
+      .select({ id: subscriptions.stripeSubscriptionId })
+      .from(subscriptions)
+      .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
+      .limit(1);
+    if (activeMembership[0]) {
+      return Response.json({ error: "Your Sticker Club membership is already active." }, { status: 409 });
+    }
+  }
 
   const hourly = await consumeRateLimit(rateLimiters().checkout, `checkout:${await hashIp(request)}`, CHECKOUT_HOURLY_CAP, 60 * 60 * 1000);
   if (!hourly.ok) return rateLimitResponse(hourly.retryAfterMs);
@@ -42,15 +53,17 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
+    const enableAutomaticTax = process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true";
     const session = await getStripe().checkout.sessions.create({
       mode: "subscription",
       ...(user?.email ? { customer_email: user.email } : {}),
+      ...(enableAutomaticTax ? { automatic_tax: { enabled: true } } : {}),
       line_items: [
         {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Stickier monthly membership",
+              name: "Salty Sticker monthly membership",
               description: `${MONTHLY_REGENERATIONS} sticker regenerations + ${MONTHLY_PHYSICAL_SHEETS} physical sticker sheets shipped each month`,
             },
             unit_amount: SUBSCRIPTION_AMOUNT_CENTS,

@@ -44,7 +44,7 @@ async function sendDownloadEmail(session: Stripe.Checkout.Session, email: string
   const result = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,
-    subject: "Your Stickier download is ready",
+    subject: "Your Salty Sticker download is ready",
     html: `<p>Your personalized sticker sheet is ready.</p><p><a href="${origin}/api/download-stickers?session_id=${encodeURIComponent(session.id)}">Download your stickers</a></p><p>This download link expires in 7 days.</p>`,
   });
   if (result.error) throw new Error(result.error.message);

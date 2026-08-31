@@ -221,14 +221,18 @@ nav{height:88px;padding:0 var(--space-10)}
 .sticker-tile{overflow:hidden}.sticker-tile>div{aspect-ratio:1;width:100%;background-size:300% 400%;background-position:center;background-repeat:no-repeat;background-color:#fff;overflow:hidden}.sticker-tile>.sticker-image{margin:auto;transform:scale(.92);transform-origin:center}.cell-watermark{position:absolute;z-index:3;pointer-events:none;color:#15151530;font:900 clamp(8px,1vw,12px)/1 Arial;letter-spacing:.06em;white-space:nowrap;text-shadow:0 0 1px #fff}.cell-watermark-one{top:31%;left:5%;transform:rotate(-18deg)}.cell-watermark-two{top:54%;left:15%;transform:rotate(-18deg)}.cell-watermark-three{top:77%;left:3%;transform:rotate(-18deg)}
 .footer-support{border:0;background:none;color:var(--ink);font:900 9px/1 Arial;letter-spacing:.12em;cursor:pointer;padding:0;text-transform:none}
 .reveal-actions{flex-direction:column;align-items:stretch}.reveal-actions .subscription-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid #111;background:var(--yellow);padding:16px 20px;font-size:9px;font-weight:900;letter-spacing:.08em;box-shadow:4px 4px 0 #111}.subscription-btn:after{content:" · 20 REGENERATIONS INCLUDED"}.subscription-btn svg{width:16px}.subscription-btn:disabled{opacity:.45}.reveal-side{display:flex;flex-direction:column;align-items:flex-end;gap:16px}.reveal-turnstile{margin:0}
+.member-reveal-saved{display:grid;justify-items:stretch;gap:9px;min-width:210px}.member-reveal-saved a{height:46px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:9px;border:1.5px solid #111;font-size:9px;font-weight:900;letter-spacing:.1em;text-decoration:none}.member-download-primary{background:#111;color:#fff}.member-download-primary:hover{background:var(--blue)}.member-portal-secondary{background:#fff;color:#111}.member-portal-secondary:hover{background:var(--yellow)}
 .age-gate{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1.5px solid;padding:16px;margin:20px 0 16px;cursor:pointer}.age-gate.compact{padding:12px 16px;margin:20px 0 12px}.age-gate input{margin-top:2px;width:18px;height:18px;accent-color:var(--red)}.age-gate span{font-size:12px;line-height:1.5;color:#333}.turnstile-widget{margin:0 0 16px}
 .purchase-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.purchase-options>button{position:relative;min-height:156px;text-align:left;border:2px solid #111;background:#fff;padding:22px;display:flex;flex-direction:column;justify-content:space-between;gap:16px;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s}.purchase-options>button:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 #111}.purchase-options>button.selected{background:var(--yellow);border-color:#111;box-shadow:6px 6px 0 #111;transform:translate(-2px,-2px)}.purchase-options>button b{font-size:16px;line-height:1.25;letter-spacing:.01em}.purchase-options>button span{font-size:14px;line-height:1.6;color:#3f3f3f}.purchase-options>button span strong{color:#111}.purchase-options>button em{position:absolute;right:12px;top:12px;background:var(--blue);color:#fff;padding:7px 9px;font:900 8px/1 Arial;letter-spacing:.1em}.payment-total{font:24px Georgia;margin:0;text-align:right}
-.membership-upsell{grid-column:1/-1;min-height:0!important;border:2px solid #111!important;background:#f4f7ff!important;padding:22px!important;display:grid!important;grid-template-columns:1fr 1fr;gap:8px 24px!important;text-align:left;cursor:pointer}
+.membership-upsell{grid-column:1/-1;min-height:0!important;border:2px solid #111!important;background:#f4f7ff!important;padding:22px!important;display:grid!important;grid-template-columns:1fr;align-items:baseline;gap:8px!important;text-align:left;cursor:pointer}
 .membership-upsell:hover{background:#eef2ff!important}.membership-upsell.selected{background:var(--yellow)!important;box-shadow:6px 6px 0 #111!important}.membership-upsell p{margin:0;font-size:14px;line-height:1.5;color:#333}.membership-upsell .membership-title{grid-column:1/-1;font:900 10px/1 Arial;letter-spacing:.14em;color:var(--blue)}.membership-upsell .membership-head{grid-column:1/-1;font:700 21px/1.2 Georgia,serif;color:#111}.membership-upsell .membership-cancel{font-size:13px;font-weight:700;color:#111}
 .membership-upsell .membership-free{grid-column:1/-1;border-left:4px solid var(--blue);color:#111;padding:3px 0 3px 12px;font-size:13px;font-weight:700;line-height:1.4}
+.membership-upsell>p:not(.membership-title):not(.membership-head):not(.membership-free){white-space:nowrap}
+.purchase-options>button.selected{background:#fff4a8!important}
 .purchase-options>button:not(.membership-upsell){padding-top:66px}
 .purchase-options>button em{position:absolute;top:20px;left:22px;right:auto;order:initial;align-self:auto}
-@media(max-width:520px){.purchase-options>button:not(.membership-upsell){min-height:176px;padding-top:60px}.purchase-options>button em{top:18px;left:20px;right:auto}}
+@media(max-width:520px){.purchase-options>button:not(.membership-upsell){min-height:176px;padding-top:60px}.purchase-options>button em{top:18px;left:20px;right:auto}.membership-upsell{grid-template-columns:1fr!important}.membership-upsell>p:not(.membership-title):not(.membership-head):not(.membership-free){white-space:normal}}
+@media(max-width:520px){.member-reveal-saved{justify-items:start;text-align:left}}
 .support-overlay{position:fixed;inset:0;z-index:80;background:#15151566;display:flex;justify-content:flex-end}
 .support-drawer{width:min(420px,100%);height:100%;background:#fffdf8;border-left:1.5px solid #111;padding:28px 24px;display:flex;flex-direction:column;gap:16px;box-shadow:-12px 0 0 #111}
 .support-kicker{margin:0;font:900 9px/1 Arial;letter-spacing:.14em;color:#555}
@@ -369,21 +373,30 @@ nav{height:88px;padding:0 var(--space-10)}
 .membership-welcome-nav{height:76px;padding:0 4vw;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #171715}
 .membership-welcome-nav a{color:#171715;text-decoration:none;font:950 18px/1 Arial,sans-serif;letter-spacing:-.06em}
 .membership-welcome-nav a sup{font-size:6px;vertical-align:top;margin-left:2px;letter-spacing:0}
-.membership-welcome-nav>span{font:900 8px/1 Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase}
-.membership-welcome-layout{min-height:calc(100vh - 76px);display:grid;grid-template-columns:minmax(0,.8fr) minmax(460px,1.2fr)}
-.membership-welcome-copy{padding:clamp(54px,7vw,110px) clamp(28px,6vw,90px);background:#f8dc3e;border-right:1px solid #171715}
-.membership-welcome-kicker{display:block;margin-bottom:28px;font:900 9px/1 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}
-.membership-welcome-check{width:54px;height:54px;display:grid;place-items:center;border:1.5px solid #171715;border-radius:50%;background:#fffef8;box-shadow:4px 4px 0 #2866f1}
-.membership-welcome-copy h1{margin:30px 0 24px;font:400 clamp(48px,5.6vw,80px)/.9 Georgia,serif;letter-spacing:0}
+.membership-welcome-nav>span{display:flex;align-items:center;gap:8px;color:#66645e;font-size:12px;font-weight:600}
+.membership-welcome-layout{min-height:calc(100vh - 76px);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr)}
+.membership-welcome-copy{padding:clamp(44px,5vw,70px) clamp(28px,6vw,90px);background:#f8dc3e;border-right:1px solid #171715}
+.membership-welcome-kicker{display:block;margin-bottom:20px;font:900 9px/1 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}
+.membership-welcome-copy h1{margin:22px 0 18px;font:400 clamp(48px,4.5vw,66px)/.92 Georgia,serif;letter-spacing:0}
 .membership-welcome-copy h1 span{color:#2866f1;margin-left:10px}
-.membership-welcome-copy p{max-width:460px;margin:0 0 30px;font:400 16px/1.55 Georgia,serif}
-.membership-welcome-primary{min-height:52px;padding:0 22px;display:inline-flex;align-items:center;justify-content:center;background:#171715;color:#fff;text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
-.membership-welcome-preview{padding:clamp(50px,7vw,95px) clamp(28px,7vw,100px);display:grid;align-content:center;justify-items:center;gap:36px}
-.membership-welcome-sheet{width:min(410px,100%);position:relative;padding:14px;background:#fff;border:1px solid #171715;box-shadow:9px 9px 0 #171715}
-.membership-welcome-sheet img{width:100%;aspect-ratio:4/5;display:block;object-fit:contain;background:#fffaf0}
-.membership-welcome-sheet span{position:absolute;right:14px;bottom:14px;padding:9px 11px;background:#f8dc3e;font:900 8px/1 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
-.membership-welcome-placeholder{width:min(410px,100%);aspect-ratio:4/5;display:grid;place-items:center;align-content:center;gap:14px;border:1px dashed #777;background:#fffef8;color:#555}
-.membership-welcome-benefits{width:min(520px,100%);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #777}
+.membership-welcome-copy p{max-width:500px;margin:0 0 22px;font:400 15px/1.45 Georgia,serif}
+.membership-welcome-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.membership-welcome-primary,.membership-welcome-secondary{min-height:52px;padding:0 22px;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.membership-welcome-primary{background:#171715;color:#fff}
+.membership-welcome-secondary{border:1px solid #171715;color:#171715;background:transparent}
+.membership-welcome-meta{margin:24px 0 0}
+.membership-welcome-details{margin-top:24px;padding:22px;gap:16px;border:1px solid #171715;background:#fff}
+.membership-welcome-preview{padding:clamp(56px,7vw,92px) clamp(28px,5vw,70px);display:grid;align-content:start;gap:0;background:#fffced}
+.membership-welcome-summary-items{display:grid;background:#fff;border:1px solid #d8d2c6}
+.membership-welcome-summary-item{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:16px;align-items:center;padding:16px;border-bottom:1px solid #e2ddd2}
+.membership-welcome-summary-item:last-child{border-bottom:0}
+.membership-welcome-summary-item img,.membership-welcome-item-icon{width:76px;aspect-ratio:1;display:grid;place-items:center;object-fit:contain;border:1px solid #ddd7cb;background:#fffaf0}
+.membership-welcome-summary-item>div{display:grid;gap:7px}
+.membership-welcome-summary-item strong{font-size:13px;line-height:1.3}
+.membership-welcome-summary-item span{font-size:11px;color:#77736c;line-height:1.35}
+.membership-welcome-summary-item>b{font-size:13px;white-space:nowrap}
+.membership-welcome-costs{margin-top:32px}
+.membership-welcome-benefits{width:100%;margin-top:30px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #777}
 .membership-welcome-benefits>div{padding:20px 14px 0;display:grid;justify-items:center;gap:9px;text-align:center;font-size:11px;line-height:1.4}
 .membership-welcome-benefits strong{display:block}
 .membership-welcome-error{display:grid;place-items:center;padding:30px}
@@ -416,70 +429,67 @@ nav{height:88px;padding:0 var(--space-10)}
 .membership-secondary small{font-size:11px;color:#888}
 
 .club-shell{min-height:100vh;background:#f5f0e6}
-.club-topbar{height:72px;padding:0 clamp(28px,4vw,64px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;border-bottom:1.5px solid #171715;background:#f5f0e6}
+.club-topbar{height:72px;padding:0 clamp(28px,4vw,64px);display:grid;grid-template-columns:1fr auto;align-items:center;border-bottom:1.5px solid #171715;background:#f5f0e6}
 .club-logo{color:#171715;text-decoration:none;font:950 18px/1 Arial,sans-serif;letter-spacing:-.06em}
 .club-logo sup{margin-left:3px;font-size:6px;letter-spacing:0;vertical-align:top}
-.club-topbar>p{margin:0;font:900 8px/1 Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.club-how-trigger{border:0;background:none;padding:0;font:800 12px/1 Arial,sans-serif;letter-spacing:0;text-transform:none;text-decoration:underline;cursor:pointer}
 .club-kicker{margin:0;font:900 9px/1 Arial;letter-spacing:.14em;text-transform:uppercase;color:#666}
-.club-menu{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}
-.club-menu a,.club-menu button{border:0;background:none;padding:0;color:#111;font:900 9px/1 Arial;letter-spacing:.1em;text-decoration:underline;cursor:pointer}
+.club-menu{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px}
+.club-menu form{display:flex;align-items:center;margin:0}
+.club-menu a,.club-menu button{min-height:16px;border:0;background:none;padding:0;color:#111;font:900 9px/1 Arial;letter-spacing:.1em;text-decoration:underline;cursor:pointer}
+.club-menu .club-manage-trigger{display:flex;align-items:center;gap:5px}
+.club-manage-menu{min-width:230px;border:1px solid #171715;border-radius:0;background:#fffef8;padding:6px;box-shadow:6px 6px 0 #171715}
+.club-manage-menu [data-slot="dropdown-menu-item"]{border-radius:0;padding:10px;font-size:12px;cursor:pointer}
 
-.club-membership-overview{min-height:242px;padding:46px 6vw 42px;display:grid;grid-template-columns:minmax(390px,1.35fr) minmax(430px,1fr) minmax(150px,.32fr);align-items:center;gap:34px;border-bottom:1.5px solid #171715}
+.club-membership-overview{min-height:242px;padding:46px 6vw 42px;display:grid;grid-template-columns:minmax(390px,1.35fr) minmax(430px,1fr);align-items:center;gap:34px;border-bottom:1.5px solid #171715}
 .club-membership-title{display:grid;justify-items:start;gap:16px}
-.club-membership-title h1{font-size:clamp(62px,6vw,92px);line-height:.86;white-space:nowrap}
+.club-membership-title h1{font-size:56px;line-height:.9;white-space:nowrap}
 .club-membership-title h1 span{color:#2866f1;font-family:Arial,sans-serif;font-size:.72em}
 .club-active-badge,.club-inactive-badge{padding:8px 11px;border:1px solid #171715;font:900 8px/1 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
 .club-active-badge{background:#b9d65a}
 .club-inactive-badge{background:#ffaaa3}
 .club-loop{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#555}
 .club-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.club-metrics article{min-height:116px;background:#fff;border:1.5px solid #171715;box-shadow:5px 5px 0 #171715;padding:18px;display:grid;align-content:space-between;gap:5px}
-.club-metrics strong{font:400 31px/1 Georgia,serif}
+.club-metrics article{min-height:92px;background:#fff;border:1.5px solid #171715;box-shadow:4px 4px 0 #171715;padding:13px;display:grid;align-content:space-between;gap:4px}
+.club-metrics strong{font:400 25px/1 Georgia,serif}
 .club-metrics strong span{margin-left:4px;color:#777;font:400 13px/1 Arial,sans-serif}
 .club-metrics p{margin:0;color:#444;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .club-metrics i{height:4px;margin-top:8px;background:#dedbd3;overflow:hidden}
 .club-metrics i span{display:block;height:100%;background:#2866f1}
-.club-actions-row{display:grid;justify-items:end;gap:13px}
-.club-actions-row small{color:#777;font-size:8px;white-space:nowrap}
 .club-primary-link{height:42px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#111;color:#fff;text-decoration:none;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-.club-ship-button{height:46px!important;padding:0 16px!important;background:var(--red)!important;color:#fff!important;border-radius:0!important}
-.club-submitted-pill{display:inline-flex;align-items:center;gap:8px;background:#f4d84b;border:1px solid #111;padding:10px 12px;font-size:10px;font-weight:900;letter-spacing:.08em}
-.club-submitted-block{grid-column:2/-1;display:grid;gap:10px;padding:12px;border:1px dashed #999;background:#fff}
-.club-submitted-meta p{margin:0;color:#555}
-.club-submitted-meta strong{font-size:15px}
-.club-submitted-previews{display:flex;gap:8px;flex-wrap:wrap}
-.club-submitted-previews img{width:84px;height:84px;object-fit:cover;border:1px solid #111}
-.club-status-line{margin:0;font-size:12px;font-weight:700}
-
+.club-gallery-actions button.club-primary-link{border:1px solid #111;cursor:pointer}
+.club-ship-button{height:42px!important;padding:0 16px!important;background:var(--red)!important;color:#fff!important;border:1px solid #111!important;border-radius:0!important;font-size:9px!important;font-weight:900!important;letter-spacing:.08em!important;text-transform:uppercase;white-space:nowrap}
+.club-ship-button:disabled{background:#d7d2c8!important;color:#777!important;opacity:1!important;cursor:not-allowed}
 .club-gallery{padding:52px 6vw 68px;display:grid;gap:24px;border-bottom:1.5px solid #171715}
-.club-gallery-head{display:grid;gap:12px}
-.club-gallery-head h2{font-size:clamp(52px,5vw,76px);line-height:.9}
-.club-gallery-head>p:last-child{margin:0;color:#555}
+.club-gallery-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.club-gallery-head>div:first-child{display:grid;gap:8px}
+.club-gallery-head h2{font-size:32px;line-height:1}
+.club-gallery-head p{margin:0;color:#555}
+.club-gallery-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 .club-empty-gallery{display:flex;gap:10px;align-items:center;background:#fff;border:1px dashed #888;padding:16px;flex-wrap:wrap}
 .club-empty-gallery p{margin:0;flex:1 1 280px}
 .club-sticker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
-.club-sticker-card{background:#fff;border:1.5px solid #171715;padding:10px;display:grid;gap:10px}
-.club-sticker-card img{width:100%;aspect-ratio:4/5;object-fit:contain;background:#fbf7ee;border:0}
+.club-sticker-card{position:relative;background:#fff;border:1.5px solid #171715;padding:10px;display:grid;gap:10px}
+.club-sticker-card img{width:100%;aspect-ratio:4/5;object-fit:contain;background:#fff;border:0}
+.club-sticker-card>div{display:grid;gap:8px}
 .club-sticker-card p{margin:0;color:#666;font-size:11px}
 .club-sticker-card button{width:100%;height:38px;border:1px solid #111;background:#fff;font-size:10px;font-weight:900;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
 .club-sticker-card button.selected{background:#111;color:#fff}
 .club-sticker-card button:disabled{opacity:.45;cursor:not-allowed}
+.club-download-creation{position:absolute;z-index:1;top:8px;right:8px;width:34px;height:34px;border:1px solid #111;background:#fff;color:#111;display:grid;place-items:center;text-decoration:none;box-shadow:2px 2px 0 #111}
+.club-download-creation:hover{background:#f8dc3e}
+.club-download-creation:focus-visible{outline:2px solid #2866f1;outline-offset:2px}
 
-.club-how,.club-past{padding:48px 6vw;border-bottom:1.5px solid #171715}
-.club-how h2{font-size:36px;line-height:1.1}
-.club-how>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.club-how article{background:#fff;border:1px solid #111;padding:14px}
-.club-how h3{margin:0 0 6px;font-size:21px}
-.club-how p{margin:0;color:#555;line-height:1.45}
+.club-past{padding:64px 6vw;border-bottom:1.5px solid #171715}
 
-.club-past h2{font-size:36px;line-height:1.1}
+.club-past h2{margin:0 0 28px;font-size:36px;line-height:1.1}
 .club-past>p{color:#666}
-.club-past-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.club-past-grid article{background:#fff;border:1px solid #111;padding:10px;display:grid;gap:8px}
-.club-past-grid header{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.club-past-grid{display:grid;gap:12px;max-width:760px}
+.club-past-grid article{background:#fff;border:1px solid #111;padding:16px;display:grid;grid-template-columns:minmax(160px,1fr) auto;grid-template-areas:"header previews";gap:24px;align-items:center}
+.club-past-grid header{grid-area:header;display:grid;gap:8px;align-content:center}
 .club-past-grid h3{margin:0;font-size:20px}
 .club-past-grid span{font-size:10px;font-weight:900;letter-spacing:.08em;color:#666}
-.club-past-previews{display:flex;gap:6px;flex-wrap:wrap}
+.club-past-previews{grid-area:previews;display:flex;gap:8px}
 .club-past-previews img{width:68px;height:68px;object-fit:cover;border:1px solid #ddd}
 
 .club-inactive{grid-column:2/-1}
@@ -488,20 +498,83 @@ nav{height:88px;padding:0 var(--space-10)}
 .club-signin-note{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .club-signin-note p{margin:0;color:#666}
 .club-signin-note a{font-size:10px;font-weight:900;letter-spacing:.1em;color:#111}
-.club-account-tools{display:flex;justify-content:space-between;align-items:center;gap:28px;padding:40px 6vw;background:#fffef8;border-bottom:1px solid #171715}
-.club-account-tools h2{margin:5px 0 8px;font-size:30px;line-height:1}
-.club-account-tools p{margin:0;color:#555;font-size:12px}
-.club-account-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
-.club-account-actions button{height:42px;padding:0 14px;border:1px solid #171715;background:#fff;color:#171715;font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;cursor:pointer}
-.club-account-actions .club-danger-action{color:#a51d18;border-color:#a51d18}
-
 .club-ship-modal{background:#fffef8!important;border:1.5px solid #111!important;border-radius:0!important;box-shadow:10px 10px 0 #111!important}
+.club-ship-modal [data-slot="dialog-title"]{font:400 32px/1 Georgia,serif}
+.club-how-modal{background:#fff!important;border:1.5px solid #111!important;border-radius:0!important;box-shadow:10px 10px 0 #111!important}
+.club-how-modal [data-slot="dialog-title"]{font:400 32px/1 Georgia,serif}
+.club-how-steps{display:grid;gap:10px}
+.club-how-steps article{display:grid;grid-template-columns:38px 1fr;gap:12px;align-items:start;padding:14px;border:1px solid #171715;background:#fff}
+.club-how-steps article>strong{width:38px;height:38px;display:grid;place-items:center;background:#f8dc3e;border:1px solid #171715;font:400 20px/1 Georgia,serif}
+.club-how-steps h3{margin:0 0 5px;font-size:20px}
+.club-how-steps p{margin:0;color:#555;font-size:12px;line-height:1.45}
+.club-manage-modal{background:#fffef8!important;border:1.5px solid #111!important;border-radius:0!important;box-shadow:none!important}
+.club-manage-modal [data-slot="dialog-title"]{font:400 32px/1 Georgia,serif}
+.club-manage-modal [data-slot="dialog-description"]{color:#555;line-height:1.55}
+.club-manage-note{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid #d8d0c0;background:#f8dc3e}
+.club-manage-note p{margin:0;font-size:12px;line-height:1.45}
+.club-manage-modal-actions{align-items:center}
+.club-manage-modal-actions form{margin:0}
+.club-danger-button{height:42px;border:1px solid #a51d18;padding:0 14px;background:#a51d18;color:#fff;font-size:10px;font-weight:900;letter-spacing:.08em;cursor:pointer}
 .club-ship-preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .club-ship-preview-grid img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #111}
+.club-shipping-confirmation{display:grid;gap:10px;border:1px solid #111;background:#fff;padding:14px}
+.club-shipping-heading{display:flex;align-items:center;gap:7px}
+.club-shipping-heading strong{font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.club-shipping-heading form{margin-left:auto}
+.club-shipping-heading button{border:0;background:transparent;padding:2px 0;color:#111;font-size:11px;font-weight:800;text-decoration:underline;cursor:pointer}
+.club-shipping-confirmation address{display:grid;gap:2px;font:normal 14px/1.35 Georgia,serif}
+.club-shipping-confirmation label{display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:700;line-height:1.35;cursor:pointer}
+.club-shipping-confirmation input{width:16px;height:16px;margin:0;accent-color:#111;flex:0 0 auto}
+.club-shipping-confirmation p{margin:0;font-size:13px;line-height:1.4}
+.club-order-total{display:grid;grid-template-columns:1fr auto;gap:4px 16px;padding:14px 0;border-top:1px solid #111;border-bottom:1px solid #111}
+.club-order-total span{font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.club-order-total strong{font:400 20px/1 Georgia,serif}
+.club-order-total small{grid-column:1/-1;color:#666;font-size:11px}
 .club-ship-actions{display:flex!important;justify-content:flex-end;gap:8px}
+.club-ship-success{display:grid;justify-items:center;gap:18px;padding:14px 0 4px;text-align:center}
+.club-ship-success>svg{width:52px;height:52px;padding:11px;border:1px solid #111;background:#b9d65a}
+.club-ship-success [data-slot="dialog-header"]{text-align:center}
+.club-ship-success .club-order-total{width:100%;text-align:left}
+.club-ship-success>.club-primary-button{min-width:130px}
 .club-primary-button,.club-secondary-button{height:42px;border:1px solid #111;padding:0 14px;font-size:10px;font-weight:900;letter-spacing:.08em;cursor:pointer}
 .club-primary-button{background:#111;color:#fff}
+.club-primary-button:disabled{background:#d7d2c8;color:#777;cursor:not-allowed}
 .club-secondary-button{background:#fff;color:#111}
+
+.club-create-modal{width:min(680px,calc(100vw - 32px))!important;max-width:none!important;max-height:calc(100vh - 32px);overflow:auto;background:#fff!important;border:1.5px solid #111!important;border-radius:0!important;box-shadow:10px 10px 0 #111!important;padding:28px!important}
+.club-create-modal [data-slot="dialog-title"]{font:400 36px/1 Georgia,serif}
+.club-create-modal [data-slot="dialog-description"]{color:#555;font-size:13px;line-height:1.5}
+.club-create-progress{display:grid;gap:8px;margin-bottom:18px;color:#555;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.club-create-progress i{display:block;height:4px;background:#dedbd3;overflow:hidden}
+.club-create-progress b{display:block;height:100%;background:#2866f1}
+.club-create-upload{min-height:280px;display:grid;place-items:center;align-content:center;gap:10px;border:1.5px dashed #777;background:#f8f5ec;padding:22px;text-align:center;cursor:pointer}
+.club-create-upload>input{position:absolute;opacity:0;pointer-events:none}
+.club-create-upload>svg{width:34px;height:34px}
+.club-create-upload>strong{font:400 22px/1 Georgia,serif}
+.club-create-upload>span{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.club-create-upload>div{display:flex;justify-content:center;gap:10px;margin-top:8px}
+.club-create-upload figure{position:relative;width:92px;height:92px;margin:0;background:#fff;border:1px solid #111}
+.club-create-upload figure img{width:100%;height:100%;object-fit:cover}
+.club-create-upload figure button{position:absolute;right:4px;top:4px;width:25px;height:25px;display:grid;place-items:center;border:1px solid #111;background:#fff;cursor:pointer}
+.club-create-upload figure svg{width:13px}
+.club-create-description{display:grid;gap:8px}
+.club-create-description>span{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.club-create-description textarea{min-height:210px;resize:vertical;border:1.5px solid #111;background:#f8f5ec;padding:16px;font:16px/1.5 Georgia,serif;outline:none}
+.club-create-description textarea:focus{box-shadow:0 0 0 3px #f8dc3e}
+.club-create-description small{justify-self:end;color:#666}
+.club-create-moods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.club-create-moods button{min-height:74px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #111;background:#f8f5ec;font:400 19px/1 Georgia,serif;cursor:pointer}
+.club-create-moods button.selected{background:#f8dc3e;box-shadow:3px 3px 0 #111}
+.club-create-moods svg{width:15px}
+.club-create-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
+.club-create-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.club-create-error{margin:0;color:#a51d18;font-size:12px;font-weight:700}
+.club-create-loading{min-height:430px;display:grid;align-content:center;justify-items:center;gap:14px;text-align:center}
+.club-create-loading>.loading-spinner{width:42px;height:42px;border:4px solid #dedbd3;border-top-color:#2866f1;border-radius:50%;animation:spin .8s linear infinite}
+.club-create-loading ol{width:min(360px,100%);display:grid;gap:10px;margin:16px 0 0;padding:0;list-style:none;text-align:left}
+.club-create-loading li{display:grid;grid-template-columns:24px 1fr;color:#aaa;font-size:13px}
+.club-create-loading li.active{color:#111;font-weight:800}
+.club-create-loading li.complete{color:#2866f1}
 
 .order-confirmation-page{min-height:100vh;background:#f7f3e8;color:#181816}
 .order-confirmation-nav{height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,4vw,54px);border-bottom:1px solid #ddd7c8;background:#fffef8}
@@ -510,7 +583,7 @@ nav{height:88px;padding:0 var(--space-10)}
 .order-confirmation-nav>span{display:flex;align-items:center;gap:8px;color:#66645e;font-size:12px;font-weight:600}
 .order-confirmation-layout{min-height:calc(100vh - 78px);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr)}
 .order-confirmation-main{padding:clamp(56px,7vw,92px) clamp(28px,9vw,150px);border-right:1px solid #ddd7c8}
-.order-confirmation-intro{display:flex;align-items:center;gap:24px}
+.order-confirmation-intro{display:flex;align-items:flex-start;gap:24px}
 .order-confirmation-check{width:68px;height:68px;display:grid;place-items:center;flex:0 0 auto;border:1.5px solid #1b1b19;border-radius:50%;background:#f7da3e;box-shadow:5px 5px 0 #181816}
 .order-confirmation-intro h1{margin:0;font:400 clamp(48px,5vw,70px)/.95 Georgia,serif;letter-spacing:0}
 .order-confirmation-intro p{margin:22px 0 0;color:#63615a;font-size:15px}
@@ -528,6 +601,7 @@ nav{height:88px;padding:0 var(--space-10)}
 .order-confirmation-club-action{width:132px;display:grid;justify-items:center;gap:9px}
 .order-confirmation-club-action .join-club-button-wrap{width:100%}
 .order-confirmation-club-action .join-club-secondary-btn{height:44px;border:0;border-radius:0;background:#171715;color:#fff;font-size:10px}
+.order-confirmation-club-action .join-club-secondary-btn:hover{background:#2866f1;color:#fff}
 .order-confirmation-club-action>span{font-size:9px;color:#625d48;text-decoration:underline}
 .order-details-section{margin-top:38px;padding-top:30px;border-top:1px solid #d6d0c2;display:grid;gap:22px}
 .order-details-section h2{margin:0 0 4px;font:400 29px/1 Georgia,serif;letter-spacing:0}
@@ -560,17 +634,11 @@ nav{height:88px;padding:0 var(--space-10)}
 @media(max-width:900px){
   .membership-welcome-layout{grid-template-columns:1fr}
   .membership-welcome-copy{border-right:0;border-bottom:1px solid #171715}
-  .club-account-tools{align-items:flex-start;flex-direction:column}
-  .club-account-actions{justify-content:flex-start}
   .purchase-summary{grid-template-columns:1fr}
-  .club-how>div{grid-template-columns:1fr}
   .club-topbar{grid-template-columns:1fr auto;padding:0 24px}
-  .club-topbar>p{display:none}
   .club-menu{justify-content:flex-end}
   .club-membership-overview{grid-template-columns:1fr 1fr;padding:40px 24px}
   .club-membership-title{grid-column:1/-1}
-  .club-actions-row{justify-items:start}
-  .club-submitted-block{grid-column:1/-1}
   .club-metrics{grid-template-columns:1fr}
   .club-sticker-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .club-past-grid{grid-template-columns:1fr}
@@ -587,12 +655,20 @@ nav{height:88px;padding:0 var(--space-10)}
   .club-menu a,.club-menu button{font-size:7px}
   .club-membership-overview{grid-template-columns:1fr;padding:36px 18px;gap:28px}
   .club-membership-title{grid-column:auto}
-  .club-membership-title h1{font-size:50px;white-space:normal}
-  .club-actions-row{justify-items:stretch}
-  .club-gallery,.club-how,.club-past{padding:40px 18px 48px}
+  .club-membership-title h1{font-size:56px;white-space:normal}
+  .club-gallery,.club-past{padding:40px 18px 48px}
+  .club-gallery-head{align-items:stretch;flex-direction:column}
+  .club-gallery-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
   .club-sticker-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .club-sticker-card{padding:6px}
   .club-sticker-card button{font-size:8px}
+  .club-past-grid article{grid-template-columns:1fr;grid-template-areas:"header" "previews";gap:14px}
+  .club-past-previews img{width:min(27vw,82px);height:min(27vw,82px)}
+  .club-create-modal{padding:22px 18px!important;max-height:calc(100vh - 20px)}
+  .club-create-modal [data-slot="dialog-title"]{font-size:30px}
+  .club-create-upload{min-height:250px;padding:18px 12px}
+  .club-create-upload figure{width:76px;height:76px}
+  .club-create-moods{grid-template-columns:repeat(2,minmax(0,1fr))}
   .club-loop{flex-wrap:wrap}
   .order-confirmation-nav{height:68px}
   .order-confirmation-layout{min-height:calc(100vh - 68px)}
@@ -609,10 +685,12 @@ nav{height:88px;padding:0 var(--space-10)}
   .order-summary-product>b{grid-column:2}
   .membership-welcome-copy,.membership-welcome-preview{padding:42px 20px}
   .membership-welcome-copy h1{font-size:48px}
-  .membership-welcome-primary{width:100%;text-align:center}
+  .membership-welcome-actions,.membership-welcome-primary,.membership-welcome-secondary{width:100%;text-align:center}
+  .membership-welcome-summary-item{grid-template-columns:64px minmax(0,1fr)}
+  .membership-welcome-summary-item img,.membership-welcome-item-icon{width:64px}
+  .membership-welcome-summary-item>b{grid-column:2}
   .membership-welcome-benefits{grid-template-columns:1fr}
   .membership-welcome-benefits>div{grid-template-columns:auto 1fr;justify-items:start;text-align:left}
-  .club-account-actions,.club-account-actions form,.club-account-actions button{width:100%}
 }
 
 /* Desktop landing page: one locked hero viewport, no page scroll (V1 only —

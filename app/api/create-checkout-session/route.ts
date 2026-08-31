@@ -68,10 +68,7 @@ export async function POST(request: Request) {
       },
     } as const;
 
-    const enableAutomaticTax =
-      plan === "physical" &&
-      !isLocalDev &&
-      process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true";
+    const enableAutomaticTax = process.env.STRIPE_ENABLE_AUTOMATIC_TAX === "true";
 
     const session = await getStripe().checkout.sessions.create({
       ...baseParams,

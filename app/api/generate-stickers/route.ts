@@ -6,7 +6,7 @@ import { ANON_DAILY_PREVIEWS, GENERATE_HOURLY_CAP } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { dataUrlToFile, generationRequestSchema } from "@/lib/validation";
 import { extensionForImageType } from "@/lib/image-format";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { isLocalHostname, verifyTurnstile } from "@/lib/turnstile";
 import { moderateText } from "@/lib/moderation";
 import { processGenerationJob } from "@/lib/generation-worker";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   // Bot protection on an expensive, unauthenticated-capable endpoint.
   // Local development on localhost skips Turnstile to keep the flow testable.
   const host = new URL(request.url).hostname;
-  const isLocalDev = host === "localhost" || host === "127.0.0.1";
+  const isLocalDev = isLocalHostname(host);
   if (!isLocalDev) {
     const turnstile = await verifyTurnstile(input.turnstileToken, request.headers.get("cf-connecting-ip") ?? undefined, request.url);
     if (!turnstile.ok) {

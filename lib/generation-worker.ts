@@ -162,7 +162,14 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
         signal: AbortSignal.timeout(120_000),
       });
     } else {
-      const jsonBody = JSON.stringify({ model, prompt: promptFor(input), size: "1024x1024", quality: "medium" });
+      const jsonBody = JSON.stringify({
+        model,
+        prompt: promptFor(input),
+        size: "1024x1024",
+        quality: "medium",
+        background: "transparent",
+        output_format: "png",
+      });
       response = await fetch(OPENAI_IMAGES_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },

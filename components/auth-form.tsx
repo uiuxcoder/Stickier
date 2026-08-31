@@ -31,7 +31,7 @@ const copy: Record<AuthMode, { eyebrow: string; title: string; submit: string; d
     eyebrow: "WELCOME BACK",
     title: "Sign in.",
     submit: "SIGN IN",
-    description: "Use the email and password for your Stickier account.",
+    description: "Use the email and password for your Salty Sticker account.",
   },
   signup: {
     eyebrow: "NEW ACCOUNT",
