@@ -1,9 +1,11 @@
 "use client";
 
-import { ChangeEvent, DragEvent, startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ImagePlus, PawPrint, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LandingV2 } from "@/components/landing-v2";
+import { setLandingVariant, track, trackOnce } from "@/lib/analytics";
 import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
 
 type Stage = "home" | "samples" | "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
@@ -20,6 +22,27 @@ const moodOptions = [
   "Chaotic",
 ];
 const MAX_PHOTOS = 3;
+// Landing experiment switch: ?landing=v1|v2 selects a variant and is remembered
+// for the rest of the session so funnel events stay attributed. Flip this
+// constant to make V2 the default experience.
+const DEFAULT_LANDING_VARIANT: "v1" | "v2" = "v1";
+const LANDING_VARIANT_KEY = "stickier-landing-variant";
+// Runs before paint on the client, no-op during SSR prerender.
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+function readLandingVariant(): "v1" | "v2" {
+  if (typeof window === "undefined") return DEFAULT_LANDING_VARIANT;
+  const param = new URLSearchParams(window.location.search).get("landing");
+  if (param === "v1" || param === "v2") {
+    try { sessionStorage.setItem(LANDING_VARIANT_KEY, param); } catch { /* private mode */ }
+    return param;
+  }
+  try {
+    const saved = sessionStorage.getItem(LANDING_VARIANT_KEY);
+    if (saved === "v1" || saved === "v2") return saved;
+  } catch { /* private mode */ }
+  return DEFAULT_LANDING_VARIANT;
+}
 
 declare global {
   interface Window {
@@ -198,6 +221,11 @@ export default function Home(){
   const [turnstileToken,setTurnstileToken]=useState("");
   const turnstileWidgetId=useRef<string|undefined>(undefined);
   const pollTimer=useRef<number|undefined>(undefined);
+  // Always initialize to the default so SSR and hydration match; the real
+  // variant is applied in a layout effect before the first client paint.
+  const [landingVariant,setLandingVariantState]=useState<"v1"|"v2">(DEFAULT_LANDING_VARIANT);
+  const heroFileInputRef=useRef<HTMLInputElement|null>(null);
+  const isV2Home=landingVariant==="v2"&&stage==="home";
 
   const subject=product==="pet"?(pet.name||"Your pet"):product==="partner"?(groupName||"My partner"):product==="family"?(groupName||"Family & friends"):(name||"You");
   const total=3;
@@ -233,6 +261,18 @@ export default function Home(){
 
   // Resolve the signed-in user from the app-owned session cookie.
   useEffect(()=>{void fetch("/api/me").then(r=>r.json()).then((data)=>{const user=(data as {user?:{email?:string}|null}).user;if(user?.email){setSignedIn(true);setEmail(current=>current||user.email!)}}).catch(()=>undefined)},[]);
+
+  // Resolve the landing variant before first paint (the boot script in the
+  // root layout hides the V1 hero until this runs), then fire landing_view so
+  // the event always carries the resolved variant. trackOnce guards against
+  // StrictMode double-mounts.
+  useIsoLayoutEffect(()=>{
+    const variant=readLandingVariant();
+    setLandingVariant(variant);
+    setLandingVariantState(current=>current===variant?current:variant);
+    document.documentElement.classList.remove("landing-v2-boot");
+    trackOnce("landing_view");
+  },[]);
 
   // Land directly on the photo-upload step when arriving from an external
   // "make another sheet" link (e.g. the post-checkout success page).
@@ -311,7 +351,7 @@ export default function Home(){
           window.history.replaceState({},"",window.location.pathname);
           return;
         }
-        startTransition(()=>{setStage("confirmation");setCheckoutSessionId(sessionId);if(raw.email)setEmail(raw.email);if(raw.plan)setPurchasedPlan(raw.plan);if(raw.downloadUrl)setDownloadUrl(raw.downloadUrl);});
+        startTransition(()=>{setStage("confirmation");setCheckoutSessionId(sessionId);if(raw.email)setEmail(raw.email);if(raw.plan)setPurchasedPlan(raw.plan);if(raw.downloadUrl)setDownloadUrl(raw.downloadUrl);trackOnce("purchase_completed",{plan:raw.plan},`purchase_completed:${sessionId}`)});
         window.history.replaceState({},"",window.location.pathname);
       }catch{
         setCheckoutNotice("We could not confirm that payment.");
@@ -324,11 +364,12 @@ export default function Home(){
   useEffect(()=>{if(["photos","details","mood"].includes(stage))window.scrollTo({top:0,left:0,behavior:"auto"})},[stage]);
 
   type Setter=(x:string[]|((prev:string[])=>string[]))=>void;
-  const load=async(files:FileList|null,setter:Setter,setKeys:Setter,setData:Setter,current:string[])=>{
+  const load=async(files:FileList|null,setter:Setter,setKeys:Setter,setData:Setter,current:string[],source?:"home"|"hero"|"wizard"|"reference")=>{
     if(!files)return;
     setPhotoError("");
     const chosen=Array.from(files).slice(0,MAX_PHOTOS-current.length);
     if(!chosen.length)return;
+    track("photo_selected",{number_of_photos:chosen.length,source});
     setPhotoBusy(true);
     let selected:File[];
     try{
@@ -341,11 +382,14 @@ export default function Home(){
     if(!selected.length)return;
     const previews=await Promise.all(selected.map(file=>new Promise<string>(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(file)})));
     setter(prev=>[...prev,...previews]);
+    track("upload_started",{number_of_photos:selected.length,source});
+    let uploaded=0;
     for(const file of selected){
       const result=await uploadPhoto(file);
-      if(result.key)setKeys(prev=>[...prev,result.key!]);
-      else if(result.dataUrl)setData(prev=>[...prev,result.dataUrl!]);
+      if(result.key){setKeys(prev=>[...prev,result.key!]);uploaded++}
+      else if(result.dataUrl){setData(prev=>[...prev,result.dataUrl!]);uploaded++}
     }
+    track("upload_completed",{number_of_photos:uploaded,source});
   };
   const removeMainPhoto=(index:number)=>{const remaining=photos.filter((_,i)=>i!==index);setPhotos(remaining);setPhotoKeys([]);setPhotoDataUrls(remaining)};
   const removeReferencePhoto=(index:number)=>{const remaining=referencePhotos.filter((_,i)=>i!==index);setReferencePhotos(remaining);setReferencePhotoKeys([]);setReferencePhotoDataUrls(remaining)};
@@ -354,6 +398,7 @@ export default function Home(){
   // connection open for the full OpenAI call.
   const generate=async()=>{
     setTick(0);setGenerationError("");setStage("generating");
+    track("preview_started");
     try{
       const keys=[...photoKeys,...referencePhotoKeys];
       const dataUrls=[...photoDataUrls,...referencePhotoDataUrls];
@@ -366,7 +411,7 @@ export default function Home(){
         try{
           const status=await fetch(`/api/generation-status?jobId=${encodeURIComponent(jobId)}`).then(r=>r.json()) as {status?:string;imageKey?:string;previewUrl?:string;error?:string};
           if(status.status==="succeeded"&&status.imageKey&&status.previewUrl){
-            setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setStage("reveal");return;
+            setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setStage("reveal");track("preview_rendered");return;
           }
           if(status.status==="failed")throw new Error(status.error||"Generation failed.");
           if(attempts++<90){pollTimer.current=window.setTimeout(poll,2000);return}
@@ -385,8 +430,8 @@ export default function Home(){
   const beginAnotherSheet=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setProduct("me");setName("");setGroupName("");setPet({name:"",species:"Dog"});setTheme("Classic");setStage("photos")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
   const openPayment=()=>{setPaymentPlan("physical");setCheckoutError("");setPaymentOpen(true)};
-  const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
-  const startSubscription=async()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
+  const startCheckout=async()=>{setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
+  const startSubscription=async()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_started",{plan:"membership"});try{const response=await fetch("/api/create-subscription-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,turnstileToken})});const data=await response.json() as {url?:string;error?:string};if(!response.ok||!data.url)throw new Error(data.error||"Unable to start subscription.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start subscription.");setSubscriptionLoading(false)}};
   const back:Partial<Record<Stage,Stage>>={photos:"home",details:skipPhotoStep?"home":"photos",mood:"details",reveal:"mood"};
   const confirmationSheetSrc = checkoutSessionId
     ? `/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`
@@ -396,16 +441,20 @@ export default function Home(){
   const canVerify=isLocalDev?true:(turnstileSiteKey?Boolean(turnstileToken):true);
   const canGenerate=canVerify;
 
-  return <main className={`shell ${stage}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>stage==="home"||stage==="samples"?(setSkipPhotoStep(false),setStage("photos")):restart()}>{stage==="home"||stage==="samples"?"CREATE MINE":"EXIT STUDIO"}</button></div></nav>}
+  return <main className={`shell ${stage}${isV2Home?" landing-v2":""}`}><div className="grain"/>{stage!=="confirmation"&&<nav><button className="logo" onClick={restart}>STICKIER<sup>™</sup></button><span aria-hidden="true"/><div className="nav-end">{signedIn?<a className="nav-account" href="/account">ACCOUNT</a>:<a className="nav-account" href="/signin">SIGN IN</a>}<button className="nav-cta" onClick={()=>{
+    if(stage==="home"&&landingVariant==="v2"){track("header_upload_click");if(heroFileInputRef.current){heroFileInputRef.current.click();return}}
+    if(stage==="home"||stage==="samples"){setSkipPhotoStep(false);setStage("photos")}else{restart()}
+  }}>{stage==="home"||stage==="samples"?(landingVariant==="v2"?"MAKE STICKERS":"CREATE MINE"):"EXIT STUDIO"}</button></div></nav>}
   {checkoutNotice&&<p className="checkout-notice" role="status">{checkoutNotice}</p>}
 
-  {stage==="home"&&<section className="split enter"><div className="copy home-copy"><h1><span>Any photo. <em>Any idea.</em></span><span>Turned into stickers.</span></h1><p>You, your people, your pets, and your little obsessions turned into custom stickers.</p><div className="home-proof">10 CUSTOM STICKERS · PREVIEW BEFORE YOU BUY</div><div className="home-upload"><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/></div>{photos.length>0&&<div className="home-cta"><Button className="red-btn" onClick={()=>{setProduct("me");setSkipPhotoStep(true);setStage("details")}}>MAKE MY STICKERS <ArrowRight/></Button></div>}</div><div className="art hero-story"><div className="hero-story-composite" role="img" aria-label="A candid Polaroid of a brunette woman with her puppy transforming into ten soft illustrated stickers"><img className="hero-story-slice hero-polaroid" src="/sticker-reference-locked-hero-v12.webp" alt=""/><img className="hero-arrow-cutout" src="/curved-arrow-transparent-v14.png" alt=""/><img className="hero-story-slice hero-sheet" src="/sticker-reference-locked-hero-v12.webp" alt=""/></div><div className="tag t1">YOUR PHOTO</div><div className="tag t2">YOUR STICKERS</div><div className="burst">10<small>STICKERS</small></div></div></section>}
+  {stage==="home"&&landingVariant==="v2"&&<LandingV2 photos={photos} photoBusy={photoBusy} photoError={photoError} fileInputRef={heroFileInputRef} onFiles={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos,"hero")} onRemove={removeMainPhoto} onContinue={()=>{setProduct("me");setSkipPhotoStep(true);setStage("details")}}/>}
+  {stage==="home"&&landingVariant==="v1"&&<section className="split enter"><div className="copy home-copy"><h1><span>Any photo. <em>Any idea.</em></span><span>Turned into stickers.</span></h1><p>You, your people, your pets, and your little obsessions turned into custom stickers.</p><div className="home-proof">10 CUSTOM STICKERS · PREVIEW BEFORE YOU BUY</div><div className="home-upload"><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos,"home")} onRemove={removeMainPhoto}/></div>{photos.length>0&&<div className="home-cta"><Button className="red-btn" onClick={()=>{setProduct("me");setSkipPhotoStep(true);setStage("details")}}>MAKE MY STICKERS <ArrowRight/></Button></div>}</div><div className="art hero-story"><div className="hero-story-composite" role="img" aria-label="A candid Polaroid of a brunette woman with her puppy transforming into ten soft illustrated stickers"><img className="hero-story-slice hero-polaroid" src="/sticker-reference-locked-hero-v12.webp" alt=""/><img className="hero-arrow-cutout" src="/curved-arrow-transparent-v14.png" alt=""/><img className="hero-story-slice hero-sheet" src="/sticker-reference-locked-hero-v12.webp" alt=""/></div><div className="tag t1">YOUR PHOTO</div><div className="tag t2">YOUR STICKERS</div><div className="burst">10<small>STICKERS</small></div></div></section>}
 
   {stage==="samples"&&<section className="samples-page enter"><header className="samples-head"><h2>See what gets<br/><em>stuck.</em></h2><p>Every sheet includes ten one-of-one stickers.</p></header><div className="sample-grid clean">{samples.map((sample,i)=><article className="sample-card" key={sample}><div className="sample-sheet"><div><span>STICKIER™</span><small>{sample} / 06</small></div><img src="/sticker-sheet.png" alt={`Sticker sheet sample ${i+1} with ten stickers`}/><footer>10 STICKERS · ONE OF ONE</footer></div></article>)}</div></section>}
 
   {["photos","details","mood"].includes(stage)&&<section className="wizard enter"><aside><div><h2>This is where it gets personal.</h2></div><img className="wizard-latest-sheet" src="/halloween-girl-dog-sticker-sheet-v15.webp" alt="Ten Halloween stickers featuring a witch and her dog in a ghost costume"/></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>back[stage]==="home"?restart():setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
-  {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos)} onRemove={removeMainPhoto}/>{photoBusy&&<p className="upload-status">Converting your photo…</p>}{photoError&&<p className="upload-error">{photoError}</p>}<div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos)} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
+  {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos,"wizard")} onRemove={removeMainPhoto}/>{photoBusy&&<p className="upload-status">Converting your photo…</p>}{photoError&&<p className="upload-error">{photoError}</p>}<div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
+  {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos,"reference")} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
   {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div>{turnstileSiteKey?<div ref={mountTurnstile} className="turnstile-widget"/>:null}<div className="wizard-actions"><span/><Button className="red-btn" disabled={!canGenerate} onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}
 

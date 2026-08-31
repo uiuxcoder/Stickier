@@ -615,45 +615,169 @@ nav{height:88px;padding:0 var(--space-10)}
   .club-account-actions,.club-account-actions form,.club-account-actions button{width:100%}
 }
 
-/* Desktop landing page: one locked hero viewport, no page scroll */
+/* Desktop landing page: one locked hero viewport, no page scroll (V1 only —
+   V2 scrolls into below-the-fold content) */
 @media(min-width:901px){
-  html:has(.shell.home),
-  body:has(.shell.home){
+  html:has(.shell.home:not(.landing-v2)),
+  body:has(.shell.home:not(.landing-v2)){
     height:100%;
     overflow:hidden;
     overscroll-behavior:none;
   }
-  body:has(.shell.home){
+  body:has(.shell.home:not(.landing-v2)){
     height:100vh;
     display:grid;
     grid-template-rows:minmax(0,1fr) auto;
   }
-  .shell.home{
+  .shell.home:not(.landing-v2){
     min-height:0;
     height:100%;
     overflow:hidden;
     display:flex;
     flex-direction:column;
   }
-  .shell.home>nav{
+  .shell.home:not(.landing-v2)>nav{
     flex:0 0 88px;
     height:88px;
   }
-  .shell.home>.split{
+  .shell.home:not(.landing-v2)>.split{
     flex:1;
     min-height:0;
     overflow:hidden;
   }
-  .shell.home .split.enter{
+  .shell.home:not(.landing-v2) .split.enter{
     animation:none;
   }
-  .shell.home .hero-story{
+  .shell.home:not(.landing-v2) .hero-story{
     min-height:0;
     overflow:hidden;
     container-type:size;
   }
-  .shell.home .hero-story-composite{
+  .shell.home:not(.landing-v2) .hero-story-composite{
     width:min(900px,100%,calc(100cqh * 3 / 2));
     max-height:100%;
   }
 }
+
+/* ==================== Landing V2 (?landing=v2) ==================== */
+/* Compact header; the primary CTA stays the loudest nav element */
+.shell.home.landing-v2>nav{height:68px;padding:0 clamp(18px,3vw,40px)}
+.shell.home.landing-v2>nav .nav-cta{font-size:10px;padding:12px 18px}
+
+/* Hero: copy top-left with an intentional offset, demo right, CTA directly
+   under the copy so the first viewport carries the whole story */
+.v2-hero{position:relative;z-index:2;display:grid;grid-template-columns:1.02fr .98fr;grid-template-rows:auto 1fr;grid-template-areas:"copy art" "cta art";min-height:calc(100vh - 68px);min-height:calc(100svh - 68px)}
+.v2-copy{grid-area:copy;padding:9vh 3vw 0 clamp(20px,5vw,84px)}
+.v2-h1{font-size:clamp(44px,4.7vw,80px);display:grid;row-gap:4px;line-height:.96;letter-spacing:-.055em}
+.v2-h1>span{display:block;white-space:nowrap}
+.v2-subhead{font-size:16px;line-height:1.58;max-width:460px;margin:20px 0 0;color:#444}
+.v2-cta{grid-area:cta;align-self:start;padding:26px 3vw 44px clamp(20px,5vw,84px)}
+.v2-art{grid-area:art;background:var(--yellow);border-left:1.5px solid;display:grid;place-items:center;position:relative;overflow:hidden;padding:clamp(18px,2.6vw,40px)}
+
+/* Demo composite: YOUR PHOTO -> YOUR STICKERS. The sticker sheet keeps ~1.7x
+   the visual weight of the photo; labels and the count badge are attached to
+   the artwork itself instead of floating around the panel. No giant circle. */
+.v2-composite{width:min(880px,100%,calc((100svh - 104px) * 1.26));animation:heroFloat 4.5s ease-in-out infinite}
+.v2-tag{position:absolute;z-index:4;border:1px solid;background:var(--cream);padding:8px 13px;border-radius:99px;font-size:9px;font-weight:800;letter-spacing:.1em;box-shadow:3px 3px 0 rgba(21,21,21,.9)}
+.v2-tag-photo{left:4.5%;top:1%;transform:rotate(-8deg)}
+.v2-tag-stickers{left:45%;top:-1%;transform:rotate(3deg)}
+.v2-burst{position:absolute;z-index:5;right:.5%;top:1%;width:78px;height:78px;border-radius:50%;background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:28px Georgia;transform:rotate(10deg);box-shadow:4px 5px 0 rgba(21,21,21,.25)}
+.v2-burst small{font:800 7px Arial;letter-spacing:.1em}
+
+/* Compact uploader: icon, one literal instruction, one literal button, and
+   the risk-reversal line. The whole zone is one label around the input, so
+   the control stays semantic and keyboard reachable. */
+.v2-dropzone{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:9px;width:min(560px,100%);min-height:162px;padding:16px 18px 13px;border:1.5px dashed #8d887f;background:rgba(255,255,255,.72);box-shadow:4px 4px 0 var(--ink);cursor:pointer;transition:border-color .18s,box-shadow .18s,background .18s}
+.v2-dropzone:hover{border-color:var(--blue)}
+.v2-dropzone:focus-within{border-color:var(--blue);box-shadow:4px 4px 0 var(--blue)}
+.v2-dropzone.dragging{background:#fff4a8;border-style:solid;border-color:var(--blue);box-shadow:8px 8px 0 var(--blue)}
+.v2-dropzone>input{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+.v2-upload-icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--yellow);border:1px solid}
+.v2-upload-icon svg{width:18px;height:18px}
+.v2-drop-label{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.v2-upload-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:50px;padding:0 26px;background:#111;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.v2-microcopy{font-size:12px;color:#555;letter-spacing:.01em}
+.v2-privacy{margin:10px 2px 0;font-size:11px;color:#888;line-height:1.4}
+.v2-dropzone.has-photo{min-height:0;gap:10px;padding:14px 16px}
+.v2-added{font-size:11px;font-weight:900;letter-spacing:.1em}
+.v2-add-more{font-size:8px;font-weight:900;letter-spacing:.1em;color:var(--blue);text-decoration:underline}
+.v2-continue{display:flex!important;width:min(560px,100%);margin-top:12px;justify-content:center}
+
+/* Below the fold: imagination, three steps, and factual answers */
+.v2-section{position:relative;z-index:2;padding:clamp(48px,6vw,76px) clamp(20px,6vw,96px);border-top:1.5px solid}
+.v2-section h2{font-size:clamp(36px,3.8vw,58px);line-height:.95;letter-spacing:-.05em;max-width:640px}
+.v2-section h2 em{font-style:italic}
+.v2-example-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(16px,2vw,26px);max-width:1180px;margin:36px auto 0;align-items:start}
+.v2-example-card{margin:0;background:#fffdf8;border:1.5px solid;padding:12px 12px 14px;box-shadow:7px 8px 0 #111}
+.v2-example-card:nth-child(1){transform:rotate(-1.1deg)}
+.v2-example-card:nth-child(2){transform:rotate(.8deg)}
+.v2-example-card:nth-child(3){transform:rotate(-.6deg)}
+.v2-example-card img{display:block;width:100%;height:auto;background:#f9f4ea;border:1px solid #e4ddce}
+.v2-example-card figcaption{display:inline-block;margin:14px 2px 0;padding:7px 11px;border:1px solid;background:var(--cream);border-radius:99px;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.v2-section h2.v2-eyebrow{font:900 10px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;margin:0;max-width:none}
+.v2-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:26px 0 0;padding:0;list-style:none;border:1.5px solid;background:#fffdf8;box-shadow:8px 8px 0 #111;max-width:1180px}
+.v2-steps>li{padding:24px 22px 26px;border-right:1.5px solid}
+.v2-steps>li:last-child{border-right:0}
+.v2-steps b{display:block;font:italic 400 34px Georgia,serif;color:var(--blue);letter-spacing:-.03em}
+.v2-steps strong{display:block;margin:14px 0 7px;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.v2-steps p{margin:0;font-size:13px;line-height:1.55;color:#555}
+.v2-faq-list{max-width:860px;margin-top:30px;border-top:1.5px solid}
+.v2-faq-list details{border-bottom:1.5px solid}
+.v2-faq-list summary{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:19px 4px;cursor:pointer;list-style:none;font:400 clamp(19px,1.6vw,23px) Georgia,serif;letter-spacing:-.02em}
+.v2-faq-list summary::-webkit-details-marker{display:none}
+.v2-faq-list summary:after{content:"+";flex:0 0 auto;font:400 28px Georgia,serif;color:var(--blue);line-height:1}
+.v2-faq-list details[open] summary:after{content:"–"}
+.v2-faq-list details p{margin:0;padding:0 44px 22px 4px;font-size:14px;line-height:1.6;color:#444;max-width:640px}
+
+/* Sticky mobile CTA: appears only after the hero uploader scrolls away and
+   disappears as soon as photos exist */
+.v2-sticky-cta{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(245,240,230,.97);border-top:1.5px solid #111;backdrop-filter:blur(10px);animation:v2StickyIn .25s ease both}
+.v2-sticky-cta button{width:100%;height:50px;border:0;background:#111;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+@keyframes v2StickyIn{from{transform:translateY(100%)}to{transform:none}}
+@media(min-width:901px){.v2-sticky-cta{display:none}}
+
+.landing-v2 button:focus-visible,.landing-v2 a:focus-visible,.landing-v2 summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+@media(prefers-reduced-motion:reduce){
+  .v2-hero.enter,.v2-composite,.v2-sticky-cta{animation:none}
+}
+
+@media(max-width:900px){
+  .v2-hero{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"copy" "art" "cta";min-height:0}
+  .v2-copy{padding:44px 24px 0}
+  .v2-h1{font-size:clamp(36px,9.2vw,52px)}
+  .v2-subhead{margin-top:16px;max-width:340px}
+  .v2-art{border-left:0;border-top:1.5px solid;margin-top:28px;padding:22px 16px}
+  .v2-composite{width:min(560px,100%)}
+  .v2-cta{padding:22px 24px 44px}
+  .v2-dropzone{min-height:0;border:0;background:transparent;box-shadow:none;padding:0;gap:0;width:100%;cursor:default}
+  .v2-dropzone:focus-within{box-shadow:none;outline:2px solid var(--blue);outline-offset:3px}
+  .v2-upload-icon,.v2-drop-label{display:none}
+  .v2-upload-action{width:100%;height:52px;cursor:pointer}
+  .v2-microcopy{display:block;margin-top:12px;text-align:center}
+  .v2-dropzone.has-photo .preview-row{justify-content:center;margin-top:0}
+  .v2-added{display:block;text-align:center;margin-top:12px}
+  .v2-add-more{display:block;margin-top:6px}
+  .v2-continue{width:100%}
+  .v2-privacy{text-align:center}
+  .v2-tag{font-size:7px;padding:6px 9px}
+  .v2-burst{width:58px;height:58px;font-size:21px}
+  .v2-burst small{font-size:6px}
+  .v2-section{padding:48px 24px}
+  .v2-example-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:min(74vw,320px);overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 4px 18px;margin:28px -24px 0;scrollbar-width:none}
+  .v2-example-grid::-webkit-scrollbar{display:none}
+  .v2-example-card{scroll-snap-align:start}
+  .v2-steps{grid-template-columns:1fr}
+  .v2-steps>li{border-right:0;border-bottom:1.5px solid}
+  .v2-steps>li:last-child{border-bottom:0}
+}
+@media(max-width:520px){
+  .shell.home.landing-v2>nav{height:60px}
+  .shell.home.landing-v2>nav .nav-cta{font-size:9px;padding:10px 13px}
+  .v2-copy{padding-top:36px}
+}
+
+/* While a V2 session boots, keep the SSR'd V1 hero and nav CTA invisible until
+   React swaps variants before first paint */
+html.landing-v2-boot .shell.home>.split,
+html.landing-v2-boot .shell.home .nav-cta{visibility:hidden}

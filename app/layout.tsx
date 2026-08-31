@@ -4,11 +4,11 @@ import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://saltysticker.com"),
-  title: "Stickier — Your Life as a Sticker Sheet",
-  description: "Turn the little things that make you, you into a one-of-one sticker sheet.",
+  title: "Stickier — Turn Your Photos Into Custom Stickers",
+  description: "Upload a selfie, your pet, or your bestie and get 10 custom stickers. See them before you pay.",
   openGraph: {
-    title: "Stickier — Your Life as a Sticker Sheet",
-    description: "Turn photos into a one-of-one sticker sheet.",
+    title: "Stickier — Turn Your Photos Into Custom Stickers",
+    description: "Upload a photo and get 10 custom stickers. See them before you pay.",
     type: "website",
   },
   icons: {
@@ -25,6 +25,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        {/* Before paint, mark v2 sessions so the SSR'd v1 hero stays hidden
+            until hydration swaps in the v2 landing (no wrong-variant flash). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var p=new URLSearchParams(location.search).get('landing');var v=(p==='v1'||p==='v2')?p:sessionStorage.getItem('stickier-landing-variant');if(v==='v2')document.documentElement.classList.add('landing-v2-boot')}catch(e){}",
+          }}
+        />
         {children}
         <SiteFooter />
       </body>
