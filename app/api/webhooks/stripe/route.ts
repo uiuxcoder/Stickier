@@ -1,8 +1,10 @@
 import Stripe from "stripe";
+import { env } from "cloudflare:workers";
 import { getDb } from "@/db";
 import { generations, orders, stripeEvents, subscriptions, users } from "@/db/schema";
 import { MONTHLY_REGENERATIONS } from "@/lib/constants";
 import { sendPurchaseEmail } from "@/lib/purchase-email";
+import { buildPrintAssets, downloadArchiveKey, printSheetKey } from "@/lib/sticker-archive";
 import {
   checkoutEmail,
   customerId,
@@ -54,6 +56,23 @@ async function findUserId(email: string, metadataUserId?: string | null) {
   }
   const byEmail = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   return byEmail[0]?.id ?? null;
+}
+
+async function ensurePrintAssets(imageKey: string) {
+  const bucket = env.STICKER_ASSETS;
+  if (await bucket.head(printSheetKey(imageKey))) return;
+  const source = await bucket.get(imageKey);
+  if (!source) throw new Error(`Sticker source is missing: ${imageKey}`);
+  const { archive, printSheet } = await buildPrintAssets(Buffer.from(await source.arrayBuffer()));
+  await Promise.all([
+    bucket.put(downloadArchiveKey(imageKey), archive, {
+      httpMetadata: { contentType: "application/zip" },
+    }),
+    bucket.put(printSheetKey(imageKey), printSheet, {
+      httpMetadata: { contentType: "image/png" },
+      customMetadata: { dpi: "300", printSize: "4x6" },
+    }),
+  ]);
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin: string) {
@@ -109,6 +128,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
       .update(generations)
       .set({ purchasedAt: now, email, ...(userId ? { userId } : {}) })
       .where(eq(generations.imageKey, imageKey));
+
+    if (isSubscription || session.metadata?.plan === "physical") {
+      await ensurePrintAssets(imageKey);
+    }
   }
 
   if (isSubscription && typeof session.subscription === "string") {

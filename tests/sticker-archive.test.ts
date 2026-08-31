@@ -3,10 +3,12 @@ import test from "node:test";
 import { decode as decodePng, encode as encodePng } from "fast-png";
 import JSZip from "jszip";
 
-import { buildDownloadArchive, buildStickerTiles, downloadArchiveKey } from "../lib/sticker-archive.ts";
+import { buildDownloadArchive, buildPrintAssets, buildStickerTiles, downloadArchiveKey, legacyDownloadArchiveKey, printSheetKey } from "../lib/sticker-archive.ts";
 
 test("maps generated sticker images to stored download archives", () => {
-  assert.equal(downloadArchiveKey("stickers/example.png"), "downloads/example.zip");
+  assert.equal(downloadArchiveKey("stickers/example.png"), "downloads/print-v2/example.zip");
+  assert.equal(legacyDownloadArchiveKey("stickers/example.png"), "downloads/example.zip");
+  assert.equal(printSheetKey("stickers/example.png"), "prints/example.png");
 });
 
 const CELL = 100;
@@ -59,8 +61,9 @@ test("download archive contains a transparent sheet and ten stickers", async () 
   assert.deepEqual(Object.keys(archive.files).sort(), ["full-sheet.png", ...tileNames()].sort());
 
   const sheet = decodePng(await archive.file("full-sheet.png")!.async("nodebuffer"));
-  assert.equal(sheet.width, SHEET_WIDTH);
-  assert.equal(sheet.height, SHEET_HEIGHT);
+  assert.equal(sheet.width, 1200);
+  assert.equal(sheet.height, 1800);
+  assert.deepEqual(sheet.resolution, { x: 11811, y: 11811, unit: 1 });
   assert.equal(sheet.data[3], 0, "the sheet corner should be knocked out to transparent");
 
   for (const name of tileNames()) {
@@ -74,12 +77,23 @@ test("download archive contains a transparent sheet and ten stickers", async () 
   }
 });
 
+test("builds one print-ready sheet for downloads and physical fulfillment", async () => {
+  const { archive, printSheet } = await buildPrintAssets(buildSheetFixture());
+  const decoded = decodePng(printSheet);
+  assert.equal(decoded.width, 1200);
+  assert.equal(decoded.height, 1800);
+  assert.deepEqual(decoded.resolution, { x: 11811, y: 11811, unit: 1 });
+
+  const zip = await JSZip.loadAsync(archive);
+  assert.deepEqual(await zip.file("full-sheet.png")!.async("nodebuffer"), printSheet);
+});
+
 test("white inside the artwork survives background removal", async () => {
   const archive = await JSZip.loadAsync(await buildDownloadArchive(buildSheetFixture()));
   const sheet = decodePng(await archive.file("full-sheet.png")!.async("nodebuffer"));
 
-  // The walled-in white patch sits at (48, 48) within the first cell.
-  const patch = (48 * SHEET_WIDTH + 48) * 4;
+  // The walled-in white patch is resampled around (192, 216) on the print sheet.
+  const patch = (216 * sheet.width + 192) * 4;
   assert.equal(sheet.data[patch + 3], 255, "enclosed white should stay opaque");
   assert.deepEqual(
     [sheet.data[patch], sheet.data[patch + 1], sheet.data[patch + 2]],
@@ -90,11 +104,13 @@ test("white inside the artwork survives background removal", async () => {
 
 test("each sticker is trimmed to its artwork and given a white die-cut border", async () => {
   const archive = await JSZip.loadAsync(await buildDownloadArchive(buildSheetFixture()));
+  const printCellWidth = 1200 / 3;
+  const printCellHeight = 1800 / 4;
 
   for (const name of tileNames()) {
     const tile = decodePng(await archive.file(name)!.async("nodebuffer"));
-    assert.ok(tile.width < CELL && tile.height < CELL, `${name} should be cropped out of its ${CELL}px cell`);
-    assert.ok(tile.width > 40 && tile.height > 40, `${name} should keep the artwork plus its border`);
+    assert.ok(tile.width < printCellWidth && tile.height < printCellHeight, `${name} should be cropped out of its print cell`);
+    assert.ok(tile.width > 160 && tile.height > 180, `${name} should keep the upscaled artwork plus its border`);
 
     // Walking in from the edge must cross opaque white before reaching artwork.
     const midRow = Math.floor(tile.height / 2);

@@ -4,7 +4,7 @@ import { generations, orders } from "@/db/schema";
 import { DOWNLOAD_HOURLY_CAP, DOWNLOAD_WINDOW_MS } from "@/lib/constants";
 import { getSessionUser } from "@/lib/auth";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
-import { buildDownloadArchive, downloadArchiveKey } from "@/lib/sticker-archive";
+import { buildPrintAssets, downloadArchiveKey, printSheetKey } from "@/lib/sticker-archive";
 import { getStripe, isPaidCheckout } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
 import { and, eq } from "drizzle-orm";
@@ -93,7 +93,16 @@ export async function GET(request: Request) {
     if (!image?.body) return new Response("Download unavailable", { status: 404 });
 
     const sheetBuffer = Buffer.from(await image.arrayBuffer());
-    const archive = await buildDownloadArchive(sheetBuffer);
+    const { archive, printSheet } = await buildPrintAssets(sheetBuffer);
+    await Promise.all([
+      bucket.put(downloadArchiveKey(resolvedKey), archive, {
+        httpMetadata: { contentType: "application/zip" },
+      }),
+      bucket.put(printSheetKey(resolvedKey), printSheet, {
+        httpMetadata: { contentType: "image/png" },
+        customMetadata: { dpi: "300", printSize: "4x6" },
+      }),
+    ]);
 
     return new Response(archive, {
       headers: {

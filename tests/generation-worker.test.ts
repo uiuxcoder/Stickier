@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildOpenAIImageEditBody } from "../lib/openai-image.ts";
+import {
+  buildOpenAIImageEditBody,
+  GENERATION_IMAGE_QUALITY,
+  GENERATION_IMAGE_SIZE,
+} from "../lib/openai-image.ts";
+
+test("generation uses the economical portrait settings", () => {
+  assert.equal(GENERATION_IMAGE_SIZE, "1024x1536");
+  assert.equal(GENERATION_IMAGE_QUALITY, "medium");
+});
 
 test("edit payload uses the current OpenAI multipart field names", () => {
   const form = buildOpenAIImageEditBody({

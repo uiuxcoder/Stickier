@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { Resend } from "resend";
+import { printSheetKey } from "./sticker-archive.ts";
 
 export type PurchaseEmailKind = "digital" | "physical" | "membership-with-stickers" | "membership-top-up";
 
@@ -65,10 +66,23 @@ export async function sendPurchaseEmail(session: Stripe.Checkout.Session, email:
     throw new Error("Resend is not configured.");
   }
   const content = purchaseEmailContent(session, origin);
-  const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const customer = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,
     ...content,
   });
-  if (result.error) throw new Error(result.error.message);
+  if (customer.error) throw new Error(customer.error.message);
+
+  const kind = purchaseEmailKind(session);
+  const imageKey = session.metadata?.imageKey;
+  if ((kind === "physical" || kind === "membership-with-stickers") && imageKey) {
+    const fulfillment = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL,
+      to: process.env.FULFILLMENT_EMAIL || "support@saltysticker.com",
+      subject: `Fulfill Salty Sticker order ${session.id}`,
+      html: `<h1>New physical sticker order</h1><p>Customer: ${email}</p><p>Print asset: ${printSheetKey(imageKey)}</p>`,
+    });
+    if (fulfillment.error) throw new Error(fulfillment.error.message);
+  }
 }

@@ -9,9 +9,20 @@ const STEP_DIAGONAL = 4;
 const DISTANCE_CEILING = 0xffff;
 // Width of the synthesized die-cut border, as a fraction of the sheet's short edge.
 const BORDER_RATIO = 0.0075;
+const PRINT_WIDTH = 1200;
+const PRINT_HEIGHT = 1800;
+const PIXELS_PER_METRE_300_DPI = 11811;
 
 export function downloadArchiveKey(imageKey: string) {
+  return imageKey.replace(/^stickers\//, "downloads/print-v2/").replace(/\.png$/i, ".zip");
+}
+
+export function legacyDownloadArchiveKey(imageKey: string) {
   return imageKey.replace(/^stickers\//, "downloads/").replace(/\.png$/i, ".zip");
+}
+
+export function printSheetKey(imageKey: string) {
+  return imageKey.replace(/^stickers\//, "prints/");
 }
 
 function decodeRgba(source: Buffer) {
@@ -32,6 +43,73 @@ function decodeRgba(source: Buffer) {
   }
 
   return { width, height, rgba };
+}
+
+function resizeRgba(
+  source: Uint8Array,
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+) {
+  if (sourceWidth === targetWidth && sourceHeight === targetHeight) return source.slice();
+  const output = new Uint8Array(targetWidth * targetHeight * 4);
+  const scaleX = sourceWidth / targetWidth;
+  const scaleY = sourceHeight / targetHeight;
+
+  for (let targetY = 0; targetY < targetHeight; targetY++) {
+    const sourceY = Math.max(0, Math.min(sourceHeight - 1, (targetY + 0.5) * scaleY - 0.5));
+    const top = Math.floor(sourceY);
+    const bottom = Math.min(sourceHeight - 1, top + 1);
+    const yWeight = sourceY - top;
+
+    for (let targetX = 0; targetX < targetWidth; targetX++) {
+      const sourceX = Math.max(0, Math.min(sourceWidth - 1, (targetX + 0.5) * scaleX - 0.5));
+      const left = Math.floor(sourceX);
+      const right = Math.min(sourceWidth - 1, left + 1);
+      const xWeight = sourceX - left;
+      const outputOffset = (targetY * targetWidth + targetX) * 4;
+      const topLeft = (top * sourceWidth + left) * 4;
+      const topRight = (top * sourceWidth + right) * 4;
+      const bottomLeft = (bottom * sourceWidth + left) * 4;
+      const bottomRight = (bottom * sourceWidth + right) * 4;
+
+      for (let channel = 0; channel < 4; channel++) {
+        const upper = source[topLeft + channel] * (1 - xWeight) + source[topRight + channel] * xWeight;
+        const lower = source[bottomLeft + channel] * (1 - xWeight) + source[bottomRight + channel] * xWeight;
+        output[outputOffset + channel] = Math.round(upper * (1 - yWeight) + lower * yWeight);
+      }
+    }
+  }
+
+  return output;
+}
+
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function add300DpiMetadata(png: Uint8Array) {
+  const chunk = new Uint8Array(21);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, 9);
+  chunk.set([0x70, 0x48, 0x59, 0x73], 4);
+  view.setUint32(8, PIXELS_PER_METRE_300_DPI);
+  view.setUint32(12, PIXELS_PER_METRE_300_DPI);
+  chunk[16] = 1;
+  view.setUint32(17, crc32(chunk.subarray(4, 17)));
+
+  const insertionPoint = 8 + 4 + 4 + 13 + 4;
+  const output = new Uint8Array(png.length + chunk.length);
+  output.set(png.subarray(0, insertionPoint));
+  output.set(chunk, insertionPoint);
+  output.set(png.subarray(insertionPoint), insertionPoint + chunk.length);
+  return output;
 }
 
 /**
@@ -329,8 +407,11 @@ export function buildStickerTiles(sheet: Buffer) {
  * every tile. Print-resolution sheets are several megapixels, so a second decode
  * would risk the Worker memory limit.
  */
-export async function buildDownloadArchive(source: Buffer) {
-  const { width, height, rgba } = decodeRgba(source);
+export async function buildPrintAssets(source: Buffer) {
+  const decoded = decodeRgba(source);
+  const width = PRINT_WIDTH;
+  const height = PRINT_HEIGHT;
+  const rgba = resizeRgba(decoded.rgba, decoded.width, decoded.height, width, height);
   clearBackground(rgba, width, height);
   const borderRadius = borderRadiusFor(width, height);
 
@@ -339,8 +420,14 @@ export async function buildDownloadArchive(source: Buffer) {
   for (const tile of tilesFromRgba(width, height, rgba, borderRadius)) zip.file(tile.name, tile.buffer);
 
   addDieCutBorder(rgba, width, height, borderRadius);
-  zip.file("full-sheet.png", Buffer.from(encodePng({ width, height, data: rgba, channels: 4, depth: 8 })));
+  const printSheet = Buffer.from(add300DpiMetadata(encodePng({ width, height, data: rgba, channels: 4, depth: 8 })));
+  zip.file("full-sheet.png", printSheet);
   // The entries are already-compressed PNGs, so deflating again costs Worker CPU
   // for almost no size gain.
-  return zip.generateAsync({ type: "nodebuffer", compression: "STORE" });
+  const archive = await zip.generateAsync({ type: "nodebuffer", compression: "STORE" });
+  return { archive, printSheet };
+}
+
+export async function buildDownloadArchive(source: Buffer) {
+  return (await buildPrintAssets(source)).archive;
 }

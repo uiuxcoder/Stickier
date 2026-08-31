@@ -3,7 +3,7 @@ import { buildClearSessionCookie, getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { generationJobs, generations, membershipDrops, orders, subscriptions, users } from "@/db/schema";
 import { UPLOAD_KEY_PATTERN } from "@/lib/constants";
-import { downloadArchiveKey } from "@/lib/sticker-archive";
+import { downloadArchiveKey, legacyDownloadArchiveKey, printSheetKey } from "@/lib/sticker-archive";
 import { getStripe } from "@/lib/stripe";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -48,7 +48,12 @@ export async function POST(request: Request) {
 
     if (bucket) {
       for (const row of userGenerations) {
-        await bucket.delete([row.imageKey, downloadArchiveKey(row.imageKey)]).catch((error) =>
+        await bucket.delete([
+          row.imageKey,
+          downloadArchiveKey(row.imageKey),
+          legacyDownloadArchiveKey(row.imageKey),
+          printSheetKey(row.imageKey),
+        ]).catch((error) =>
           console.error("Failed to delete image", row.imageKey, error)
         );
       }

@@ -8,6 +8,9 @@ export type OpenAIImageEditBodyInput = {
   photos: File[];
 };
 
+export const GENERATION_IMAGE_SIZE = "1024x1536";
+export const GENERATION_IMAGE_QUALITY = "medium";
+
 export function buildOpenAIImageEditBody({
   model,
   prompt,

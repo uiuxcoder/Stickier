@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { printSheetKey } from "@/lib/sticker-archive";
 
 type DropNotification = {
   customerEmail: string;
@@ -24,7 +25,9 @@ export async function sendDropSubmittedEmails(notification: DropNotification) {
 
   const resend = new Resend(apiKey);
   const address = notification.shippingAddress.map(escapeHtml).join("<br>");
-  const stickers = notification.stickerIds.map((id) => `<li>${escapeHtml(id)}</li>`).join("");
+  const stickers = notification.stickerIds
+    .map((id) => `<li>${escapeHtml(printSheetKey(id))}</li>`)
+    .join("");
   const fulfillmentEmail = process.env.FULFILLMENT_EMAIL || "support@saltysticker.com";
   const [customer, fulfillment] = await Promise.all([
     resend.emails.send({
