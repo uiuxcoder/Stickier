@@ -83,6 +83,6 @@ export async function sendPurchaseEmail(session: Stripe.Checkout.Session, email:
       subject: `Fulfill Salty Sticker order ${session.id}`,
       html: `<h1>New physical sticker order</h1><p>Customer: ${email}</p><p>Print asset: ${printSheetKey(imageKey)}</p>`,
     });
-    if (fulfillment.error) throw new Error(fulfillment.error.message);
+    if (fulfillment.error) console.error("Fulfillment email failed", session.id, fulfillment.error.message);
   }
 }
