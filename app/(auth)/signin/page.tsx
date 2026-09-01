@@ -2,8 +2,8 @@ import { AuthForm } from "@/components/auth-form";
 import { safeRelativeReturnPath } from "@/lib/auth-utils";
 
 export const metadata = {
-  title: "Sign in — Salty Sticker™",
-  description: "Sign in to your Salty Sticker account to manage orders and membership.",
+  title: "Salty Sticker Club Login — Salty Sticker™",
+  description: "Log in to your Salty Sticker Club account.",
 };
 
 export default async function SignInPage({

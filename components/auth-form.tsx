@@ -19,9 +19,9 @@ type Props = {
 const copy: Record<AuthMode, { eyebrow: string; title: string; submit: string; description: string }> = {
   signin: {
     eyebrow: "WELCOME BACK",
-    title: "Sign in.",
-    submit: "SIGN IN",
-    description: "Use the email and password for your Salty Sticker account.",
+    title: "Welcome back ✦",
+    submit: "LOG IN",
+    description: "Log in to your Sticker Club account.",
   },
   signup: {
     eyebrow: "NEW ACCOUNT",
@@ -203,7 +203,14 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
             />
           </label>
         ) : null}
-        {error ? <p role="alert">{error}</p> : null}
+        {error ? (
+          <>
+            <p role="alert">{error}</p>
+            {mode === "signin" && /No Sticker Club account found/i.test(error) ? (
+              <Link className="auth-text-btn auth-inline-link" href="/membership">Join Salty Sticker Club →</Link>
+            ) : null}
+          </>
+        ) : null}
         {status ? <p role="status">{status}</p> : null}
         {unverified ? (
           <button className="auth-text-btn" type="button" onClick={() => void resend()}>
@@ -215,8 +222,9 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
         </Button>
       </form>
       {mode === "signin" ? (
-        <div className="auth-links">
-          <Link href={`/signup?return_to=${encodeURIComponent(returnTo)}`}>Create an account</Link>
+        <div className="auth-links auth-links-stack">
+          <p className="auth-subtle">Not a member yet?</p>
+          <Link href="/membership">Join Salty Sticker Club →</Link>
           <Link href="/forgot-password">Forgot password</Link>
         </div>
       ) : null}

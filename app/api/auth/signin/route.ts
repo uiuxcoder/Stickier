@@ -42,9 +42,26 @@ export async function POST(request: Request) {
     .limit(1);
 
   const row = existing[0];
-  if (!row?.passwordHash) {
+  if (!row) {
     await verifyPasswordDummy(parsed.data.password);
-    return Response.json({ error: "Email or password is incorrect." }, { status: 401 });
+    return Response.json(
+      {
+        error:
+          "No Sticker Club account found for this email. You can still access your one-time purchase from the download link in your confirmation email.",
+      },
+      { status: 401 }
+    );
+  }
+
+  if (!row.passwordHash) {
+    await verifyPasswordDummy(parsed.data.password);
+    return Response.json(
+      {
+        error:
+          "No Sticker Club account found for this email. You can still access your one-time purchase from the download link in your confirmation email.",
+      },
+      { status: 401 }
+    );
   }
 
   const matches = await verifyPassword(parsed.data.password, row.passwordHash);
