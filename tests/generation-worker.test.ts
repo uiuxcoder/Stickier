@@ -6,6 +6,7 @@ import {
   GENERATION_IMAGE_QUALITY,
   GENERATION_IMAGE_SIZE,
 } from "../lib/openai-image.ts";
+import { promptFor } from "../lib/prompt.ts";
 
 test("generation uses the economical portrait settings", () => {
   assert.equal(GENERATION_IMAGE_SIZE, "1024x1536");
@@ -31,4 +32,20 @@ test("edit payload uses the current OpenAI multipart field names", () => {
   assert.equal(form.getAll("image[]").length, 2);
   assert.equal(form.getAll("image[]")[0]?.name, "one.png");
   assert.equal(form.getAll("image[]")[1]?.name, "two.png");
+});
+
+test("animal-only photos stay animals when the default subject label is used", () => {
+  const prompt = promptFor({
+    photoKeys: [],
+    photos: [],
+    subject: "You",
+    product: "me",
+    companion: "skip",
+    moods: [],
+    specialRequest: "Put it in a gorilla costume.",
+  });
+
+  assert.match(prompt, /photos determine the subject's species and identity/i);
+  assert.match(prompt, /show only an animal.*no human person, face, hands, or body/i);
+  assert.match(prompt, /costume changes clothing only, never the subject's species/i);
 });

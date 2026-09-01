@@ -6,6 +6,7 @@ export type GenerationInput = z.infer<typeof generationRequestSchema>;
 export function promptFor(input: GenerationInput, hasStyleReference = false): string {
   const details = [
     `Subject: ${input.subject || "the person in the reference photos"}`,
+    "The current customer photos determine the subject's species and identity; the Subject label is only a name. If the current photos show only an animal, every sticker must depict that same animal and must contain no human person, face, hands, or body. A requested costume changes clothing only, never the subject's species or identity.",
     hasStyleReference
       ? "Style reference: The FINAL provided image is the exact target look. Copy its construction exactly: the same body proportions and head-to-body ratio, the same eye and face construction, the same line weight and ink colour, the same warm painterly cel shading, the same hair and fur texture, the same colour temperature, and the same thick white die-cut treatment. Do not copy that sample's specific person, dog, clothing, costumes, theme, props, poses, composition, or background; derive identity and requested content only from the earlier customer photos and this written request. The subject's age, ethnicity, skin tone, and distinctive features stay the same as the customer photos even though the body proportions change to chibi."
       : "",

@@ -256,6 +256,7 @@ export default function Home(){
   const [purchasedPlan,setPurchasedPlan]=useState<"digital"|"physical">("digital");
   const [generatedImage,setGeneratedImage]=useState("");
   const [generatedImageKey,setGeneratedImageKey]=useState("");
+  const [generationJobId,setGenerationJobId]=useState("");
   const [generatedSlices,setGeneratedSlices]=useState<string[]>([]);
   const [generationError,setGenerationError]=useState("");
   const [tick,setTick]=useState(0);
@@ -302,6 +303,14 @@ export default function Home(){
   // Resolve the signed-in user from the app-owned session cookie.
   useEffect(()=>{void fetch("/api/me").then(r=>r.json()).then((data)=>{const result=data as {user?:{email?:string}|null;isActiveMember?:boolean};if(result.user?.email){setSignedIn(true);setEmail(current=>current||result.user!.email!);setIsActiveMember(Boolean(result.isActiveMember))}}).catch(()=>undefined)},[]);
 
+  useEffect(()=>{
+    if(!signedIn||!isActiveMember||!generationJobId||!generatedImageKey)return;
+    void fetch("/api/generations/claim",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:generationJobId})})
+      .then(response=>response.ok?response.json():Promise.reject())
+      .then(()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}window.location.assign("/account")})
+      .catch(()=>undefined);
+  },[signedIn,isActiveMember,generationJobId,generatedImageKey]);
+
   // Resolve the landing variant before first paint (the boot script in the
   // root layout hides the V1 hero until this runs), then fire landing_view so
   // the event always carries the resolved variant. trackOnce guards against
@@ -330,7 +339,7 @@ export default function Home(){
   useEffect(()=>{
     if(new URLSearchParams(window.location.search).get("session_id"))return;
     if(new URLSearchParams(window.location.search).get("recover_job"))return;
-    let saved:{generatedImage?:string;generatedImageKey?:string;product?:Product;name?:string;groupName?:string;pet?:{name:string;species:string};theme?:string;moods?:string[];email?:string};
+    let saved:{generatedImage?:string;generatedImageKey?:string;generationJobId?:string;product?:Product;name?:string;groupName?:string;pet?:{name:string;species:string};theme?:string;moods?:string[];email?:string};
     try{
       const raw=sessionStorage.getItem("stickier-reveal");
       if(!raw)return;
@@ -343,6 +352,7 @@ export default function Home(){
     queueMicrotask(()=>{
       setGeneratedImage(saved.generatedImage||"");
       setGeneratedImageKey(saved.generatedImageKey!);
+      if(saved.generationJobId)setGenerationJobId(saved.generationJobId);
       if(saved.product)setProduct(saved.product);
       if(saved.name)setName(saved.name);
       if(saved.groupName)setGroupName(saved.groupName);
@@ -383,11 +393,11 @@ export default function Home(){
   useEffect(()=>{
     if(!generatedImageKey)return;
     try{
-      sessionStorage.setItem("stickier-reveal",JSON.stringify({generatedImage,generatedImageKey,product,name,groupName,pet,theme,moods,email}));
+      sessionStorage.setItem("stickier-reveal",JSON.stringify({generatedImage,generatedImageKey,generationJobId,product,name,groupName,pet,theme,moods,email}));
     }catch{
       // Ignore quota errors; sign-in can still proceed without restoring the sheet.
     }
-  },[generatedImage,generatedImageKey,product,name,groupName,pet,theme,moods,email]);
+  },[generatedImage,generatedImageKey,generationJobId,product,name,groupName,pet,theme,moods,email]);
 
   useEffect(()=>{const params=new URLSearchParams(window.location.search);const checkout=params.get("checkout");const sessionId=params.get("session_id");const cancelledImageKey=params.get("image_key");const restoreRevealFromSession=()=>{if(generatedImageKey){setStage("reveal");return true}try{const raw=sessionStorage.getItem("stickier-reveal");if(!raw)return false;const saved=JSON.parse(raw) as {generatedImage?:string;generatedImageKey?:string;product?:Product;name?:string;groupName?:string;pet?:{name:string;species:string};theme?:string;moods?:string[];email?:string};if(!saved.generatedImageKey)return false;setGeneratedImage(saved.generatedImage||`/api/preview-stickers?key=${encodeURIComponent(saved.generatedImageKey)}`);setGeneratedImageKey(saved.generatedImageKey);if(saved.product)setProduct(saved.product);if(saved.name)setName(saved.name);if(saved.groupName)setGroupName(saved.groupName);if(saved.pet)setPet(saved.pet);if(saved.theme)setTheme(saved.theme);if(saved.moods)setMoods(saved.moods);if(saved.email)setEmail(current=>current||saved.email!);setStage("reveal");return true}catch{sessionStorage.removeItem("stickier-reveal");return false}};const restoreRevealFromCancelledKey=(key:string|null)=>{if(!key)return false;if(!/^stickers\/.+\.png$/i.test(key))return false;setGeneratedImage(`/api/preview-stickers?key=${encodeURIComponent(key)}`);setGeneratedImageKey(key);setStage("reveal");return true};if(checkout==="cancelled"){const restored=restoreRevealFromSession()||restoreRevealFromCancelledKey(cancelledImageKey);if(!restored){setCheckoutNotice("Checkout was cancelled. Regenerate your preview to continue.")}else{queueMicrotask(()=>setCheckoutNotice("Checkout was cancelled. Your preview is still here if you want to try again."))}window.history.replaceState({},"",window.location.pathname);return}if(!sessionId){if(checkout)window.history.replaceState({},"",window.location.pathname);return}
     // Poll checkout-status until the webhook has recorded the order.
@@ -457,6 +467,7 @@ export default function Home(){
       const data=await response.json() as {jobId?:string;error?:string};
       if(!response.ok||!data.jobId)throw new Error(data.error||"Unable to start generation.");
       const jobId=data.jobId;
+      setGenerationJobId(jobId);
       let attempts=0;
       const poll=async()=>{
         try{
@@ -477,8 +488,8 @@ export default function Home(){
     }
   };
 
-  const restart=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setStage("home")};
-  const beginAnotherSheet=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setProduct("me");setName("");setGroupName("");setPet({name:"",species:"Dog"});setTheme("Classic");setStage("photos")};
+  const restart=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGenerationJobId("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setStage("home")};
+  const beginAnotherSheet=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGenerationJobId("");setGeneratedSlices([]);setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setProduct("me");setName("");setGroupName("");setPet({name:"",species:"Dog"});setTheme("Classic");setStage("photos")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
   const openPayment=()=>{if(isActiveMember)return;setPaymentPlan(null);setCheckoutError("");setPaymentOpen(true)};
   const startCheckout=async()=>{if(paymentPlan!=="digital"&&paymentPlan!=="physical"){setCheckoutError("Choose a sticker option first.");return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan})});const data=await readCheckoutResponse(response);if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
@@ -499,7 +510,7 @@ export default function Home(){
         </form>
       </DropdownMenuContent>
     </DropdownMenu>
-  ) : <a className="nav-account" href="/signin">SALTY STICKER CLUB LOGIN</a>}<button className="nav-cta" onClick={()=>{
+  ) : <a className="nav-account" href="/signin?return_to=/account">SALTY STICKER CLUB LOGIN</a>}<button className="nav-cta" onClick={()=>{
     if(stage==="home"&&landingVariant==="v2"){track("header_upload_click");if(heroFileInputRef.current){heroFileInputRef.current.click();return}}
     if(stage==="home"||stage==="samples"){setSkipPhotoStep(false);setStage("photos")}else{restart()}
   }}>{stage==="home"||stage==="samples"?(landingVariant==="v2"?"MAKE STICKERS":"CREATE MINE"):"EXIT STUDIO"}</button></div></nav>}
