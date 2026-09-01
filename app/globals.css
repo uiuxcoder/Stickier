@@ -273,6 +273,10 @@ nav{height:88px;padding:0 var(--space-10)}
 .shell.mood .wizard-content{padding-top:48px}
 .shell.photos .wizard-content h3,
 .shell.mood .wizard-content h3{font-size:55px}
+.shell.photos .wizard-content h3{font-size:clamp(48px,5vw,76px)}
+.shell.photos .wizard-content>p{margin-top:16px}
+.wizard-photo-empty{align-items:center!important;justify-content:center!important;color:#777!important}
+.wizard-photo-empty span{font-size:9px!important;font-weight:900!important;letter-spacing:.16em!important}
 .mood-options>button{min-height:92px;padding:16px;justify-content:center}
 .mood-options>button b{font:400 22px Georgia;line-height:1.1}
 .mood-options>button span{display:block;margin-top:8px;max-width:150px;font:11px/1.35 Arial,sans-serif;color:#666}
@@ -541,7 +545,7 @@ nav{height:88px;padding:0 var(--space-10)}
 .club-manage-modal-actions form{margin:0}
 .club-danger-button{height:42px;border:1px solid #a51d18;padding:0 14px;background:#a51d18;color:#fff;font-size:10px;font-weight:900;letter-spacing:.08em;cursor:pointer}
 .club-ship-preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.club-ship-preview-grid img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #111}
+.club-ship-preview-grid img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border:1px solid #111}
 .club-shipping-confirmation{display:grid;gap:10px;border:1px solid #111;background:#fff;padding:14px}
 .club-shipping-heading{display:flex;align-items:center;gap:7px}
 .club-shipping-heading strong{font-size:11px;letter-spacing:.08em;text-transform:uppercase}
