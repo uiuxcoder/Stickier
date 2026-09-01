@@ -280,10 +280,13 @@ export default function Home(){
 
   useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(x=>Math.min(x+1,3)),2200);return()=>clearInterval(a)},[stage]);
   useEffect(()=>{
+    setGeneratedSlices([]);
     if(!generatedImage)return;
+    let cancelled=false;
     const image=new Image();
     image.crossOrigin="anonymous";
     image.onload=()=>{
+      if(cancelled)return;
       const cellWidth=image.naturalWidth/3;
       const cellHeight=image.naturalHeight/4;
       const cell=document.createElement("canvas");
@@ -298,9 +301,10 @@ export default function Home(){
         context.drawImage(image,column*cellWidth,row*cellHeight,cellWidth,cellHeight,0,0,cell.width,cell.height);
         slices.push(centerStickerArtwork(cell));
       }
-      setGeneratedSlices(slices);
+      if(!cancelled)setGeneratedSlices(slices);
     };
     image.src=generatedImage;
+    return()=>{cancelled=true};
   },[generatedImage]);
 
   // Resolve the signed-in user from the app-owned session cookie.
