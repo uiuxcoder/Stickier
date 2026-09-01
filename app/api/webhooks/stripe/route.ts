@@ -85,6 +85,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
   const db = getDb();
   const stripeCustomerId = customerId(session.customer);
   const isSubscription = session.mode === "subscription";
+  const includesStickerBundle = isSubscription ? session.metadata?.source === "purchase-modal" && hasImageKey : hasImageKey;
   const metadataUserId = session.metadata?.userId ?? null;
   const now = Date.now();
 
@@ -108,7 +109,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
 
   const userId = await findUserId(email, metadataUserId);
 
-  if (hasImageKey) {
+  if (includesStickerBundle) {
     await db
       .insert(orders)
       .values({
@@ -144,7 +145,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
       });
   }
 
-  if (hasImageKey) {
+  if (includesStickerBundle) {
     const existing = await db
       .select({ emailSentAt: orders.emailSentAt })
       .from(orders)

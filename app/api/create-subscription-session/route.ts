@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const parsed = subscriptionRequestSchema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: "A sticker sheet is required." }, { status: 400 });
 
-    const { subject, imageKey } = parsed.data;
+    const { subject, imageKey, source } = parsed.data;
 
     if (imageKey) {
       const generation = await getDb().select().from(generations).where(eq(generations.imageKey, imageKey)).limit(1);
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       metadata: {
         email: user.email,
         userId: user.id,
+        source: source || "membership",
         subject: subject || "Your",
         ...(imageKey ? { imageKey } : {}),
         monthlyRegenerations: String(MONTHLY_REGENERATIONS),

@@ -38,7 +38,8 @@ test("classifies and renders purchase confirmation emails", () => {
 
   assert.equal(purchaseEmailKind(session("payment", { plan: "digital", imageKey: "generated/a.png" })), "digital");
   assert.equal(purchaseEmailKind(session("payment", { plan: "physical", imageKey: "generated/a.png" })), "physical");
-  assert.equal(purchaseEmailKind(session("subscription", { imageKey: "generated/a.png" })), "membership-with-stickers");
+  assert.equal(purchaseEmailKind(session("subscription", { imageKey: "generated/a.png", source: "purchase-modal" })), "membership-with-stickers");
+  assert.equal(purchaseEmailKind(session("subscription", { imageKey: "generated/a.png", source: "digital-success" })), "membership-top-up");
   assert.equal(purchaseEmailKind(session("subscription", {})), "membership-top-up");
 
   const digital = purchaseEmailContent(session("payment", { plan: "digital" }), "https://saltysticker.com");

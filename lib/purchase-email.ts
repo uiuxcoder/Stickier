@@ -6,7 +6,7 @@ export type PurchaseEmailKind = "digital" | "physical" | "membership-with-sticke
 
 export function purchaseEmailKind(session: Stripe.Checkout.Session): PurchaseEmailKind {
   if (session.mode === "subscription") {
-    return session.metadata?.imageKey ? "membership-with-stickers" : "membership-top-up";
+    return session.metadata?.source === "purchase-modal" && session.metadata?.imageKey ? "membership-with-stickers" : "membership-top-up";
   }
   return session.metadata?.plan === "physical" ? "physical" : "digital";
 }

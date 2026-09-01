@@ -37,6 +37,7 @@ export default async function MembershipWelcomePage({
   let total = SUBSCRIPTION_AMOUNT_CENTS;
   let currency = "usd";
   let isConfirmed = process.env.NODE_ENV !== "production" && preview === "1";
+  let includesStickerBundle = false;
 
   if (isConfirmed) imageUrl = "/sticker-sheet.png";
 
@@ -51,9 +52,10 @@ export default async function MembershipWelcomePage({
       if (addressLines.length > 0) shippingAddress = addressLines;
       currency = session.currency || currency;
       subtotal = session.amount_subtotal ?? subtotal;
-      tax = session.total_details?.amount_tax ?? 0;
+      tax = session.total_details?.amount_tax ?? Math.max(0, (session.amount_total ?? 0) - (session.amount_subtotal ?? 0));
       total = session.amount_total ?? total;
-      if (isImageKey(session.metadata?.imageKey)) {
+      includesStickerBundle = session.metadata?.source === "purchase-modal" && isImageKey(session.metadata?.imageKey);
+      if (includesStickerBundle) {
         imageUrl = `/api/preview-stickers?key=${encodeURIComponent(session.metadata.imageKey)}`;
         downloadUrl = `/api/download-stickers?session_id=${encodeURIComponent(session.id)}`;
       }
@@ -84,9 +86,9 @@ export default async function MembershipWelcomePage({
         <section className="membership-welcome-copy">
           <span className="membership-welcome-kicker">Membership confirmed</span>
           <h1>You&apos;re in the<br />Sticker Club<span>✦</span></h1>
-          <p>Your membership is active, and your first sticker sheet is included in both digital and physical form. Your digital copy is ready, and we&apos;ll print and send your first physical sheet on us. A confirmation was sent to {email}.</p>
+          <p>{includesStickerBundle ? <>Your membership is active, and your first sticker sheet is included in both digital and physical form. Your digital copy is ready, and we&apos;ll print and send your first physical sheet on us. A confirmation was sent to {email}.</> : <>Your membership is active. A confirmation was sent to {email}.</>}</p>
           <div className="membership-welcome-actions">
-            {downloadUrl ? <a className="membership-welcome-primary" href={downloadUrl}><Download size={16} /> Download digital stickers</a> : null}
+            {includesStickerBundle && downloadUrl ? <a className="membership-welcome-primary" href={downloadUrl}><Download size={16} /> Download digital stickers</a> : null}
             <Link className={downloadUrl ? "membership-welcome-secondary" : "membership-welcome-primary"} href="/account">Go to membership dashboard</Link>
           </div>
           <div className="order-confirmation-meta membership-welcome-meta">
@@ -116,16 +118,16 @@ export default async function MembershipWelcomePage({
               <div><strong>Sticker Club subscription</strong><span>20 creations + 3 printed sheets monthly</span></div>
               <b>{formatMoney(subtotal, currency)}</b>
             </div>
-            <div className="membership-welcome-summary-item">
+            {includesStickerBundle ? <div className="membership-welcome-summary-item">
               {imageUrl ? <img src={imageUrl} alt="Your digital sticker sheet" /> : <span className="membership-welcome-item-icon"><Download size={24} /></span>}
               <div><strong>Digital sticker sheet</strong><span>Included with membership</span></div>
               <b>{formatMoney(0, currency)}</b>
-            </div>
-            <div className="membership-welcome-summary-item">
+            </div> : null}
+            {includesStickerBundle ? <div className="membership-welcome-summary-item">
               <span className="membership-welcome-item-icon"><PackageCheck size={24} /></span>
               <div><strong>First physical sticker sheet</strong><span>Printed and shipped on us</span></div>
               <b>{formatMoney(0, currency)}</b>
-            </div>
+            </div> : null}
           </div>
           <dl className="order-summary-costs membership-welcome-costs">
             <div><dt>Subtotal</dt><dd>{formatMoney(subtotal, currency)}</dd></div>
@@ -133,8 +135,8 @@ export default async function MembershipWelcomePage({
             <div className="order-summary-total"><dt>Total charged</dt><dd><small>{currency.toUpperCase()}</small>{formatMoney(total, currency)}</dd></div>
           </dl>
           <div className="membership-welcome-benefits">
-            <div><Download size={18} /><span><strong>Digital stickers</strong> ready to download</span></div>
-            <div><PackageCheck size={18} /><span><strong>First printed sheet</strong> included on us</span></div>
+            {includesStickerBundle ? <div><Download size={18} /><span><strong>Digital stickers</strong> ready to download</span></div> : null}
+            {includesStickerBundle ? <div><PackageCheck size={18} /><span><strong>First printed sheet</strong> included on us</span></div> : null}
             <div><Sparkles size={18} /><span><strong>Sticker Club active</strong> 20 creations + 3 prints monthly</span></div>
           </div>
         </section>

@@ -51,7 +51,8 @@ export async function GET(request: Request) {
       });
 
     const imageKey = session.metadata?.imageKey;
-    if (isImageKey(imageKey)) {
+    const includesStickerBundle = session.metadata?.source === "purchase-modal" && isImageKey(imageKey);
+    if (includesStickerBundle) {
       await db
         .update(generations)
         .set({ userId, email, purchasedAt: now })
