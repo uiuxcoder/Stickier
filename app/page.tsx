@@ -284,7 +284,6 @@ export default function Home(){
     if(!generatedImage)return;
     let cancelled=false;
     const image=new Image();
-    image.crossOrigin="anonymous";
     image.onload=()=>{
       if(cancelled)return;
       const cellWidth=image.naturalWidth/3;
