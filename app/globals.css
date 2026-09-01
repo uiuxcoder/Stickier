@@ -882,6 +882,7 @@ nav{height:88px;padding:0 var(--space-10)}
   .v2-steps>li:last-child{border-bottom:0}
 }
 @media(max-width:520px){
+  .shell.photos .wizard-content h3,.shell.details .wizard-content h3{font-size:42px!important}
   .shell.home.landing-v2>nav{height:60px}
   .shell.home.landing-v2>nav .nav-cta{font-size:9px;padding:10px 13px}
   .v2-copy{padding-top:36px}
@@ -893,8 +894,9 @@ html.landing-v2-boot .shell.home>.split,
 html.landing-v2-boot .shell.home .nav-cta{visibility:hidden}
 .reveal-body .sticker-grid{display:grid}
 
-/* Align onboarding step headings while keeping the photo step tight. */
-.shell.photos .wizard-content{padding-top:0!important}.shell.details .wizard-content,.shell.details .details{padding-top:48px!important}
+/* Keep onboarding step headings aligned across the photo and details screens. */
+.shell.photos .wizard-content,.shell.details .wizard-content,.shell.details .details{padding-top:48px!important}
+.shell.photos .wizard-content h3,.shell.details .wizard-content h3{font-size:55px!important}
 
 /* Onboarding header starts flush at the top of the viewport. */
 body:has(.shell.photos),body:has(.shell.details),body:has(.shell.mood){margin:0!important;padding-top:0!important}.shell.photos,.shell.details,.shell.mood{margin-top:0!important;padding-top:0!important}.shell.photos>nav,.shell.details>nav,.shell.mood>nav{margin-top:0!important;padding-top:0!important;top:0!important}
