@@ -115,8 +115,8 @@ export function LandingV2({ photos, photoBusy, photoError, fileInputRef, onFiles
       <section className="v2-hero enter">
         <div className="v2-copy">
           <h1 className="v2-h1">
-            <span>Turn your photos into</span>
-            <span><em>custom stickers.</em></span>
+            <span>Turn your photo</span>
+            <span>in 10 custom stickers.</span>
           </h1>
           <p className="v2-subhead">Upload a selfie, your pet, your bestie, or anything from your camera roll.</p>
         </div>
