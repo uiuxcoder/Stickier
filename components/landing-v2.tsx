@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, MouseEvent, RefObject, useEffect, useRef, useState } from "react";
-import { ArrowRight, ImagePlus, Trash2, Upload } from "lucide-react";
+import { ArrowRight, ImagePlus, Star, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
 
@@ -212,6 +212,14 @@ export function LandingV2({ photos, photoBusy, photoError, fileInputRef, onFiles
             </Button>
           )}
           <p className="v2-privacy">Your photos are only used to make your stickers.</p>
+          <div className="v2-social-proof" aria-hidden="false">
+            <span className="v2-social-stars" aria-hidden="true">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Star key={index} size={14} fill="currentColor" strokeWidth={0} />
+              ))}
+            </span>
+            <span className="v2-social-text">Loved by <b>150K+</b> users</span>
+          </div>
         </div>
       </section>
 
