@@ -64,6 +64,29 @@ export async function readAuthResponse(response: Response): Promise<AuthResponse
   }
 }
 
+function GoogleIcon() {
+  return (
+    <svg className="google-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.7-.06-1.37-.18-2.02H12v3.82h5.39a4.61 4.61 0 0 1-2 3.02v2.5h3.24c1.9-1.75 2.97-4.33 2.97-7.32Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.24-2.5c-.9.6-2.05.96-3.37.96-2.59 0-4.79-1.75-5.58-4.1H.7v2.58A10 10 0 0 0 12 22Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.42 19.89A6.02 6.02 0 0 1 6 17.3V14.7H2.73A10 10 0 0 0 2 12c0-1.64.39-3.2 1.09-4.58L6.4 10c-.26.82-.4 1.7-.4 2.6 0 .9.14 1.78.4 2.6l-.02 0Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 3.98c1.47 0 2.79.51 3.84 1.5l2.87-2.87A9.99 9.99 0 0 0 12 2a10 10 0 0 0-9.3 5.42L6.4 10c.79-2.35 2.99-4.02 5.6-4.02Z"
+      />
+    </svg>
+  );
+}
+
 export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/" }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
@@ -156,7 +179,8 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
       {mode === "signin" || mode === "signup" ? (
         <>
           <a className="google-auth-button" href={`/api/auth/google?return_to=${encodeURIComponent(returnTo)}`}>
-            <span aria-hidden="true">G</span> Continue with Google
+            <GoogleIcon />
+            Continue with Google
           </a>
           <div className="auth-divider"><span>OR</span></div>
         </>
@@ -222,7 +246,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
         </Button>
       </form>
       {mode === "signin" ? (
-        <div className="auth-links auth-links-stack">
+        <div className="auth-links auth-links-inline">
           <p className="auth-subtle">Not a member yet?</p>
           <Link href="/membership">Join Salty Sticker Club →</Link>
           <Link href="/forgot-password">Forgot password</Link>

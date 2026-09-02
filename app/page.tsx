@@ -12,6 +12,7 @@ import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
 type Stage = "home" | "samples" | "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
 type Product = "me" | "pet" | "partner" | "family";
 const loadingSteps = ["Getting to know your photo", "Picking up the details", "Bringing your stickers to life...", "Adding the finishing touches"];
+const LOADING_STEP_INTERVAL_MS = 1800;
 const positions = ["0% 0%", "50% 0%", "100% 0%", "0% 33.3333%", "50% 33.3333%", "100% 33.3333%", "0% 66.6667%", "50% 66.6667%", "100% 66.6667%", "50% 100%"];
 const samples = ["01","02","03","04","05","06"];
 const moodOptions = [
@@ -276,7 +277,7 @@ export default function Home(){
   const mountTurnstile=()=>undefined;
   const canVerify=true;
 
-  useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(x=>Math.min(x+1,3)),2200);return()=>clearInterval(a)},[stage]);
+  useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(current=>(current+1)%loadingSteps.length),LOADING_STEP_INTERVAL_MS);return()=>clearInterval(a)},[stage]);
   useEffect(()=>{
     setGeneratedSlices([]);
     setGeneratedSlicesSource("");
