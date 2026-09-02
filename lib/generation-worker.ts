@@ -4,6 +4,7 @@ import * as schema from "@/db/schema";
 import { generationJobs, generations, users } from "@/db/schema";
 import { promptFor, type GenerationInput } from "@/lib/prompt";
 import { IMAGE_KEY_PATTERN } from "@/lib/constants";
+import { CONTENT_POLICY_MESSAGE } from "@/lib/moderation";
 import {
   buildOpenAIImageEditBody,
   GENERATION_IMAGE_QUALITY,
@@ -43,6 +44,14 @@ type QueueEnv = {
   STICKER_ASSETS: R2Bucket;
   IMAGES?: ImagesBinding;
 };
+
+// OpenAI's image endpoints reject unsafe requests with these markers rather
+// than a distinct HTTP status, so this is the only way to tell a permanent
+// content-policy rejection apart from a transient/retryable failure.
+function isContentPolicyViolation(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /content.?polic|safety system|flagged|not allowed to generate/i.test(message);
+}
 
 async function loadStyleReference(env: QueueEnv): Promise<File | null> {
   try {
@@ -211,6 +220,10 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     }
   } catch (error) {
     console.error("OpenAI image generation error", error);
+    if (isContentPolicyViolation(error)) {
+      await markFailed(env, job, CONTENT_POLICY_MESSAGE);
+      return;
+    }
     // Rethrow so the queue retries transient failures; the consumer marks the
     // job failed only after retries are exhausted.
     throw error;

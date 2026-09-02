@@ -7,7 +7,7 @@ import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib
 import { dataUrlToFile, generationRequestSchema } from "@/lib/validation";
 import { extensionForImageType } from "@/lib/image-format";
 import { isLocalHostname } from "@/lib/turnstile";
-import { moderateText } from "@/lib/moderation";
+import { CONTENT_POLICY_MESSAGE, moderateText } from "@/lib/moderation";
 import { processGenerationJob } from "@/lib/generation-worker";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
@@ -89,10 +89,7 @@ export async function POST(request: Request) {
     if (reservedUserId) {
       await db.update(users).set({ regenerationsRemaining: sql`${users.regenerationsRemaining} + 1` }).where(eq(users.id, reservedUserId));
     }
-    return Response.json(
-      { error: "That request can't be used to generate stickers. Please revise it and try again." },
-      { status: 400 }
-    );
+    return Response.json({ error: CONTENT_POLICY_MESSAGE }, { status: 400 });
   }
 
   const jobId = crypto.randomUUID();

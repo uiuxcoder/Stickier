@@ -1,5 +1,11 @@
 const MODERATION_URL = "https://api.openai.com/v1/moderations";
 
+// Shared with the image-generation worker so the client can recognize a
+// content-policy rejection (from either text moderation or OpenAI's image
+// safety system) by this exact message and show a dedicated error state.
+export const CONTENT_POLICY_MESSAGE =
+  "That photo or request can't be used to generate stickers. Please try a different photo or description.";
+
 export type ModerationVerdict = {
   allowed: boolean;
   reason?: string;
