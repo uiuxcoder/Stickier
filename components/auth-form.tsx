@@ -66,22 +66,22 @@ export async function readAuthResponse(response: Response): Promise<AuthResponse
 
 function GoogleIcon() {
   return (
-    <svg className="google-mark" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className="google-mark" viewBox="0 0 18 18" aria-hidden="true">
       <path
-        fill="#4285F4"
-        d="M21.6 12.23c0-.7-.06-1.37-.18-2.02H12v3.82h5.39a4.61 4.61 0 0 1-2 3.02v2.5h3.24c1.9-1.75 2.97-4.33 2.97-7.32Z"
+        fill="#EA4335"
+        d="M17.64 9.2045c0-.638-.0573-1.2518-.1636-1.8409H9v3.4818h4.8436c-.2086 1.125-.8427 2.0782-1.7973 2.7164v2.2582h2.9082c1.702-1.5673 2.6855-3.8741 2.6855-6.6155Z"
       />
       <path
-        fill="#34A853"
-        d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.24-2.5c-.9.6-2.05.96-3.37.96-2.59 0-4.79-1.75-5.58-4.1H.7v2.58A10 10 0 0 0 12 22Z"
+        fill="#4285F4"
+        d="M9 18c2.43 0 4.4673-.8055 5.9564-2.1782l-2.9082-2.2582c-.8055.54-1.8355.8591-3.0482.8591-2.3441 0-4.3282-1.5845-5.0364-3.7105H.9573v2.3318A9 9 0 0 0 9 18Z"
       />
       <path
         fill="#FBBC05"
-        d="M6.42 19.89A6.02 6.02 0 0 1 6 17.3V14.7H2.73A10 10 0 0 0 2 12c0-1.64.39-3.2 1.09-4.58L6.4 10c-.26.82-.4 1.7-.4 2.6 0 .9.14 1.78.4 2.6l-.02 0Z"
+        d="M3.9636 10.7122A5.411 5.411 0 0 1 3.6818 9c0-.5927.1018-1.1682.2818-1.7123V4.9559H.9573A9 9 0 0 0 0 9c0 1.4523.3477 2.8277.9573 4.0441l3.0063-2.3319Z"
       />
       <path
-        fill="#EA4335"
-        d="M12 3.98c1.47 0 2.79.51 3.84 1.5l2.87-2.87A9.99 9.99 0 0 0 12 2a10 10 0 0 0-9.3 5.42L6.4 10c.79-2.35 2.99-4.02 5.6-4.02Z"
+        fill="#34A853"
+        d="M9 3.5795c1.3214 0 2.5077.4545 3.4418 1.3459l2.5818-2.5818C13.4632.8918 11.43 0 9 0A9 9 0 0 0 .9573 4.9559l3.0063 2.3318C4.6718 5.1641 6.6559 3.5795 9 3.5795Z"
       />
     </svg>
   );
@@ -247,9 +247,11 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
       </form>
       {mode === "signin" ? (
         <div className="auth-links auth-links-inline">
-          <p className="auth-subtle">Not a member yet?</p>
-          <Link href="/membership">Join Salty Sticker Club →</Link>
-          <Link href="/forgot-password">Forgot password</Link>
+          <div className="auth-membership-links">
+            <p className="auth-subtle">Not a member yet?</p>
+            <Link href="/membership">Join Salty Sticker Club →</Link>
+          </div>
+          <Link className="auth-forgot-link" href="/forgot-password">Forgot password</Link>
         </div>
       ) : null}
       {mode === "signup" ? (
