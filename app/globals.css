@@ -744,7 +744,7 @@ nav{height:88px;padding:0 var(--space-10)}
   .shell.home:not(.landing-v2) .split>.art.hero-story{min-height:0;padding:32px 10px}
   .shell.home:not(.landing-v2) .split>.art .hero-story-composite{width:min(360px,78vw)}
   .shell.home:not(.landing-v2) .home-copy{padding:44px 20px 24px}
-  .shell.home:not(.landing-v2) .home-copy>p{margin:10px 0 12px}
+  .shell.home:not(.landing-v2) .home-copy>p{display:none}
   .shell.home:not(.landing-v2) .home-proof{margin-bottom:10px}
 }
 
@@ -978,8 +978,9 @@ body:has(.shell.photos),body:has(.shell.details),body:has(.shell.mood){margin:0!
 .payment-modal .pay-card{min-height:52px!important;justify-content:center!important;font-size:11px!important;letter-spacing:.1em!important;box-shadow:none!important}
 .payment-modal .pay-card:disabled{opacity:.45!important;cursor:not-allowed!important}
 @media(max-width:900px){.payment-modal{width:calc(100vw - 24px)!important;padding:22px 18px!important;overflow:auto!important}.payment-modal [data-slot="dialog-title"]{font-size:36px!important}.purchase-options{grid-template-columns:1fr!important}.purchase-options>button,.membership-upsell{grid-column:auto!important;min-height:0!important;padding:20px!important}.purchase-price{font-size:26px!important}}
-@media(max-width:520px){
-  .payment-modal{position:fixed!important;top:auto!important;right:0!important;bottom:0!important;left:0!important;translate:0 0!important;transform:none!important;width:100vw!important;max-width:none!important;max-height:none!important;overflow:hidden!important;padding:18px 16px calc(16px + env(safe-area-inset-bottom))!important;gap:12px!important;border-width:1.5px 0 0!important;border-top:5px solid var(--yellow)!important;box-shadow:0 -8px 18px rgba(17,17,17,.2)!important}
+@media(max-width:900px){
+  .payment-modal{position:fixed!important;top:auto!important;right:0!important;bottom:0!important;left:0!important;translate:0 0!important;transform:none!important;width:100vw!important;max-width:none!important;max-height:82vh!important;overflow-y:auto!important;border-radius:20px 20px 0 0!important;padding:18px 16px calc(16px + env(safe-area-inset-bottom))!important;gap:12px!important;border-width:1.5px 0 0!important;border-top:5px solid var(--yellow)!important;box-shadow:0 -8px 18px rgba(17,17,17,.2)!important}
+  .payment-modal:before{content:"";position:sticky;top:0;display:block;width:36px;height:4px;margin:0 auto 4px;border-radius:99px;background:#d8d2c4}
   .payment-modal [data-slot="dialog-header"]{padding-right:40px!important}
   .payment-modal [data-slot="dialog-title"]{font-size:28px!important;text-align:left!important}
   .payment-modal [data-slot="dialog-close"]{top:14px!important;right:16px!important;width:32px!important;height:32px!important;box-shadow:2px 2px 0 #111!important}
