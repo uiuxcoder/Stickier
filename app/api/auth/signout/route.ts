@@ -7,7 +7,7 @@ import { appOrigin } from "@/lib/auth-utils";
  */
 export async function POST(request: Request) {
   return new Response(null, {
-    status: 302,
+    status: 303,
     headers: {
       Location: `${appOrigin(request)}/`,
       "Set-Cookie": buildClearSessionCookie(request),

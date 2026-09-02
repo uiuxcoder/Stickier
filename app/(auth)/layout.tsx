@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <span>SALTY STICKER CLUB</span>
         <div className="nav-end">
           <Link className="nav-cta" href="/">
-            MAKE A SHEET
+            CREATE MY STICKERS
           </Link>
         </div>
       </nav>

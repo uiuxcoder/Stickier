@@ -18,10 +18,10 @@ type Props = {
 
 const copy: Record<AuthMode, { eyebrow: string; title: string; submit: string; description: string }> = {
   signin: {
-    eyebrow: "WELCOME BACK",
+    eyebrow: "",
     title: "Welcome back ✦",
     submit: "LOG IN",
-    description: "Log in to your Sticker Club account.",
+    description: "Log in to your Salty Sticker Club account.",
   },
   signup: {
     eyebrow: "NEW ACCOUNT",
@@ -150,7 +150,7 @@ export function AuthForm({ mode, token, initialEmail = "", notice, returnTo = "/
 
   return (
     <section className="auth-card">
-      <span className="eyebrow">{fields.eyebrow}</span>
+      {fields.eyebrow ? <span className="eyebrow">{fields.eyebrow}</span> : null}
       <h1>{fields.title}</h1>
       <p>{fields.description}</p>
       {mode === "signin" || mode === "signup" ? (
