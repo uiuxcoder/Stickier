@@ -34,7 +34,7 @@ export async function sendDropSubmittedEmails(notification: DropNotification) {
       from,
       to: notification.customerEmail,
       subject: `${notification.monthLabel} Sticker Club order received`,
-      html: `<h1>Your monthly stickers are submitted.</h1><p>We received your three selections and will email you when they ship.</p><p>${address}</p>`,
+      html: `<h1>Your monthly stickers are submitted.</h1><p>We received your two selections and will email you when they ship.</p><p>${address}</p>`,
     }),
     resend.emails.send({
       from,

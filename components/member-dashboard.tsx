@@ -81,10 +81,10 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
   const submittedIds = currentDrop?.stickerIds ?? [];
   const selectedCount = currentDrop ? currentDrop.stickerIds.length : selectedIds.length;
   const canPickForDrop = isActive && !currentDrop;
-  const canShip = canPickForDrop && selectedIds.length === 3;
+  const canShip = canPickForDrop && selectedIds.length === 2;
   const usedCreations = Math.max(0, MONTHLY_CREATIONS - Math.max(0, Math.min(MONTHLY_CREATIONS, remainingCreations)));
   const creationProgress = `${(usedCreations / MONTHLY_CREATIONS) * 100}%`;
-  const selectionProgress = `${(selectedCount / 3) * 100}%`;
+  const selectionProgress = `${(selectedCount / 2) * 100}%`;
 
   const stickersById = useMemo(() => {
     return new Map(stickers.map((sticker) => [sticker.id, sticker]));
@@ -94,7 +94,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
     if (!canPickForDrop) return;
     setSelectedIds((current) => {
       if (current.includes(id)) return current.filter((item) => item !== id);
-      if (current.length >= 3) return current;
+      if (current.length >= 2) return current;
       return [...current, id];
     });
   }
@@ -165,7 +165,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
         {!isActive ? (
           <div className="club-inactive" role="status">
             <h2>Membership inactive</h2>
-            <p>Your monthly drop is paused. Restart membership to unlock 20 creations this month and choose your 3.</p>
+            <p>Your monthly drop is paused. Restart membership to unlock 20 creations this month and choose your 2.</p>
             <Link className="club-primary-link" href="/membership">
               Restart membership <ArrowRight size={16} />
             </Link>
@@ -179,7 +179,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
                 <i aria-hidden="true"><span style={{ width: creationProgress }} /></i>
               </article>
               <article>
-                <strong>{selectedCount}<span>/ 3</span></strong>
+                <strong>{selectedCount}<span>/ 2</span></strong>
                 <p>Prints selected</p>
                 <i aria-hidden="true"><span style={{ width: selectionProgress }} /></i>
               </article>
@@ -282,7 +282,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
           </DialogHeader>
           <div className="club-how-steps">
             <article><strong>1</strong><div><h3>Make</h3><p>Create up to 20 sticker sheets this month.</p></div></article>
-            <article><strong>2</strong><div><h3>Pick</h3><p>Select your favorite 3 from Your Creations.</p></div></article>
+            <article><strong>2</strong><div><h3>Pick</h3><p>Select your favorite 2 from Your Creations.</p></div></article>
             <article><strong>3</strong><div><h3>Ship</h3><p>When all 3 are selected, submit them and we&apos;ll mail them to you.</p></div></article>
           </div>
         </DialogContent>
@@ -301,7 +301,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
               <DialogHeader>
                 <DialogTitle>Are you sure?</DialogTitle>
                 <DialogDescription>
-                  Confirm your 3 stickers and shipping address. Once submitted, your picks can&apos;t be changed.
+                  Confirm your 2 stickers and shipping address. Once submitted, your picks can&apos;t be changed.
                 </DialogDescription>
               </DialogHeader>
               <div className="club-ship-preview-grid">
@@ -396,7 +396,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
                 ? "Update the address Stripe will use for your future Sticker Club deliveries."
                 : membershipAction === "payment"
                   ? "Update the payment method Stripe will use for future monthly charges."
-                  : "Your membership will remain active through the end of your current billing period, and you will not be charged next month. You can still use this month’s 20-generation allowance and submit your 3 stickers for shipping if you haven’t already."}
+                  : "Your membership will remain active through the end of your current billing period, and you will not be charged next month. You can still use this month’s 20-generation allowance and submit your 2 stickers for shipping if you haven’t already."}
             </DialogDescription>
           </DialogHeader>
           <div className="club-manage-note">

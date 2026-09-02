@@ -170,8 +170,8 @@ export default async function MembershipSuccessPage({
               <div>
                 <small>Make it a monthly thing</small>
                 <h2>Sticker Club</h2>
-                <strong>$14.99/month</strong>
-                <p>Create up to 20 sticker sheets. Get your favorite 3 delivered.</p>
+                <strong>$11.99/month</strong>
+                <p>Unlimited digital sticker downloads<br />Choose 2 sticker sheets each month. We&apos;ll mail them to you.</p>
               </div>
               <div className="order-confirmation-club-action">
                 <JoinStickerClubButton imageKey={purchasedImageKey} subject={subject} />

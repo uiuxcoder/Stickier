@@ -3,13 +3,13 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { generations, membershipDrops, subscriptions, users } from "@/db/schema";
-import { IMAGE_KEY_PATTERN } from "@/lib/constants";
+import { IMAGE_KEY_PATTERN, MONTHLY_PHYSICAL_SHEETS } from "@/lib/constants";
 import { sendDropSubmittedEmails } from "@/lib/fulfillment-email";
 import { getStripe } from "@/lib/stripe";
 
 const dropSchema = z.object({
-  stickerIds: z.array(z.string().regex(IMAGE_KEY_PATTERN)).length(3),
-}).refine((value) => new Set(value.stickerIds).size === 3, { message: "Choose three different sticker sheets." });
+  stickerIds: z.array(z.string().regex(IMAGE_KEY_PATTERN)).length(MONTHLY_PHYSICAL_SHEETS),
+}).refine((value) => new Set(value.stickerIds).size === MONTHLY_PHYSICAL_SHEETS, { message: "Choose two different sticker sheets." });
 
 function currentMonth() {
   const now = new Date();
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: "Sign in to submit your monthly stickers." }, { status: 401 });
 
   const parsed = dropSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Choose exactly three sticker sheets." }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: "Choose exactly two sticker sheets." }, { status: 400 });
 
   const db = getDb();
   const [activeSubscription, profile, ownedStickers] = await Promise.all([
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       .where(and(eq(generations.userId, user.id), inArray(generations.imageKey, parsed.data.stickerIds))),
   ]);
   if (!activeSubscription[0]) return Response.json({ error: "An active membership is required." }, { status: 403 });
-  if (ownedStickers.length !== 3) return Response.json({ error: "One or more sticker sheets are unavailable." }, { status: 403 });
+  if (ownedStickers.length !== MONTHLY_PHYSICAL_SHEETS) return Response.json({ error: "One or more sticker sheets are unavailable." }, { status: 403 });
 
   const customerId = profile[0]?.stripeCustomerId;
   if (!customerId || !process.env.STRIPE_SECRET_KEY) {

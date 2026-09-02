@@ -63,7 +63,7 @@ export function SubscriptionCheckout() {
     <main className="membership-shell">
       <section className="membership-card">
         <p className="membership-kicker">Sticker Club</p>
-        <h1>$14.99/month</h1>
+        <h1>$11.99/month</h1>
         {error ? (
           <>
             <p role="alert">{error}</p>
