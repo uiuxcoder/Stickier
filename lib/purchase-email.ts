@@ -19,6 +19,15 @@ function fulfillmentOrderType(kind: PurchaseEmailKind) {
   return "Salty Sticker Club membership";
 }
 
+function fulfillmentCustomerName(session: Stripe.Checkout.Session) {
+  return session.customer_details?.name || session.collected_information?.shipping_details?.name || "Not provided";
+}
+
+function fulfillmentPrice(session: Stripe.Checkout.Session) {
+  if (session.amount_total == null) return "Not available";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: (session.currency || "usd").toUpperCase() }).format(session.amount_total / 100);
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",
@@ -90,7 +99,7 @@ export function fulfillmentEmailContent(session: Stripe.Checkout.Session, email:
     : "<p>No shipping address was included with this checkout.</p>";
   return {
     subject: `Fulfill Salty Sticker ${purchaseEmailKind(session)} ${session.id}`,
-    html: `<h1>New Salty Sticker order</h1><p>Order type: ${fulfillmentOrderType(purchaseEmailKind(session))}</p><p>Customer: ${escapeHtml(email)}</p>${shippingDetails}${fulfillmentDetails}`,
+    html: `<h1>New Salty Sticker order</h1><p>Order type: ${fulfillmentOrderType(purchaseEmailKind(session))}</p><p>Customer: ${escapeHtml(fulfillmentCustomerName(session))} (${escapeHtml(email)})</p><p>Price: ${escapeHtml(fulfillmentPrice(session))}</p>${shippingDetails}${fulfillmentDetails}`,
   };
 }
 

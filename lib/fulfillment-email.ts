@@ -3,6 +3,8 @@ import { printSheetKey } from "@/lib/sticker-archive";
 
 type DropNotification = {
   customerEmail: string;
+  customerName?: string | null;
+  orderPrice?: string;
   monthLabel: string;
   stickerIds: string[];
   shippingAddress: string[];
@@ -40,7 +42,7 @@ export async function sendDropSubmittedEmails(notification: DropNotification) {
       from,
       to: fulfillmentEmail,
       subject: `Fulfill ${notification.monthLabel} Sticker Club drop`,
-      html: `<h1>New Sticker Club order</h1><p>Order type: Salty Sticker Club monthly order (2 sticker sheets)</p><p>Customer: ${escapeHtml(notification.customerEmail)}</p><p>${address}</p><ol>${stickers}</ol>`,
+      html: `<h1>New Sticker Club order</h1><p>Order type: Salty Sticker Club monthly order (2 sticker sheets)</p><p>Customer: ${escapeHtml(notification.customerName || "Not provided")} (${escapeHtml(notification.customerEmail)})</p><p>Price: ${escapeHtml(notification.orderPrice || "Included with membership")}</p><p>${address}</p><ol>${stickers}</ol>`,
     }),
   ]);
   const error = customer.error?.message || fulfillment.error?.message;

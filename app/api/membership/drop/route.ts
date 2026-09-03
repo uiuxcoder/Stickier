@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { generations, membershipDrops, subscriptions, users } from "@/db/schema";
-import { IMAGE_KEY_PATTERN, MONTHLY_PHYSICAL_SHEETS } from "@/lib/constants";
+import { IMAGE_KEY_PATTERN, MONTHLY_PHYSICAL_SHEETS, SUBSCRIPTION_AMOUNT_CENTS } from "@/lib/constants";
 import { sendDropSubmittedEmails } from "@/lib/fulfillment-email";
 import { getStripe } from "@/lib/stripe";
 
@@ -72,6 +72,8 @@ export async function POST(request: Request) {
 
   const notification = await sendDropSubmittedEmails({
     customerEmail: user.email,
+    customerName: user.fullName,
+    orderPrice: `$${(SUBSCRIPTION_AMOUNT_CENTS / 100).toFixed(2)}/month membership`,
     monthLabel,
     stickerIds: parsed.data.stickerIds,
     shippingAddress,
