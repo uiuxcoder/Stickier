@@ -115,7 +115,7 @@ export default async function MembershipWelcomePage({
           <div className="membership-welcome-summary-items">
             <div className="membership-welcome-summary-item">
               <span className="membership-welcome-item-icon"><Sparkles size={24} /></span>
-              <div><strong>Sticker Club subscription</strong><span>Unlimited digital sticker downloads + choose 2 sticker sheets each month</span></div>
+              <div><strong>Sticker Club subscription</strong><span>20 sticker generations, unlimited downloads + 1 regeneration per sticker + pick 2 to receive at your doorstep every month</span></div>
               <b>{formatMoney(subtotal, currency)}</b>
             </div>
             {includesStickerBundle ? <div className="membership-welcome-summary-item">
