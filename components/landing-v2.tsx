@@ -72,6 +72,22 @@ const FAQ: [string, string][] = [
     "How much does it cost?",
     "Every sheet is 10 custom stickers. The digital pack is $4.99 with instant download; physical + digital is $9.99 with free shipping.",
   ],
+  [
+    "What file format and resolution do I receive?",
+    "Digital downloads are PNG files. The print-ready sheet is 1200 x 1800 pixels at 300 DPI, and individual sticker files include transparent padding.",
+  ],
+  [
+    "What are the physical sheet dimensions and material?",
+    "The physical sheet is 4 x 6 inches and is printed on premium sticker material, with ten die-cut stickers on each sheet.",
+  ],
+  [
+    "Where do you ship, and how long does delivery take?",
+    "Physical orders currently ship within the United States. Delivery typically takes 5-8 business days after your order is processed.",
+  ],
+  [
+    "Are the stickers waterproof or weatherproof?",
+    "The stickers are designed for everyday indoor use. They are not rated as waterproof or weatherproof, so avoid prolonged exposure to water, rain, or harsh weather.",
+  ],
 ];
 
 export function LandingV2({ photos, photoBusy, photoError, fileInputRef, onFiles, onRemove, onContinue }: LandingV2Props) {
@@ -116,7 +132,7 @@ export function LandingV2({ photos, photoBusy, photoError, fileInputRef, onFiles
         <div className="v2-copy">
           <h1 className="v2-h1">
             <span>Turn your photo</span>
-            <span>in 10 custom stickers.</span>
+            <span>into 10 custom stickers.</span>
           </h1>
           <p className="v2-subhead">Upload a selfie, your pet, your bestie, or anything from your camera roll.</p>
         </div>

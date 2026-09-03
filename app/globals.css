@@ -813,7 +813,7 @@ nav{height:88px;padding:0 var(--space-10)}
    under the copy so the first viewport carries the whole story */
 .v2-hero{position:relative;z-index:2;display:grid;grid-template-columns:1.02fr .98fr;grid-template-rows:auto 1fr;grid-template-areas:"copy art" "cta art";min-height:calc(100vh - 68px);min-height:calc(100svh - 68px)}
 .v2-copy{grid-area:copy;padding:9vh 3vw 0 clamp(20px,5vw,84px)}
-.v2-h1{font-size:clamp(44px,4.7vw,80px);display:grid;row-gap:4px;line-height:.96;letter-spacing:-.055em}
+.v2-h1{font-size:clamp(42px,4.2vw,72px);display:grid;row-gap:4px;line-height:.96;letter-spacing:-.055em}
 .v2-h1>span{display:block;white-space:nowrap}
 .v2-subhead{font-size:16px;line-height:1.58;max-width:460px;margin:20px 0 0;color:#444}
 .v2-cta{grid-area:cta;align-self:start;padding:26px 3vw 44px clamp(20px,5vw,84px)}
@@ -824,9 +824,9 @@ nav{height:88px;padding:0 var(--space-10)}
    the artwork itself instead of floating around the panel. No giant circle. */
 .v2-composite{width:min(880px,100%,calc((100svh - 104px) * 1.26));animation:heroFloat 4.5s ease-in-out infinite}
 .v2-tag{position:absolute;z-index:4;border:1px solid;background:var(--cream);padding:8px 13px;border-radius:99px;font-size:9px;font-weight:800;letter-spacing:.1em;box-shadow:3px 3px 0 rgba(21,21,21,.9)}
-.v2-tag-photo{left:6%;top:9%;transform:rotate(-9deg)}
-.v2-tag-stickers{right:4%;bottom:8%;transform:rotate(8deg)}
-.v2-burst{position:absolute;z-index:5;right:8%;top:12%;width:78px;height:78px;border-radius:50%;background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:28px Georgia;transform:rotate(10deg);box-shadow:4px 5px 0 rgba(21,21,21,.25)}
+.v2-tag-photo{left:6%;top:-2%;transform:rotate(-9deg)}
+.v2-tag-stickers{right:4%;bottom:-2%;transform:rotate(8deg)}
+.v2-burst{position:absolute;z-index:5;right:8%;top:-2%;width:78px;height:78px;border-radius:50%;background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:28px Georgia;transform:rotate(10deg);box-shadow:4px 5px 0 rgba(21,21,21,.25)}
 .v2-burst small{font:800 7px Arial;letter-spacing:.1em}
 
 /* Compact uploader: icon, one literal instruction, one literal button, and
