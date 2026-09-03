@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { Resend } from "resend";
 import { printSheetKey } from "./sticker-archive.ts";
+import { checkoutShippingLines } from "./stripe.ts";
 
 export type PurchaseEmailKind = "digital" | "physical" | "membership-with-stickers" | "membership-top-up";
 
@@ -9,6 +10,16 @@ export function purchaseEmailKind(session: Stripe.Checkout.Session): PurchaseEma
     return session.metadata?.source === "purchase-modal" && session.metadata?.imageKey ? "membership-with-stickers" : "membership-top-up";
   }
   return session.metadata?.plan === "physical" ? "physical" : "digital";
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  })[character]!);
 }
 
 export function purchaseEmailContent(session: Stripe.Checkout.Session, origin: string) {
@@ -61,6 +72,21 @@ export function purchaseEmailContent(session: Stripe.Checkout.Session, origin: s
   };
 }
 
+export function fulfillmentEmailContent(session: Stripe.Checkout.Session, email: string, origin: string) {
+  const imageKey = session.metadata?.imageKey;
+  const fulfillmentDetails = imageKey
+    ? `<p>Sticker sheet: ${escapeHtml(printSheetKey(imageKey))}</p><p><a href="${origin}/api/preview-stickers?key=${encodeURIComponent(imageKey)}">View sticker sheet preview</a></p>`
+    : "<p>No sticker sheet was selected yet.</p>";
+  const shippingAddress = checkoutShippingLines(session);
+  const shippingDetails = shippingAddress.length
+    ? `<h2>Ship to</h2><p>${shippingAddress.map(escapeHtml).join("<br>")}</p>`
+    : "<p>No shipping address was included with this checkout.</p>";
+  return {
+    subject: `Fulfill Salty Sticker ${purchaseEmailKind(session)} ${session.id}`,
+    html: `<h1>New Salty Sticker ${purchaseEmailKind(session)}</h1><p>Customer: ${escapeHtml(email)}</p>${shippingDetails}${fulfillmentDetails}`,
+  };
+}
+
 export async function sendPurchaseEmail(session: Stripe.Checkout.Session, email: string, origin: string) {
   if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
     throw new Error("Resend is not configured.");
@@ -74,15 +100,11 @@ export async function sendPurchaseEmail(session: Stripe.Checkout.Session, email:
   });
   if (customer.error) throw new Error(customer.error.message);
 
-  const imageKey = session.metadata?.imageKey;
-  const fulfillmentDetails = imageKey
-    ? `<p>Sticker sheet: ${printSheetKey(imageKey)}</p>`
-    : "<p>No sticker sheet was selected yet.</p>";
+  const fulfillmentContent = fulfillmentEmailContent(session, email, origin);
   const fulfillment = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: process.env.FULFILLMENT_EMAIL || "stickerstripepayments@gmail.com",
-    subject: `Fulfill Salty Sticker ${purchaseEmailKind(session)} ${session.id}`,
-    html: `<h1>New Salty Sticker ${purchaseEmailKind(session)}</h1><p>Customer: ${email}</p>${fulfillmentDetails}`,
+    ...fulfillmentContent,
   });
   if (fulfillment.error) console.error("Fulfillment email failed", session.id, fulfillment.error.message);
 }

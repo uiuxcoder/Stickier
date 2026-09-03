@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EMAIL_PATTERN, IMAGE_KEY_PATTERN } from "../lib/constants.ts";
-import { purchaseEmailContent, purchaseEmailKind } from "../lib/purchase-email.ts";
+import { fulfillmentEmailContent, purchaseEmailContent, purchaseEmailKind } from "../lib/purchase-email.ts";
 import { automaticTaxEnabled, checkoutShippingLines, isPaidCheckout, periodEndFromSubscription, subscriptionIdFromInvoice } from "../lib/stripe.ts";
 import type Stripe from "stripe";
 
@@ -47,6 +47,18 @@ test("classifies and renders purchase confirmation emails", () => {
   const topUp = purchaseEmailContent(session("subscription", {}), "https://saltysticker.com");
   assert.doesNotMatch(topUp.html, /download-stickers/);
   assert.match(topUp.html, /https:\/\/saltysticker\.com\/account/);
+
+  const physical = fulfillmentEmailContent({
+    ...session("payment", { plan: "physical", imageKey: "stickers/11111111-1111-1111-1111-111111111111.png" }),
+    collected_information: {
+      shipping_details: {
+        name: "Ada Lovelace",
+        address: { line1: "123 Sticker Lane", city: "Brooklyn", state: "NY", postal_code: "11201", country: "US" },
+      },
+    },
+  } as Stripe.Checkout.Session, "https://saltysticker.com");
+  assert.match(physical.html, /123 Sticker Lane/);
+  assert.match(physical.html, /api\/preview-stickers\?key=stickers%2F11111111-1111-1111-1111-111111111111\.png/);
 });
 
 test("reads Stripe invoice subscription ids from parent details", () => {
