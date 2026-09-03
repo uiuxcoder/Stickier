@@ -264,6 +264,7 @@ export default function Home(){
   const [purchasedPlan,setPurchasedPlan]=useState<"digital"|"physical">("digital");
   const [generatedImage,setGeneratedImage]=useState("");
   const [generatedImageKey,setGeneratedImageKey]=useState("");
+  const [generationSaved,setGenerationSaved]=useState(false);
   const [generationJobId,setGenerationJobId]=useState("");
   const [generatedSlices,setGeneratedSlices]=useState<string[]>([]);
   const [generatedSlicesSource,setGeneratedSlicesSource]=useState("");
@@ -387,9 +388,9 @@ export default function Home(){
     const poll=async()=>{
       try{
         const response=await fetch(`/api/generation-status?jobId=${encodeURIComponent(jobId)}`);
-        const status=await response.json() as {status?:string;imageKey?:string;previewUrl?:string;error?:string};
+        const status=await response.json() as {status?:string;imageKey?:string;previewUrl?:string;saved?:boolean;error?:string};
         if(cancelled)return;
-        if(status.status==="succeeded"&&status.imageKey&&status.previewUrl){setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setStage("reveal");window.history.replaceState({},"",window.location.pathname);return}
+        if(status.status==="succeeded"&&status.imageKey&&status.previewUrl){if(!status.saved)setIsActiveMember(false);setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setGenerationSaved(Boolean(status.saved));setStage("reveal");window.history.replaceState({},"",window.location.pathname);return}
         if(status.status==="failed")throw new Error(status.error||"Generation failed.");
         if(attempts++<180){pollTimer.current=window.setTimeout(poll,2000);return}
         throw new Error("Generation is taking longer than expected. Please try again.");
@@ -484,9 +485,9 @@ export default function Home(){
       let attempts=0;
       const poll=async()=>{
         try{
-          const status=await fetch(`/api/generation-status?jobId=${encodeURIComponent(jobId)}`).then(r=>r.json()) as {status?:string;imageKey?:string;previewUrl?:string;error?:string};
+          const status=await fetch(`/api/generation-status?jobId=${encodeURIComponent(jobId)}`).then(r=>r.json()) as {status?:string;imageKey?:string;previewUrl?:string;saved?:boolean;error?:string};
           if(status.status==="succeeded"&&status.imageKey&&status.previewUrl){
-            setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setStage("reveal");track("preview_rendered");return;
+            if(!status.saved)setIsActiveMember(false);setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setGenerationSaved(Boolean(status.saved));setStage("reveal");track("preview_rendered");return;
           }
           if(status.status==="failed")throw new Error(status.error||"Generation failed.");
           if(attempts++<180){pollTimer.current=window.setTimeout(poll,2000);return}

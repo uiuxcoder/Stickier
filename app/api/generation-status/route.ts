@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     .select({
       status: generationJobs.status,
       imageKey: generationJobs.imageKey,
+      reservedQuota: generationJobs.reservedQuota,
       error: generationJobs.error,
       updatedAt: generationJobs.updatedAt,
     })
@@ -60,6 +61,7 @@ export async function GET(request: Request) {
   return Response.json({
     status: job.status,
     imageKey: job.imageKey,
+    saved: Boolean(job.reservedQuota),
     previewUrl: job.imageKey
       ? `/api/preview-stickers?key=${encodeURIComponent(job.imageKey)}`
       : null,
