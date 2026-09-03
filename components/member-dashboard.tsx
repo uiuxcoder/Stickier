@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MemberStickerCreator } from "@/components/member-sticker-creator";
+import posthog from "posthog-js";
 
 type DropStatus = "submitted" | "printing" | "shipped" | "delivered";
 
@@ -111,6 +112,9 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
       });
       const data = await response.json() as MembershipDrop & { error?: string };
       if (!response.ok) throw new Error(data.error || "Unable to submit this month’s stickers.");
+      if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+        posthog.capture("membership_drop_submitted", { sticker_count: selectedIds.length });
+      }
       setCurrentDrop(data);
       setShipDialogStage("confirmed");
     } catch (error) {
@@ -148,7 +152,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
               <DropdownMenuItem variant="destructive" onSelect={() => setMembershipAction("cancel")}><XCircle /> Cancel membership</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <form action="/api/auth/signout" method="post">
+          <form action="/api/auth/signout" method="post" onSubmit={() => posthog.reset()}>
             <button type="submit">Sign Out</button>
           </form>
         </div>
@@ -165,7 +169,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
         {!isActive ? (
           <div className="club-inactive" role="status">
             <h2>Membership inactive</h2>
-            <p>Your monthly drop is paused. Restart membership to unlock 20 creations this month and choose your 2.</p>
+            <p>Your monthly drop is paused. New previews are available for 24 hours and are not saved unless you restart membership or purchase them.</p>
             <Link className="club-primary-link" href="/membership">
               Restart membership <ArrowRight size={16} />
             </Link>
