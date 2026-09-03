@@ -18,18 +18,25 @@ export default async function AccountPage() {
 
   let remainingCreations = 0;
   let isActive = false;
+  let currentPeriodEnd: number | null = null;
   let stickerCards: { id: string; imageUrl: string; createdAt: number }[] = [];
   let shippingAddress: string[] = [];
   let drops: { monthKey: string; stickerIds: string[]; submittedAt: number; status: "submitted" | "printing" | "shipped" | "delivered" }[] = [];
 
   try {
     const db = getDb();
-    const [profile, activeSubscription, allGenerations, allDrops] = await Promise.all([
+    const [profile, activeSubscription, latestSubscription, allGenerations, allDrops] = await Promise.all([
       db.select().from(users).where(eq(users.id, user.id)).limit(1),
       db
         .select()
         .from(subscriptions)
         .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1),
+      db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, user.id))
         .orderBy(desc(subscriptions.createdAt))
         .limit(1),
       db
@@ -41,6 +48,7 @@ export default async function AccountPage() {
     ]);
 
     isActive = Boolean(activeSubscription[0]);
+    currentPeriodEnd = latestSubscription[0]?.currentPeriodEnd ?? null;
     remainingCreations = isActive
       ? Math.max(0, Math.min(MONTHLY_REGENERATIONS, profile[0]?.regenerationsRemaining ?? 0))
       : 0;
@@ -97,6 +105,7 @@ export default async function AccountPage() {
   return (
     <MemberDashboard
       isActive={isActive}
+      currentPeriodEnd={currentPeriodEnd}
       remainingCreations={remainingCreations}
       stickers={stickerCards}
       shippingAddress={shippingAddress}

@@ -28,13 +28,14 @@ type MembershipDrop = {
 type DashboardProps = {
   userId: string;
   isActive: boolean;
+  currentPeriodEnd: number | null;
   remainingCreations: number;
   stickers: StickerCard[];
   shippingAddress: string[];
   drops: MembershipDrop[];
 };
 
-type MembershipAction = "address" | "payment" | "cancel";
+type MembershipAction = "address" | "payment" | "cancel" | "restart";
 type ShipDialogStage = "review" | "confirmed";
 
 const MONTHLY_CREATIONS = 20;
@@ -54,14 +55,13 @@ function formatStickerDate(timestamp: number) {
   return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
-function statusLabel(status: DropStatus) {
-  if (status === "submitted") return "Submitted";
-  if (status === "printing") return "Printing";
-  if (status === "shipped") return "Shipped";
-  return "Delivered";
+function formatEndDate(timestamp: number | null) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp * 1000); // Convert from seconds to milliseconds
+  return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-export function MemberDashboard({ isActive, remainingCreations, stickers, shippingAddress = [], drops }: DashboardProps) {
+export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations, stickers, shippingAddress = [], drops }: DashboardProps) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
   const thisMonthKey = useMemo(() => monthKeyFromDate(new Date()), []);
@@ -149,7 +149,9 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
             <DropdownMenuContent align="end" className="club-manage-menu">
               <DropdownMenuItem onSelect={() => setMembershipAction("address")}><MapPin /> Update shipping address</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setMembershipAction("payment")}><CreditCard /> Update payment method</DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onSelect={() => setMembershipAction("cancel")}><XCircle /> Cancel membership</DropdownMenuItem>
+              <DropdownMenuItem variant={isActive ? "destructive" : undefined} onSelect={() => setMembershipAction(isActive ? "cancel" : "restart")}>
+                <XCircle /> {isActive ? "Cancel membership" : "Restart membership"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <form action="/api/auth/signout" method="post" onSubmit={() => posthog.reset()}>
@@ -169,7 +171,12 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
         {!isActive ? (
           <div className="club-inactive" role="status">
             <h2>Membership inactive</h2>
-            <p>Your monthly drop is paused. New previews are available for 24 hours and are not saved unless you restart membership or purchase them.</p>
+            {currentPeriodEnd && (
+              <p>Your membership ends on {formatEndDate(currentPeriodEnd)}. Your monthly drop is paused. New previews are available for 24 hours and are not saved unless you restart membership or purchase them.</p>
+            )}
+            {!currentPeriodEnd && (
+              <p>Your monthly drop is paused. New previews are available for 24 hours and are not saved unless you restart membership or purchase them.</p>
+            )}
             <Link className="club-primary-link" href="/membership">
               Restart membership <ArrowRight size={16} />
             </Link>
@@ -240,7 +247,7 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
                           Selected <Check size={14} />
                         </>
                       ) : (
-                        "Add to my 3"
+                        "Add to my 2"
                       )}
                     </button>
                   </div>
@@ -393,23 +400,29 @@ export function MemberDashboard({ isActive, remainingCreations, stickers, shippi
         <DialogContent className="club-manage-modal">
           <DialogHeader>
             <DialogTitle>
-              {membershipAction === "address" ? "Update shipping address" : membershipAction === "payment" ? "Update payment method" : "Cancel membership"}
+              {membershipAction === "address" ? "Update shipping address" : membershipAction === "payment" ? "Update payment method" : membershipAction === "restart" ? "Restart membership" : "Cancel membership"}
             </DialogTitle>
             <DialogDescription>
               {membershipAction === "address"
                 ? "Update the address Stripe will use for your future Sticker Club deliveries."
                 : membershipAction === "payment"
                   ? "Update the payment method Stripe will use for future monthly charges."
-                  : "Your membership will remain active through the end of your current billing period, and you will not be charged next month. You can still use this month’s 20-generation allowance and submit your 2 stickers for shipping if you haven’t already."}
+                  : membershipAction === "restart"
+                    ? "Restart your Sticker Club membership for $11.99/month and get access to unlimited digital downloads and 2 sticker sheets each month."
+                    : "Your membership will remain active through the end of your current billing period, and you will not be charged next month. You can still use this month's 20-generation allowance and submit your 2 stickers for shipping if you haven't already."}
             </DialogDescription>
           </DialogHeader>
           <div className="club-manage-note">
             {membershipAction === "cancel" ? <PackageCheck size={20} /> : <CreditCard size={20} />}
-            <p>{membershipAction === "cancel" ? "Your remaining current-period benefits stay available after you schedule cancellation." : "You’ll continue securely in Stripe to save this change."}</p>
+            <p>{membershipAction === "cancel" ? "Your remaining current-period benefits stay available after you schedule cancellation." : membershipAction === "restart" ? "You'll be securely redirected to Stripe to complete your subscription." : "You'll continue securely in Stripe to save this change."}</p>
           </div>
           <DialogFooter className="club-manage-modal-actions">
             <button type="button" className="club-secondary-button" onClick={() => setMembershipAction(null)}>Go back</button>
-            {membershipAction ? (
+            {membershipAction === "restart" ? (
+              <button type="button" className="club-primary-button" onClick={() => { router.push("/membership"); setMembershipAction(null); }}>
+                Continue to checkout
+              </button>
+            ) : membershipAction ? (
               <form action="/api/account/portal" method="post">
                 <input type="hidden" name="action" value={membershipAction} />
                 <button type="submit" className={membershipAction === "cancel" ? "club-danger-button" : "club-primary-button"}>

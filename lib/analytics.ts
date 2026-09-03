@@ -9,6 +9,7 @@
  * photo metadata here. Event and property names are allowlisted server-side.
  */
 import { ANALYTICS_EVENTS, type AnalyticsEventName } from "@/lib/analytics-events";
+import posthog from "posthog-js";
 
 export { ANALYTICS_EVENTS, type AnalyticsEventName };
 
@@ -59,6 +60,9 @@ export function track(event: AnalyticsEventName, props: AnalyticsProps = {}) {
   if (typeof window === "undefined") return;
   try {
     if (event === "landing_view") landingViewAt = Date.now();
+    if (event !== "landing_view" && process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+      posthog.capture(event, props);
+    }
     const payload = {
       event,
       session_id: getSessionId(),

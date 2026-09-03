@@ -10,6 +10,14 @@ type SubscriptionCheckoutRequest = {
   source?: string;
 };
 
+type CheckoutResponse = {
+  url?: string;
+  error?: string;
+  resumable?: boolean;
+  endDate?: string;
+  message?: string;
+};
+
 function requestFromLocation(): SubscriptionCheckoutRequest {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -19,33 +27,67 @@ function requestFromLocation(): SubscriptionCheckoutRequest {
   };
 }
 
-async function createSubscriptionCheckout(request: SubscriptionCheckoutRequest) {
+async function createSubscriptionCheckout(
+  request: SubscriptionCheckoutRequest,
+): Promise<{ url: string } | { resumable: boolean; endDate: string } | null> {
   const response = await fetch("/api/create-subscription-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
   });
-  const data = (await response.json()) as { url?: string; error?: string };
+  const data = (await response.json()) as CheckoutResponse;
   if (response.status === 401) {
     const returnTo = `${window.location.pathname}${window.location.search}`;
     window.location.assign(`/signup?return_to=${encodeURIComponent(returnTo)}`);
     return null;
   }
+  if (data.resumable) {
+    return { resumable: true, endDate: data.endDate || "" };
+  }
   if (!response.ok || !data.url) throw new Error(data.error || "Unable to start checkout.");
-  return data.url;
+  return { url: data.url };
+}
+
+async function resumeMembership() {
+  const response = await fetch("/api/membership/resume", {
+    method: "POST",
+  });
+  const data = (await response.json()) as { success?: boolean; message?: string; error?: string };
+  if (!response.ok) throw new Error(data.error || "Unable to resume membership.");
+  return data.message || "Membership resumed!";
 }
 
 export function SubscriptionCheckout() {
   const started = useRef(false);
   const [error, setError] = useState("");
+  const [resumable, setResumable] = useState<{ endDate: string } | null>(null);
+  const [resuming, setResuming] = useState(false);
 
   async function startCheckout() {
     setError("");
     try {
-      const url = await createSubscriptionCheckout(requestFromLocation());
-      if (url) window.location.assign(url);
+      const result = await createSubscriptionCheckout(requestFromLocation());
+      if (!result) return;
+      if ("url" in result) {
+        window.location.assign(result.url);
+      } else if ("resumable" in result) {
+        setResumable({ endDate: result.endDate });
+      }
     } catch (checkoutError) {
       setError(checkoutError instanceof Error ? checkoutError.message : "Unable to start checkout.");
+    }
+  }
+
+  async function handleResume() {
+    setResuming(true);
+    setError("");
+    try {
+      await resumeMembership();
+      // Redirect to account page after successful resume
+      window.location.assign("/account");
+    } catch (resumeError) {
+      setError(resumeError instanceof Error ? resumeError.message : "Unable to resume membership.");
+      setResuming(false);
     }
   }
 
@@ -53,7 +95,14 @@ export function SubscriptionCheckout() {
     if (started.current) return;
     started.current = true;
     void createSubscriptionCheckout(requestFromLocation())
-      .then((url) => { if (url) window.location.assign(url); })
+      .then((result) => {
+        if (!result) return;
+        if ("url" in result) {
+          window.location.assign(result.url);
+        } else if ("resumable" in result) {
+          setResumable({ endDate: result.endDate });
+        }
+      })
       .catch((checkoutError) => {
         setError(checkoutError instanceof Error ? checkoutError.message : "Unable to start checkout.");
       });
@@ -64,7 +113,16 @@ export function SubscriptionCheckout() {
       <section className="membership-card">
         <p className="membership-kicker">Sticker Club</p>
         <h1>$11.99/month</h1>
-        {error ? (
+        {resumable ? (
+          <>
+            <p className="membership-summary">Your membership is still active through {resumable.endDate}. Would you like to resume it?</p>
+            {error ? <p role="alert">{error}</p> : null}
+            <button type="button" onClick={() => void handleResume()} disabled={resuming}>
+              {resuming ? "Resuming..." : "Resume membership"}
+            </button>
+            <Link href="/account">Go to account</Link>
+          </>
+        ) : error ? (
           <>
             <p role="alert">{error}</p>
             <button type="button" onClick={() => void startCheckout()}>Try again</button>

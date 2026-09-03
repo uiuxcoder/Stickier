@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
 
 type FlowStage = "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
 
@@ -12,6 +13,27 @@ export function SiteFooter() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [observedStudioFlowStage, setIsStudioFlowStage] = useState(false);
   const isStudioFlowStage = pathname === "/" && observedStudioFlowStage;
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN || !process.env.NEXT_PUBLIC_POSTHOG_HOST) return;
+
+    let cancelled = false;
+    void fetch("/api/auth/session")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { user?: { id?: unknown; email?: unknown; displayName?: unknown } } | null) => {
+        if (cancelled || typeof data?.user?.id !== "string" || !data.user.id) return;
+
+        posthog.identify(data.user.id, {
+          ...(typeof data.user.email === "string" ? { email: data.user.email } : {}),
+          ...(typeof data.user.displayName === "string" ? { name: data.user.displayName } : {}),
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (pathname !== "/") return;

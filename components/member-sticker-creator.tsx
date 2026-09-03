@@ -4,6 +4,7 @@ import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Sparkles, Trash2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
+import posthog from "posthog-js";
 
 type CreatorStage = "photos" | "details" | "mood" | "generating";
 
@@ -133,6 +134,13 @@ export function MemberStickerCreator({ open, onOpenChange, onCreated }: MemberSt
       });
       const data = (await response.json()) as { jobId?: string; error?: string };
       if (!response.ok || !data.jobId) throw new Error(data.error || "Unable to start generation.");
+
+      if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+        posthog.capture("member_sticker_generation_requested", {
+          photo_count: photos.length,
+          mood_count: moods.length,
+        });
+      }
 
       let attempts = 0;
       const poll = async () => {

@@ -10,7 +10,7 @@ import {
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { automaticTaxEnabled, getStripe } from "@/lib/stripe";
 import { subscriptionRequestSchema } from "@/lib/validation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, gt } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const user = await getSessionUser(request);
@@ -26,6 +26,29 @@ export async function POST(request: Request) {
     .limit(1);
   if (activeMembership[0]) {
     return Response.json({ error: "Your Sticker Club membership is already active." }, { status: 409 });
+  }
+
+  // Check for canceled subscriptions that are still valid (haven't reached period end yet)
+  const now = Math.floor(Date.now() / 1000); // Convert to seconds for comparison with currentPeriodEnd
+  const pendingCancelation = await getDb()
+    .select({ currentPeriodEnd: subscriptions.currentPeriodEnd })
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.userId, user.id),
+        eq(subscriptions.status, "canceled"),
+        gt(subscriptions.currentPeriodEnd, now),
+      ),
+    )
+    .limit(1);
+
+  if (pendingCancelation[0]) {
+    const endDate = new Date((pendingCancelation[0].currentPeriodEnd || 0) * 1000);
+    const formattedDate = endDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    return Response.json(
+      { resumable: true, endDate: formattedDate, message: `Your membership is still active through ${formattedDate} and can be resumed.` },
+      { status: 409 },
+    );
   }
 
   const hourly = await consumeRateLimit(rateLimiters().checkout, `checkout:${await hashIp(request)}`, CHECKOUT_HOURLY_CAP, 60 * 60 * 1000);
