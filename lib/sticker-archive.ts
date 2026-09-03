@@ -14,7 +14,7 @@ const PRINT_HEIGHT = 1800;
 const PIXELS_PER_METRE_300_DPI = 11811;
 
 export function downloadArchiveKey(imageKey: string) {
-  return imageKey.replace(/^stickers\//, "downloads/print-v2/").replace(/\.png$/i, ".zip");
+  return imageKey.replace(/^stickers\//, "downloads/print-v3/").replace(/\.png$/i, ".zip");
 }
 
 export function legacyDownloadArchiveKey(imageKey: string) {
@@ -120,9 +120,6 @@ function add300DpiMetadata(png: Uint8Array) {
  * sticker's silhouette.
  */
 function clearBackground(rgba: Uint8Array, width: number, height: number) {
-  const alreadyTransparent = rgba.some((value, index) => index % 4 === 3 && value < 255);
-  if (alreadyTransparent) return;
-
   // Clearing a pixel's alpha also marks it visited, and the fill walks whole
   // scanlines at a time, so the stack only ever holds one entry per run of
   // background rather than one per pixel. A per-pixel queue would be tens of
@@ -376,7 +373,7 @@ export function makeSheetTransparent(source: Buffer) {
   return Buffer.from(encodePng({ width, height, data: rgba, channels: 4, depth: 8 }));
 }
 
-function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRadius: number) {
+function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRadius: number, includeDownloadPadding: boolean) {
   const tileWidth = Math.max(1, Math.floor(width / 3));
   const tileHeight = Math.max(1, Math.floor(height / 4));
   const cells = [
@@ -391,25 +388,32 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
     { row: 2, col: 2 },
     { row: 3, col: 1 },
   ];
+  const overlap = includeDownloadPadding ? Math.round(Math.min(tileWidth, tileHeight) * 0.05) : 0;
 
   return cells.map((cell, index) => {
-    const x = Math.min(width - tileWidth, cell.col * tileWidth);
-    const y = Math.min(height - tileHeight, cell.row * tileHeight);
-    const output = new Uint8Array(tileWidth * tileHeight * 4);
+    const left = Math.max(0, cell.col * tileWidth - overlap);
+    const top = Math.max(0, cell.row * tileHeight - overlap);
+    const right = Math.min(width, (cell.col + 1) * tileWidth + overlap);
+    const bottom = Math.min(height, (cell.row + 1) * tileHeight + overlap);
+    const outputWidth = right - left;
+    const outputHeight = bottom - top;
+    const output = new Uint8Array(outputWidth * outputHeight * 4);
 
-    for (let row = 0; row < tileHeight; row++) {
-      const sourceStart = ((y + row) * width + x) * 4;
-      output.set(rgba.subarray(sourceStart, sourceStart + tileWidth * 4), row * tileWidth * 4);
+    for (let row = 0; row < outputHeight; row++) {
+      const sourceStart = ((top + row) * width + left) * 4;
+      output.set(rgba.subarray(sourceStart, sourceStart + outputWidth * 4), row * outputWidth * 4);
     }
 
     // Each tile gets its own border after it has been isolated, so a neighbour's
     // border can never dilate across the gutter into this sticker's file.
-    removeIntrudingArtwork(output, tileWidth, tileHeight);
-    const trimmed = trimToArtwork(output, tileWidth, tileHeight, borderRadius + 2);
+    removeIntrudingArtwork(output, outputWidth, outputHeight);
+    const trimmed = trimToArtwork(output, outputWidth, outputHeight, borderRadius + 2);
     addDieCutBorder(trimmed.pixels, trimmed.width, trimmed.height, borderRadius);
     
     // Add transparent padding around the sticker for downloads.
-    const padded = addTransparentPadding(trimmed.pixels, trimmed.width, trimmed.height, 5);
+    const padded = includeDownloadPadding
+      ? addTransparentPadding(trimmed.pixels, trimmed.width, trimmed.height, 5)
+      : trimmed;
 
     return {
       name: `sticker-${String(index + 1).padStart(2, "0")}.png`,
@@ -423,7 +427,7 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
 export function buildStickerTiles(sheet: Buffer) {
   const { width, height, rgba } = decodeRgba(sheet);
   clearBackground(rgba, width, height);
-  return tilesFromRgba(width, height, rgba, borderRadiusFor(width, height));
+  return tilesFromRgba(width, height, rgba, borderRadiusFor(width, height), false);
 }
 
 /**
@@ -431,7 +435,7 @@ export function buildStickerTiles(sheet: Buffer) {
  * every tile. Print-resolution sheets are several megapixels, so a second decode
  * would risk the Worker memory limit.
  */
-export async function buildPrintAssets(source: Buffer) {
+export async function buildPrintAssets(source: Buffer, includeDownloadPadding = false) {
   const decoded = decodeRgba(source);
   const width = PRINT_WIDTH;
   const height = PRINT_HEIGHT;
@@ -441,7 +445,7 @@ export async function buildPrintAssets(source: Buffer) {
 
   const zip = new JSZip();
   // Tiles are cut before the sheet is dilated so each one borders itself.
-  for (const tile of tilesFromRgba(width, height, rgba, borderRadius)) zip.file(tile.name, tile.buffer);
+  for (const tile of tilesFromRgba(width, height, rgba, borderRadius, includeDownloadPadding)) zip.file(tile.name, tile.buffer);
 
   addDieCutBorder(rgba, width, height, borderRadius);
   const printSheet = Buffer.from(add300DpiMetadata(encodePng({ width, height, data: rgba, channels: 4, depth: 8 })));
@@ -453,5 +457,5 @@ export async function buildPrintAssets(source: Buffer) {
 }
 
 export async function buildDownloadArchive(source: Buffer) {
-  return (await buildPrintAssets(source)).archive;
+  return (await buildPrintAssets(source, true)).archive;
 }

@@ -93,7 +93,7 @@ export async function GET(request: Request) {
     if (!image?.body) return new Response("Download unavailable", { status: 404 });
 
     const sheetBuffer = Buffer.from(await image.arrayBuffer());
-    const { archive, printSheet } = await buildPrintAssets(sheetBuffer);
+    const { archive, printSheet } = await buildPrintAssets(sheetBuffer, true);
     await Promise.all([
       bucket.put(downloadArchiveKey(resolvedKey), archive, {
         httpMetadata: { contentType: "application/zip" },
