@@ -345,24 +345,16 @@ function trimToArtwork(pixels: Uint8Array, width: number, height: number, paddin
 }
 
 /**
- * Add white padding around a sticker image for downloads.
- * Ensures downloaded stickers have white space around each side.
+ * Add transparent padding around a sticker image for downloads.
+ * Keeps the downloaded sticker's transparent background intact.
  */
-function addWhitePadding(pixels: Uint8Array, width: number, height: number, paddingPixels: number) {
+function addTransparentPadding(pixels: Uint8Array, width: number, height: number, paddingPixels: number) {
   if (paddingPixels <= 0) return { width, height, pixels };
-  
+
   const paddedWidth = width + (paddingPixels * 2);
   const paddedHeight = height + (paddingPixels * 2);
   const padded = new Uint8Array(paddedWidth * paddedHeight * 4);
-  
-  // Fill with white (255, 255, 255, 255)
-  for (let i = 0; i < padded.length; i += 4) {
-    padded[i] = 255;     // R
-    padded[i + 1] = 255; // G
-    padded[i + 2] = 255; // B
-    padded[i + 3] = 255; // A
-  }
-  
+
   // Copy the original image into the center
   for (let y = 0; y < height; y++) {
     const sourceStart = y * width * 4;
@@ -416,8 +408,8 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
     const trimmed = trimToArtwork(output, tileWidth, tileHeight, borderRadius + 2);
     addDieCutBorder(trimmed.pixels, trimmed.width, trimmed.height, borderRadius);
     
-    // Add white padding around the sticker for downloads
-    const padded = addWhitePadding(trimmed.pixels, trimmed.width, trimmed.height, 20);
+    // Add transparent padding around the sticker for downloads.
+    const padded = addTransparentPadding(trimmed.pixels, trimmed.width, trimmed.height, 5);
 
     return {
       name: `sticker-${String(index + 1).padStart(2, "0")}.png`,

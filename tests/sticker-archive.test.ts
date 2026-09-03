@@ -74,6 +74,7 @@ test("download archive contains a transparent sheet and ten stickers", async () 
       true,
       `${name} should contain artwork`
     );
+    assert.equal(tile.data[3], 0, `${name} should have transparent padding`);
   }
 });
 
