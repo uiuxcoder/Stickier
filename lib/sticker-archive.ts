@@ -14,7 +14,7 @@ const PRINT_HEIGHT = 1800;
 const PIXELS_PER_METRE_300_DPI = 11811;
 
 export function downloadArchiveKey(imageKey: string) {
-  return imageKey.replace(/^stickers\//, "downloads/print-v4/").replace(/\.png$/i, ".zip");
+  return imageKey.replace(/^stickers\//, "downloads/print-v5/").replace(/\.png$/i, ".zip");
 }
 
 export function legacyDownloadArchiveKey(imageKey: string) {
@@ -388,13 +388,14 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
     { row: 2, col: 2 },
     { row: 3, col: 1 },
   ];
-  const overlap = includeDownloadPadding ? Math.round(Math.min(tileWidth, tileHeight) * 0.12) : 0;
+  const overlapX = includeDownloadPadding ? Math.round(tileWidth * 0.12) : 0;
+  const overlapY = includeDownloadPadding ? Math.round(tileHeight * 0.12) : 0;
 
   return cells.map((cell, index) => {
-    const left = Math.max(0, cell.col * tileWidth - overlap);
-    const top = Math.max(0, cell.row * tileHeight - overlap);
-    const right = Math.min(width, (cell.col + 1) * tileWidth + overlap);
-    const bottom = Math.min(height, (cell.row + 1) * tileHeight + overlap);
+    const left = Math.max(0, cell.col * tileWidth - overlapX);
+    const top = Math.max(0, cell.row * tileHeight - overlapY);
+    const right = Math.min(width, (cell.col + 1) * tileWidth + overlapX);
+    const bottom = Math.min(height, (cell.row + 1) * tileHeight + overlapY);
     const outputWidth = right - left;
     const outputHeight = bottom - top;
     const output = new Uint8Array(outputWidth * outputHeight * 4);

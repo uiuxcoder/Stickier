@@ -63,7 +63,7 @@ async function ensurePrintAssets(imageKey: string) {
   if (await bucket.head(printSheetKey(imageKey))) return;
   const source = await bucket.get(imageKey);
   if (!source) throw new Error(`Sticker source is missing: ${imageKey}`);
-  const { archive, printSheet } = await buildPrintAssets(Buffer.from(await source.arrayBuffer()));
+  const { archive, printSheet } = await buildPrintAssets(Buffer.from(await source.arrayBuffer()), true);
   await Promise.all([
     bucket.put(downloadArchiveKey(imageKey), archive, {
       httpMetadata: { contentType: "application/zip" },
