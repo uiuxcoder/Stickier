@@ -344,6 +344,35 @@ function trimToArtwork(pixels: Uint8Array, width: number, height: number, paddin
   return { width: cropWidth, height: cropHeight, pixels: cropped };
 }
 
+/**
+ * Add white padding around a sticker image for downloads.
+ * Ensures downloaded stickers have white space around each side.
+ */
+function addWhitePadding(pixels: Uint8Array, width: number, height: number, paddingPixels: number) {
+  if (paddingPixels <= 0) return { width, height, pixels };
+  
+  const paddedWidth = width + (paddingPixels * 2);
+  const paddedHeight = height + (paddingPixels * 2);
+  const padded = new Uint8Array(paddedWidth * paddedHeight * 4);
+  
+  // Fill with white (255, 255, 255, 255)
+  for (let i = 0; i < padded.length; i += 4) {
+    padded[i] = 255;     // R
+    padded[i + 1] = 255; // G
+    padded[i + 2] = 255; // B
+    padded[i + 3] = 255; // A
+  }
+  
+  // Copy the original image into the center
+  for (let y = 0; y < height; y++) {
+    const sourceStart = y * width * 4;
+    const destStart = ((y + paddingPixels) * paddedWidth + paddingPixels) * 4;
+    padded.set(pixels.subarray(sourceStart, sourceStart + width * 4), destStart);
+  }
+  
+  return { width: paddedWidth, height: paddedHeight, pixels: padded };
+}
+
 function borderRadiusFor(width: number, height: number) {
   return Math.round(Math.min(width, height) * BORDER_RATIO);
 }
@@ -386,11 +415,14 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
     removeIntrudingArtwork(output, tileWidth, tileHeight);
     const trimmed = trimToArtwork(output, tileWidth, tileHeight, borderRadius + 2);
     addDieCutBorder(trimmed.pixels, trimmed.width, trimmed.height, borderRadius);
+    
+    // Add white padding around the sticker for downloads
+    const padded = addWhitePadding(trimmed.pixels, trimmed.width, trimmed.height, 20);
 
     return {
       name: `sticker-${String(index + 1).padStart(2, "0")}.png`,
       buffer: Buffer.from(
-        encodePng({ width: trimmed.width, height: trimmed.height, data: trimmed.pixels, channels: 4, depth: 8 })
+        encodePng({ width: padded.width, height: padded.height, data: padded.pixels, channels: 4, depth: 8 })
       ),
     };
   });
