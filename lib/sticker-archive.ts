@@ -14,7 +14,7 @@ const PRINT_HEIGHT = 1800;
 const PIXELS_PER_METRE_300_DPI = 11811;
 
 export function downloadArchiveKey(imageKey: string) {
-  return imageKey.replace(/^stickers\//, "downloads/print-v3/").replace(/\.png$/i, ".zip");
+  return imageKey.replace(/^stickers\//, "downloads/print-v4/").replace(/\.png$/i, ".zip");
 }
 
 export function legacyDownloadArchiveKey(imageKey: string) {
@@ -388,7 +388,7 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
     { row: 2, col: 2 },
     { row: 3, col: 1 },
   ];
-  const overlap = includeDownloadPadding ? Math.round(Math.min(tileWidth, tileHeight) * 0.05) : 0;
+  const overlap = includeDownloadPadding ? Math.round(Math.min(tileWidth, tileHeight) * 0.12) : 0;
 
   return cells.map((cell, index) => {
     const left = Math.max(0, cell.col * tileWidth - overlap);
@@ -412,7 +412,7 @@ function tilesFromRgba(width: number, height: number, rgba: Uint8Array, borderRa
     
     // Add transparent padding around the sticker for downloads.
     const padded = includeDownloadPadding
-      ? addTransparentPadding(trimmed.pixels, trimmed.width, trimmed.height, 5)
+      ? addTransparentPadding(trimmed.pixels, trimmed.width, trimmed.height, 20)
       : trimmed;
 
     return {

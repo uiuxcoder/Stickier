@@ -6,7 +6,7 @@ import JSZip from "jszip";
 import { buildDownloadArchive, buildPrintAssets, buildStickerTiles, downloadArchiveKey, legacyDownloadArchiveKey, printSheetKey } from "../lib/sticker-archive.ts";
 
 test("maps generated sticker images to stored download archives", () => {
-  assert.equal(downloadArchiveKey("stickers/example.png"), "downloads/print-v3/example.zip");
+  assert.equal(downloadArchiveKey("stickers/example.png"), "downloads/print-v4/example.zip");
   assert.equal(legacyDownloadArchiveKey("stickers/example.png"), "downloads/example.zip");
   assert.equal(printSheetKey("stickers/example.png"), "prints/example.png");
 });
