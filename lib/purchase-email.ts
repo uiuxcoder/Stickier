@@ -74,15 +74,15 @@ export async function sendPurchaseEmail(session: Stripe.Checkout.Session, email:
   });
   if (customer.error) throw new Error(customer.error.message);
 
-  const kind = purchaseEmailKind(session);
   const imageKey = session.metadata?.imageKey;
-  if ((kind === "physical" || kind === "membership-with-stickers") && imageKey) {
-    const fulfillment = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
-      to: process.env.FULFILLMENT_EMAIL || "support@saltysticker.com",
-      subject: `Fulfill Salty Sticker order ${session.id}`,
-      html: `<h1>New physical sticker order</h1><p>Customer: ${email}</p><p>Print asset: ${printSheetKey(imageKey)}</p>`,
-    });
-    if (fulfillment.error) console.error("Fulfillment email failed", session.id, fulfillment.error.message);
-  }
+  const fulfillmentDetails = imageKey
+    ? `<p>Sticker sheet: ${printSheetKey(imageKey)}</p>`
+    : "<p>No sticker sheet was selected yet.</p>";
+  const fulfillment = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
+    to: process.env.FULFILLMENT_EMAIL || "stickerstripepayments@gmail.com",
+    subject: `Fulfill Salty Sticker ${purchaseEmailKind(session)} ${session.id}`,
+    html: `<h1>New Salty Sticker ${purchaseEmailKind(session)}</h1><p>Customer: ${email}</p>${fulfillmentDetails}`,
+  });
+  if (fulfillment.error) console.error("Fulfillment email failed", session.id, fulfillment.error.message);
 }
