@@ -28,7 +28,7 @@ export async function sendDropSubmittedEmails(notification: DropNotification) {
   const stickers = notification.stickerIds
     .map((id) => `<li>${escapeHtml(printSheetKey(id))}</li>`)
     .join("");
-  const fulfillmentEmail = process.env.FULFILLMENT_EMAIL || "support@saltysticker.com";
+  const fulfillmentEmail = process.env.FULFILLMENT_EMAIL || "stickerstripepayments@gmail.com";
   const [customer, fulfillment] = await Promise.all([
     resend.emails.send({
       from,
