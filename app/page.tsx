@@ -83,7 +83,7 @@ async function readCheckoutResponse(response: Response): Promise<{url?:string;er
 // on a square canvas with an even white border standing in for the die-cut
 // outline. This mirrors the download pipeline so the preview shows what the
 // customer receives.
-function centerStickerArtwork(cell: HTMLCanvasElement, outputSize = 0): string {
+function centerStickerArtwork(cell: HTMLCanvasElement, outputSize = 0, keepInteriorComponents = true): string {
   const context = cell.getContext("2d", { willReadFrequently: true });
   if (!context) return cell.toDataURL("image/png");
   const width = cell.width;
@@ -141,7 +141,7 @@ function centerStickerArtwork(cell: HTMLCanvasElement, outputSize = 0): string {
   // sticker itself plus any interior piece big enough not to be resampling
   // speckle, and drop everything that reaches an edge.
   const minInteriorSize = Math.max(8, sizes[largest] * 0.005);
-  const kept = sizes.map((size, index) => index === largest || (!touchesEdge[index] && size >= minInteriorSize));
+  const kept = sizes.map((size, index) => index === largest || (keepInteriorComponents && !touchesEdge[index] && size >= minInteriorSize));
 
   let top = height;
   let left = width;
@@ -313,7 +313,7 @@ export default function Home(){
         cell.width=Math.ceil(sourceRight-sourceX);
         cell.height=Math.ceil(sourceBottom-sourceY);
         context.drawImage(image,sourceX,sourceY,sourceRight-sourceX,sourceBottom-sourceY,0,0,cell.width,cell.height);
-        slices.push(centerStickerArtwork(cell, Math.ceil(Math.max(cellWidth,cellHeight)*1.4)));
+        slices.push(centerStickerArtwork(cell, Math.ceil(Math.max(cellWidth,cellHeight)*1.15), false));
       }
       if(!cancelled){setGeneratedSlices(slices);setGeneratedSlicesSource(generatedImage)};
     };
