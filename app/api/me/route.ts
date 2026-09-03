@@ -24,7 +24,6 @@ export async function GET(request: Request) {
       isActiveMember = liveSubscriptions.data.length > 0;
     } catch (error) {
       console.error("Active membership verification failed", error);
-      isActiveMember = false;
     }
   }
   return Response.json({
