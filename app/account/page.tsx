@@ -32,7 +32,11 @@ export default async function AccountPage() {
         .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
         .orderBy(desc(subscriptions.createdAt))
         .limit(1),
-      db.select().from(generations).where(eq(generations.userId, user.id)).orderBy(desc(generations.createdAt)),
+      db
+        .select()
+        .from(generations)
+        .where(or(eq(generations.userId, user.id), eq(generations.email, user.email)))
+        .orderBy(desc(generations.createdAt)),
       db.select().from(membershipDrops).where(eq(membershipDrops.userId, user.id)).orderBy(desc(membershipDrops.submittedAt)),
     ]);
 
@@ -45,6 +49,11 @@ export default async function AccountPage() {
       imageUrl: `/api/preview-stickers?key=${encodeURIComponent(generation.imageKey)}`,
       createdAt: generation.createdAt,
     }));
+    await Promise.all(
+      allGenerations
+        .filter((generation) => generation.userId !== user.id && generation.email === user.email)
+        .map((generation) => db.update(generations).set({ userId: user.id }).where(eq(generations.imageKey, generation.imageKey))),
+    );
     drops = allDrops.flatMap((drop) => {
       let stickerIds: unknown;
       try {

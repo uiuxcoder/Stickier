@@ -24,5 +24,5 @@ export default async function SignInPage({
             : params.error === "google_failed"
               ? "Google could not sign you in. Please try again or use email and password."
       : undefined;
-  return <AuthForm mode="signin" notice={notice} returnTo={safeRelativeReturnPath(params.return_to)} />;
+  return <AuthForm mode="signin" notice={notice} returnTo={safeRelativeReturnPath(params.return_to || "/account")} />;
 }
