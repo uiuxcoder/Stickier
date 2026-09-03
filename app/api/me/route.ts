@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const activeMembership = await getDb()
     .select({ id: subscriptions.stripeSubscriptionId })
     .from(subscriptions)
-    .where(and(eq(subscriptions.userId, user.id), inArray(subscriptions.status, ["active", "trialing"])))
+    .where(and(eq(subscriptions.userId, user.id), eq(subscriptions.status, "active")))
     .limit(1);
   return Response.json({
     user: { id: user.id, email: user.email, displayName: user.displayName },
