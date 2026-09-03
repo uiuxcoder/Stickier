@@ -21,6 +21,8 @@ export const subscriptions = sqliteTable(
     email: text("email").notNull(),
     status: text("status").notNull(),
     currentPeriodEnd: integer("current_period_end"),
+    renewalReminder3SentAt: integer("renewal_reminder_3_sent_at"),
+    renewalReminder1SentAt: integer("renewal_reminder_1_sent_at"),
     createdAt: integer("created_at").notNull(),
   },
   (table) => [

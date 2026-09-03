@@ -487,6 +487,7 @@ nav{height:88px;padding:0 var(--space-10)}
 
 .club-membership-overview{min-height:242px;padding:46px 6vw 42px;display:grid;grid-template-columns:minmax(390px,1.35fr) minmax(430px,1fr);align-items:center;gap:34px;border-bottom:1.5px solid #171715}
 .club-membership-title{display:grid;justify-items:start;gap:16px}
+.club-membership-status{display:flex;align-items:center;gap:14px}
 .club-membership-title h1{font-size:56px;line-height:.9;white-space:nowrap}
 .club-membership-title h1 span{color:#2866f1;font-family:Arial,sans-serif;font-size:.72em}
 .club-active-badge,.club-inactive-badge{padding:8px 11px;border:1px solid #171715;font:900 8px/1 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
@@ -1039,6 +1040,7 @@ body:has(.shell.photos),body:has(.shell.details),body:has(.shell.mood){margin:0!
 .account-v2-main{max-width:1110px;margin:0 auto;padding:46px 34px 56px}
 .account-v2-membership-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.8fr);gap:42px;align-items:end;padding-bottom:36px;border-bottom:1px solid var(--account-v2-line)}
 .account-v2-kicker{margin:0 0 10px;font-size:10px;line-height:1;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+.account-v2-kicker button{margin-left:14px;padding:0;border:0;border-bottom:1px solid currentColor;background:transparent;color:inherit;font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
 .account-v2-kicker>span{display:inline-block;width:7px;height:7px;margin:0 7px 1px 0;border:1px solid var(--account-v2-line);border-radius:50%;background:var(--account-v2-positive)}
 .account-v2-membership-row h1{max-width:690px;margin:0;font:400 clamp(42px,6.5vw,72px)/.96 Georgia,"Times New Roman",serif;letter-spacing:-.05em}
 .account-v2-intro{max-width:590px;margin:17px 0 0;color:var(--account-v2-muted);font-size:16px;line-height:1.45}

@@ -49,3 +49,20 @@ export async function sendDropSubmittedEmails(notification: DropNotification) {
   if (error) return { ok: false as const, error };
   return { ok: true as const };
 }
+
+export async function sendRenewalReminderEmail(notification: { customerEmail: string; customerName?: string | null; daysUntilRenewal: 3 | 1; renewalDate: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) return { ok: false as const, error: "Email is not configured." };
+
+  const resend = new Resend(apiKey);
+  const greeting = notification.customerName ? ` ${escapeHtml(notification.customerName)}` : "";
+  const result = await resend.emails.send({
+    from,
+    to: notification.customerEmail,
+    subject: `Your Sticker Club subscription renews in ${notification.daysUntilRenewal} day${notification.daysUntilRenewal === 1 ? "" : "s"}`,
+    html: `<h1>Hi${greeting}, your Sticker Club subscription is renewing soon.</h1><p>Your subscription renews on ${escapeHtml(notification.renewalDate)}.</p><p>Your monthly allowance will reset and you can choose two sticker sheets to mail to you.</p>`,
+  });
+  if (result.error?.message) return { ok: false as const, error: result.error.message };
+  return { ok: true as const };
+}

@@ -2,6 +2,10 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { processGenerationJob, type GenerationJobMessage } from "@/lib/generation-worker";
+import { and, eq, gt, inArray, isNull, lt } from "drizzle-orm";
+import { getDb } from "@/db";
+import { subscriptions, users } from "@/db/schema";
+import { sendRenewalReminderEmail } from "@/lib/fulfillment-email";
 
 interface Env {
   ASSETS: Fetcher;
@@ -24,6 +28,48 @@ interface Env {
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function sendRenewalReminders() {
+  const now = Date.now();
+  const db = getDb();
+  const activeSubscriptions = await db
+    .select({
+      id: subscriptions.stripeSubscriptionId,
+      email: subscriptions.email,
+      userId: subscriptions.userId,
+      currentPeriodEnd: subscriptions.currentPeriodEnd,
+      reminder3SentAt: subscriptions.renewalReminder3SentAt,
+      reminder1SentAt: subscriptions.renewalReminder1SentAt,
+    })
+    .from(subscriptions)
+    .where(and(inArray(subscriptions.status, ["active", "trialing"]), gt(subscriptions.currentPeriodEnd, Math.floor(now / 1000))))
+    .all();
+
+  for (const subscription of activeSubscriptions) {
+    if (!subscription.currentPeriodEnd) continue;
+    const periodEndMs = subscription.currentPeriodEnd * 1000;
+    const daysUntilRenewal = periodEndMs - now <= 1 * DAY_MS ? 1 : periodEndMs - now <= 3 * DAY_MS ? 3 : null;
+    if (!daysUntilRenewal) continue;
+    const sentAt = daysUntilRenewal === 1 ? subscription.reminder1SentAt : subscription.reminder3SentAt;
+    if (sentAt) continue;
+    const claimed = daysUntilRenewal === 1
+      ? await db.update(subscriptions).set({ renewalReminder1SentAt: now }).where(and(eq(subscriptions.stripeSubscriptionId, subscription.id), isNull(subscriptions.renewalReminder1SentAt))).returning({ id: subscriptions.stripeSubscriptionId })
+      : await db.update(subscriptions).set({ renewalReminder3SentAt: now }).where(and(eq(subscriptions.stripeSubscriptionId, subscription.id), isNull(subscriptions.renewalReminder3SentAt))).returning({ id: subscriptions.stripeSubscriptionId });
+    if (!claimed[0]) continue;
+    const profile = subscription.userId
+      ? await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, subscription.userId)).limit(1)
+      : [];
+    const notification = await sendRenewalReminderEmail({
+      customerEmail: subscription.email,
+      customerName: profile[0]?.fullName,
+      daysUntilRenewal,
+      renewalDate: new Date(periodEndMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }),
+    });
+    if (!notification.ok) console.error("Renewal reminder failed", subscription.id, notification.error);
+  }
 }
 
 // The app is embedded by ChatGPT/Apps SDK hosts, so it must not send a blanket
@@ -67,6 +113,10 @@ const worker = {
         message.retry();
       }
     }
+  },
+
+  async scheduled(_event: ScheduledEvent, _env: Env, _ctx: ExecutionContext): Promise<void> {
+    await sendRenewalReminders();
   },
 };
 

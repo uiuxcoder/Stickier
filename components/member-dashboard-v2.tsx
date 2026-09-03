@@ -197,7 +197,6 @@ export function MemberDashboardV2({
           SALTY STICKER<sup>TM</sup>
         </Link>
         <nav className="account-v2-topnav" aria-label="Account navigation">
-          <button type="button" onClick={() => setHowItWorksOpen(true)}>How it works</button>
           <a href="mailto:hello@saltysticker.com">Help</a>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -222,6 +221,7 @@ export function MemberDashboardV2({
           <div>
             <p className="account-v2-kicker">
               <span aria-hidden="true" /> Sticker Club · {isActive ? "Active" : "Inactive"}
+              <button type="button" onClick={() => setHowItWorksOpen(true)}>How it works</button>
             </p>
             <h1>Your {thisMonthLabel} picks.</h1>
             <p className="account-v2-intro">
@@ -389,7 +389,7 @@ export function MemberDashboardV2({
           <div className="account-v2-how-steps">
             <article><strong>1</strong><div><h3>Create</h3><p>Make up to {MONTHLY_CREATIONS} sticker sheets this month.</p></div></article>
             <article><strong>2</strong><div><h3>Choose {MONTHLY_PRINTS}</h3><p>Select your favorite sheets for this month’s shipment.</p></div></article>
-            <article><strong>3</strong><div><h3>Review &amp; ship</h3><p>Confirm your picks and shipping address.</p></div></article>
+            <article><strong>3</strong><div><h3>Ship</h3><p>When all {MONTHLY_PRINTS} are selected, submit them and we&apos;ll mail them to you.</p></div></article>
           </div>
         </DialogContent>
       </Dialog>

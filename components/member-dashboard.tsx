@@ -141,7 +141,6 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
           SALTY STICKER<sup>TM</sup>
         </Link>
         <div className="club-menu" aria-label="Account menu">
-          <button type="button" className="club-how-trigger" onClick={() => setHowItWorksOpen(true)}>How it works</button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className="club-manage-trigger">Manage Membership <ChevronDown size={13} /></button>
@@ -164,9 +163,12 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
         <div className="club-membership-title">
           <p className="club-kicker">Your membership</p>
           <h1>Sticker Club <span aria-hidden="true">✦</span></h1>
-          <strong className={isActive ? "club-active-badge" : "club-inactive-badge"}>
-            {isActive ? "Active" : "Inactive"}
-          </strong>
+          <div className="club-membership-status">
+            <strong className={isActive ? "club-active-badge" : "club-inactive-badge"}>
+              {isActive ? "Active" : "Inactive"}
+            </strong>
+            <button type="button" className="club-how-trigger" onClick={() => setHowItWorksOpen(true)}>How it works</button>
+          </div>
         </div>
         {!isActive ? (
           <div className="club-inactive" role="status">
@@ -221,7 +223,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
           <div className="club-sticker-grid">
             {stickers.map((sticker) => {
               const isSelected = selectedIds.includes(sticker.id) || submittedIds.includes(sticker.id);
-              const lockedBySubmission = submittedIds.length === 3 && !submittedIds.includes(sticker.id);
+              const lockedBySubmission = submittedIds.length === 2 && !submittedIds.includes(sticker.id);
               return (
                 <article className="club-sticker-card" key={sticker.id}>
                   <a
@@ -240,7 +242,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
                       type="button"
                       className={isSelected ? "selected" : ""}
                       onClick={() => toggleSelected(sticker.id)}
-                      disabled={lockedBySubmission || (!isSelected && selectedIds.length >= 3) || !canPickForDrop}
+                      disabled={lockedBySubmission || (!isSelected && selectedIds.length >= 2) || !canPickForDrop}
                     >
                       {isSelected ? (
                         <>
@@ -294,7 +296,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
           <div className="club-how-steps">
             <article><strong>1</strong><div><h3>Make</h3><p>Create up to 20 sticker sheets this month.</p></div></article>
             <article><strong>2</strong><div><h3>Pick</h3><p>Select your favorite 2 from Your Creations.</p></div></article>
-            <article><strong>3</strong><div><h3>Ship</h3><p>When all 3 are selected, submit them and we&apos;ll mail them to you.</p></div></article>
+            <article><strong>3</strong><div><h3>Ship</h3><p>When all 2 are selected, submit them and we&apos;ll mail them to you.</p></div></article>
           </div>
         </DialogContent>
       </Dialog>

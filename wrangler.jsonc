@@ -60,6 +60,9 @@
       }
     ]
   },
+  "triggers": {
+    "crons": ["0 9 * * *"]
+  },
   "routes": [
     { "pattern": "saltysticker.com", "custom_domain": true },
     { "pattern": "www.saltysticker.com", "custom_domain": true }
