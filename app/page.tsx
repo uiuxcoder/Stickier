@@ -83,7 +83,7 @@ async function readCheckoutResponse(response: Response): Promise<{url?:string;er
 // on a square canvas with an even white border standing in for the die-cut
 // outline. This mirrors the download pipeline so the preview shows what the
 // customer receives.
-function centerStickerArtwork(cell: HTMLCanvasElement): string {
+function centerStickerArtwork(cell: HTMLCanvasElement, outputSize = 0): string {
   const context = cell.getContext("2d", { willReadFrequently: true });
   if (!context) return cell.toDataURL("image/png");
   const width = cell.width;
@@ -170,7 +170,7 @@ function centerStickerArtwork(cell: HTMLCanvasElement): string {
   const artWidth = right - left + 1;
   const artHeight = bottom - top + 1;
   const margin = Math.max(10, Math.round(Math.max(artWidth, artHeight) * 0.09));
-  const size = Math.max(artWidth, artHeight) + margin * 2;
+  const size = Math.max(outputSize, Math.max(artWidth, artHeight) + margin * 2);
   const square = document.createElement("canvas");
   square.width = size;
   square.height = size;
@@ -313,7 +313,7 @@ export default function Home(){
         cell.width=Math.ceil(sourceRight-sourceX);
         cell.height=Math.ceil(sourceBottom-sourceY);
         context.drawImage(image,sourceX,sourceY,sourceRight-sourceX,sourceBottom-sourceY,0,0,cell.width,cell.height);
-        slices.push(centerStickerArtwork(cell));
+        slices.push(centerStickerArtwork(cell, Math.ceil(Math.max(cellWidth,cellHeight)*1.4)));
       }
       if(!cancelled){setGeneratedSlices(slices);setGeneratedSlicesSource(generatedImage)};
     };
