@@ -304,9 +304,15 @@ export default function Home(){
       for(let index=0;index<10;index++){
         const column=index===9?1:index%3;
         const row=Math.floor(index/3);
-        cell.width=Math.ceil(cellWidth);
-        cell.height=Math.ceil(cellHeight);
-        context.drawImage(image,column*cellWidth,row*cellHeight,cellWidth,cellHeight,0,0,cell.width,cell.height);
+        const gutterX=cellWidth*.14;
+        const gutterY=cellHeight*.14;
+        const sourceX=Math.max(0,column*cellWidth-gutterX);
+        const sourceY=Math.max(0,row*cellHeight-gutterY);
+        const sourceRight=Math.min(image.naturalWidth,(column+1)*cellWidth+gutterX);
+        const sourceBottom=Math.min(image.naturalHeight,(row+1)*cellHeight+gutterY);
+        cell.width=Math.ceil(sourceRight-sourceX);
+        cell.height=Math.ceil(sourceBottom-sourceY);
+        context.drawImage(image,sourceX,sourceY,sourceRight-sourceX,sourceBottom-sourceY,0,0,cell.width,cell.height);
         slices.push(centerStickerArtwork(cell));
       }
       if(!cancelled){setGeneratedSlices(slices);setGeneratedSlicesSource(generatedImage)};
