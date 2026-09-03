@@ -40,7 +40,7 @@ export async function sendDropSubmittedEmails(notification: DropNotification) {
       from,
       to: fulfillmentEmail,
       subject: `Fulfill ${notification.monthLabel} Sticker Club drop`,
-      html: `<h1>New Sticker Club drop</h1><p>Customer: ${escapeHtml(notification.customerEmail)}</p><p>${address}</p><ol>${stickers}</ol>`,
+      html: `<h1>New Sticker Club order</h1><p>Order type: Salty Sticker Club monthly order (2 sticker sheets)</p><p>Customer: ${escapeHtml(notification.customerEmail)}</p><p>${address}</p><ol>${stickers}</ol>`,
     }),
   ]);
   const error = customer.error?.message || fulfillment.error?.message;

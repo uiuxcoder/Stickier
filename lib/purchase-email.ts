@@ -12,6 +12,13 @@ export function purchaseEmailKind(session: Stripe.Checkout.Session): PurchaseEma
   return session.metadata?.plan === "physical" ? "physical" : "digital";
 }
 
+function fulfillmentOrderType(kind: PurchaseEmailKind) {
+  if (kind === "digital") return "Digital only";
+  if (kind === "physical") return "Digital + physical";
+  if (kind === "membership-with-stickers") return "Salty Sticker Club membership + first sticker sheet";
+  return "Salty Sticker Club membership";
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",
@@ -83,7 +90,7 @@ export function fulfillmentEmailContent(session: Stripe.Checkout.Session, email:
     : "<p>No shipping address was included with this checkout.</p>";
   return {
     subject: `Fulfill Salty Sticker ${purchaseEmailKind(session)} ${session.id}`,
-    html: `<h1>New Salty Sticker ${purchaseEmailKind(session)}</h1><p>Customer: ${escapeHtml(email)}</p>${shippingDetails}${fulfillmentDetails}`,
+    html: `<h1>New Salty Sticker order</h1><p>Order type: ${fulfillmentOrderType(purchaseEmailKind(session))}</p><p>Customer: ${escapeHtml(email)}</p>${shippingDetails}${fulfillmentDetails}`,
   };
 }
 

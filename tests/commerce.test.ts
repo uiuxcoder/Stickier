@@ -59,6 +59,14 @@ test("classifies and renders purchase confirmation emails", () => {
   } as Stripe.Checkout.Session, "https://saltysticker.com");
   assert.match(physical.html, /123 Sticker Lane/);
   assert.match(physical.html, /api\/preview-stickers\?key=stickers%2F11111111-1111-1111-1111-111111111111\.png/);
+  assert.match(physical.html, /Digital \+ physical/);
+
+  const clubWithFirstSticker = fulfillmentEmailContent(
+    session("subscription", { source: "purchase-modal", imageKey: "stickers/11111111-1111-1111-1111-111111111111.png" }),
+    "ada@example.com",
+    "https://saltysticker.com",
+  );
+  assert.match(clubWithFirstSticker.html, /membership \+ first sticker sheet/);
 });
 
 test("reads Stripe invoice subscription ids from parent details", () => {
