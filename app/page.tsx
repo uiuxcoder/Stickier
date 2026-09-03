@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { LandingV2 } from "@/components/landing-v2";
 import { setLandingVariant, track, trackOnce } from "@/lib/analytics";
 import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
+import posthog from "posthog-js";
 
 type Stage = "home" | "samples" | "photos" | "details" | "mood" | "generating" | "reveal" | "confirmation";
 type Product = "me" | "pet" | "partner" | "family";
@@ -320,8 +321,7 @@ export default function Home(){
     if(!signedIn||!isActiveMember||!generationJobId||!generatedImageKey)return;
     void fetch("/api/generations/claim",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:generationJobId})})
       .then(response=>response.ok?response.json():Promise.reject())
-      .then(()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}window.location.assign("/account")})
-      .catch(()=>undefined);
+      .catch(()=>undefined)
   },[signedIn,isActiveMember,generationJobId,generatedImageKey]);
 
   // Resolve the landing variant before first paint (the boot script in the
@@ -522,7 +522,7 @@ export default function Home(){
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="nav-account-menu">
         <a className="nav-account-menu-item" href="/account">Dashboard</a>
-        <form action="/api/auth/signout" method="post" className="nav-account-signout-form">
+        <form action="/api/auth/signout" method="post" className="nav-account-signout-form" onSubmit={()=>posthog.reset()}>
           <button type="submit" className="nav-account-menu-item nav-account-signout-button">Sign out</button>
         </form>
       </DropdownMenuContent>
