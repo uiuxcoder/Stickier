@@ -46,6 +46,7 @@ export async function POST(request: Request) {
 
   // Reserve quota for signed-in subscribers before doing any work.
   let reservedUserId: string | null = null;
+  let canKeepGeneration = false;
   if (user) {
     const activeSubscription = await db
       .select({ status: subscriptions.status })
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (activeSubscription[0]) {
+      canKeepGeneration = true;
       const updated = await db
         .update(users)
         .set({ regenerationsRemaining: sql`${users.regenerationsRemaining} - 1` })
@@ -114,8 +116,8 @@ export async function POST(request: Request) {
     const now = Date.now();
     await db.insert(generationJobs).values({
       id: jobId,
-      userId: reservedUserId ?? user?.id ?? null,
-      email: user?.email ?? null,
+      userId: canKeepGeneration ? user?.id ?? null : null,
+      email: canKeepGeneration ? user?.email ?? null : null,
       status: "queued",
       inputJson: JSON.stringify(input),
       photoKeys: JSON.stringify(photoKeys),

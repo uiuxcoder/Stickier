@@ -55,7 +55,7 @@ export async function GET(request: Request) {
             })
             .onConflictDoNothing({ target: orders.stripeSessionId });
 
-          await getDb().update(generations).set({ purchasedAt: now, email }).where(eq(generations.imageKey, imageKey));
+          await getDb().update(generations).set({ purchasedAt: now, email, ...(session.metadata?.userId ? { userId: session.metadata.userId } : {}) }).where(eq(generations.imageKey, imageKey));
 
           return Response.json({
             paid: true,

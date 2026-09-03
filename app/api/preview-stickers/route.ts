@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   try {
     const generation = await getDb().select().from(generations).where(eq(generations.imageKey, key)).limit(1);
     if (!generation[0]) return new Response("Preview unavailable", { status: 404 });
-    if (!generation[0].purchasedAt && Date.now() - generation[0].createdAt > 24 * 60 * 60 * 1000) {
+    if (!generation[0].userId && !generation[0].purchasedAt && Date.now() - generation[0].createdAt > 24 * 60 * 60 * 1000) {
       return new Response("Preview unavailable", { status: 404 });
     }
 
