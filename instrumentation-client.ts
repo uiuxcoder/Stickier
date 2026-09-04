@@ -20,6 +20,11 @@ if (!projectToken) {
     api_host: host,
     defaults: "2026-01-30",
     capture_exceptions: true,
+    disable_session_recording: false,
+    session_recording: {
+      maskAllInputs: true,
+      blockAllMedia: true,
+    },
     debug: process.env.NODE_ENV === "development",
   });
 }
