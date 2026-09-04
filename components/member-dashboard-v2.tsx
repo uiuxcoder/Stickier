@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MemberStickerCreator } from "@/components/member-sticker-creator";
+import { StickerDownloadLink } from "@/components/sticker-download-link";
 import posthog from "posthog-js";
 
 type DropStatus = "submitted" | "printing" | "shipped" | "delivered";
@@ -311,7 +312,7 @@ export function MemberDashboardV2({
                         <strong>Sticker sheet {String(stickers.length - index).padStart(2, "0")}</strong>
                         <small>Created {formatStickerDate(sticker.createdAt)}</small>
                       </span>
-                      <a href={`/api/download-stickers?image_key=${encodeURIComponent(sticker.id)}`} download aria-label="Download sticker sheet" title="Download sticker sheet"><Download /></a>
+                      <StickerDownloadLink href={`/api/download-stickers?image_key=${encodeURIComponent(sticker.id)}`} aria-label="Download sticker sheet" title="Download sticker sheet" />
                     </div>
                     <button
                       className="account-v2-select"

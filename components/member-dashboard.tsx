@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MemberStickerCreator } from "@/components/member-sticker-creator";
+import { StickerDownloadLink } from "@/components/sticker-download-link";
 import posthog from "posthog-js";
 
 type DropStatus = "submitted" | "printing" | "shipped" | "delivered";
@@ -226,15 +227,13 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
               const lockedBySubmission = submittedIds.length === 2 && !submittedIds.includes(sticker.id);
               return (
                 <article className="club-sticker-card" key={sticker.id}>
-                  <a
+                  <StickerDownloadLink
                     className="club-download-creation"
                     href={`/api/download-stickers?image_key=${encodeURIComponent(sticker.id)}`}
-                    download
+                    iconSize={16}
                     aria-label="Download creation as ZIP"
                     title="Download creation as ZIP"
-                  >
-                    <Download size={16} />
-                  </a>
+                  />
                   <img src={sticker.imageUrl} alt="Sticker creation preview" />
                   <div>
                     <p>{formatStickerDate(sticker.createdAt)}</p>

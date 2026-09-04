@@ -62,16 +62,26 @@ export async function verifyGoogleOAuthState(token: string, secret: string, now 
   return { ...state, returnTo: safeRelativeReturnPath(state.returnTo) };
 }
 
+// The callback redirect_uri is pinned to the apex domain, but users may start
+// the flow from www. Scope the cookie to the whole domain so it still reaches
+// the callback regardless of which host issued it.
+function cookieDomainAttribute(request: Request) {
+  const hostname = new URL(googleOAuthOrigin(request)).hostname;
+  return hostname === "saltysticker.com" ? "; Domain=.saltysticker.com" : "";
+}
+
 export function googleOAuthCookie(token: string, request: Request, previousCookie?: string | null) {
   const secure = googleOAuthOrigin(request).startsWith("https://") ? "; Secure" : "";
+  const domain = cookieDomainAttribute(request);
   const previous = previousCookie ? previousCookie.split(",").filter(Boolean) : [];
   const states = [token, ...previous.filter((value) => value !== token)].slice(0, MAX_GOOGLE_OAUTH_STATES);
-  return `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(states.join(","))}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
+  return `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(states.join(","))}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${secure}${domain}`;
 }
 
 export function clearGoogleOAuthCookie(request: Request) {
   const secure = googleOAuthOrigin(request).startsWith("https://") ? "; Secure" : "";
-  return `${GOOGLE_OAUTH_COOKIE}=; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+  const domain = cookieDomainAttribute(request);
+  return `${GOOGLE_OAUTH_COOKIE}=; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=0${secure}${domain}`;
 }
 
 export function readCookie(request: Request, name: string) {
