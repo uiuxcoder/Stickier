@@ -249,7 +249,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
                           Selected <Check size={14} />
                         </>
                       ) : (
-                        "Add to my 2"
+                        "Add to this month’s shipment"
                       )}
                     </button>
                   </div>
