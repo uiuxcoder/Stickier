@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
+import { track } from "@/lib/analytics";
 
 type SubscriptionCheckoutRequest = {
   imageKey?: string;
@@ -69,6 +70,7 @@ export function SubscriptionCheckout() {
       const result = await createSubscriptionCheckout(requestFromLocation());
       if (!result) return;
       if ("url" in result) {
+        track("checkout_opened", { product_type: "sticker_club", price: 11.99, currency: "USD", is_subscription: true });
         window.location.assign(result.url);
       } else if ("resumable" in result) {
         setResumable({ endDate: result.endDate });
@@ -98,6 +100,7 @@ export function SubscriptionCheckout() {
       .then((result) => {
         if (!result) return;
         if ("url" in result) {
+          track("checkout_opened", { product_type: "sticker_club", price: 11.99, currency: "USD", is_subscription: true });
           window.location.assign(result.url);
         } else if ("resumable" in result) {
           setResumable({ endDate: result.endDate });

@@ -4,6 +4,7 @@ import { Check, Download, LockKeyhole, Mail, MapPin } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { checkoutShippingLines, getStripe, isPaidCheckout } from "@/lib/stripe";
 import { JoinStickerClubButton } from "@/components/join-sticker-club-button";
+import { VerifiedCheckoutTracker } from "@/components/verified-checkout-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export default async function MembershipSuccessPage({
   let subject = "Your";
   let purchasePlan: "digital" | "physical" = "physical";
   let isSubscription = false;
+  let subscriptionId: string | undefined;
   let productName = "Physical Sticker Sheet";
   let subtotal = 999;
   let tax = 0;
@@ -86,6 +88,7 @@ export default async function MembershipSuccessPage({
       const plan = session.metadata?.plan;
       subject = session.metadata?.subject || subject;
       isSubscription = session.mode === "subscription";
+      subscriptionId = typeof session.subscription === "string" ? session.subscription : undefined;
       if (plan === "digital" || plan === "physical") purchasePlan = plan;
       if (imageKey) {
         purchasedImageKey = imageKey;
@@ -133,6 +136,7 @@ export default async function MembershipSuccessPage({
 
   return (
     <main className="order-confirmation-page">
+      {subscriptionId ? <VerifiedCheckoutTracker kind="subscription_started" stableId={subscriptionId} properties={{ subscription_id: subscriptionId, product_type: "sticker_club", price: total / 100, currency: "USD", is_subscription: true }} /> : null}
       <header className="order-confirmation-nav">
         <Link href="/" className="order-confirmation-logo">SALTY STICKER<sup>™</sup></Link>
         <span><LockKeyhole size={15} /> Secure checkout</span>

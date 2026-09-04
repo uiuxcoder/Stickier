@@ -506,7 +506,10 @@ nav{height:88px;padding:0 var(--space-10)}
 .club-gallery-actions button.club-primary-link{border:1px solid #111;cursor:pointer}
 .club-ship-button{height:42px!important;padding:0 16px!important;background:var(--red)!important;color:#fff!important;border:1px solid #111!important;border-radius:0!important;font-size:9px!important;font-weight:900!important;letter-spacing:.08em!important;text-transform:uppercase;white-space:nowrap}
 .club-ship-button:disabled{background:#d7d2c8!important;color:#777!important;opacity:1!important;cursor:not-allowed}
-.club-ship-hint{font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#888;white-space:nowrap}
+.club-selection-bar{display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fff;border:1px solid #111}
+.club-selection-bar-track{flex:1 1 auto;height:6px;background:#eee6d6;border:1px solid #111}
+.club-selection-bar-track>span{display:block;height:100%;background:#2866f1;transition:width .2s ease}
+.club-selection-bar-label{flex:0 0 auto;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#555;white-space:nowrap}
 .club-gallery{padding:52px 6vw 68px;display:grid;gap:24px;border-bottom:1.5px solid #171715}
 .club-gallery-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
 .club-gallery-head>div:first-child{display:grid;gap:8px}
@@ -708,7 +711,10 @@ nav{height:88px;padding:0 var(--space-10)}
   .club-membership-title h1{font-size:56px;white-space:normal}
   .club-gallery,.club-past{padding:40px 18px 48px}
   .club-gallery-head{align-items:stretch;flex-direction:column}
-  .club-gallery-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .club-gallery-actions{width:100%}
+  .club-selection-bar{flex-wrap:wrap}
+  .club-selection-bar-track{flex-basis:100%}
+  .club-selection-bar .club-ship-button{width:100%}
   .club-sticker-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .club-sticker-card{padding:6px}
   .club-sticker-card button{font-size:8px}

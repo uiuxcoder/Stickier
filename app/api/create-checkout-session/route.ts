@@ -40,6 +40,8 @@ export async function POST(request: Request) {
           product_data: {
             name: plan === "physical" ? `${subject || "Your"} physical sticker pack` : `${subject || "Your"} digital sticker pack`,
             description: plan === "physical" ? "Ten die-cut stickers with digital pack included" : "Ten one-of-one digital stickers",
+            // Shows the customer's own sheet on the physical + digital line item.
+            ...(plan === "physical" ? { images: [`${origin}/api/preview-stickers?key=${encodeURIComponent(imageKey)}`] } : {}),
           },
           unit_amount: amount,
         },

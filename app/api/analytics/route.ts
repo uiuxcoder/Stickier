@@ -15,11 +15,29 @@ const STRING_FIELDS = new Set([
   "utm_campaign",
   "referrer",
   "landing_variant",
-  "cta_placement",
-  "plan",
+  "generation_id",
+  "photo_count",
+  "file_type",
+  "mood",
+  "has_custom_details",
+  "has_details",
+  "skipped",
+  "is_member",
+  "placement",
+  "product_type",
+  "price",
+  "currency",
+  "is_subscription",
+  "generation_time_ms",
+  "order_id",
+  "subscription_id",
+  "payment_intent_id",
+  "sticker_count",
+  "mood_count",
+  "account_variant",
   "source",
 ]);
-const NUMBER_FIELDS = new Set(["number_of_photos", "ms_since_landing_view"]);
+const NUMBER_FIELDS = new Set(["photo_count", "price", "generation_time_ms", "sticker_count", "mood_count", "ms_since_landing_view"]);
 
 const MAX_STRING_LENGTH = 300;
 const MAX_BODY_BYTES = 4096;
@@ -44,12 +62,14 @@ export async function POST(request: Request) {
   const event = typeof body.event === "string" ? body.event : "";
   if (!ALLOWED_EVENTS.has(event)) return new Response(null, { status: 422 });
 
-  const clean: Record<string, string | number> = { event };
+  const clean: Record<string, string | number | boolean> = { event };
   for (const [key, value] of Object.entries(body)) {
     if (STRING_FIELDS.has(key) && typeof value === "string") {
       clean[key] = value.slice(0, MAX_STRING_LENGTH);
     } else if (NUMBER_FIELDS.has(key) && typeof value === "number" && Number.isFinite(value)) {
       clean[key] = Math.max(0, Math.round(value));
+    } else if (typeof value === "boolean" && ["has_custom_details", "has_details", "skipped", "is_member", "is_subscription"].includes(key)) {
+      clean[key] = value;
     }
   }
 

@@ -120,9 +120,9 @@ export function LandingV2({ photos, photoBusy, photoError, fileInputRef, onFiles
     // itself; ignore it so one user action never double-fires events.
     if (target === fileInputRef.current) return;
     if (target.closest(".v2-upload-action")) {
-      track("hero_upload_click", { cta_placement: "hero" });
+      track("upload_clicked", { placement: "cta" });
     } else {
-      track("dropzone_click");
+      track("upload_clicked", { placement: "upload_box" });
     }
   };
 
@@ -288,7 +288,7 @@ export function LandingV2({ photos, photoBusy, photoError, fileInputRef, onFiles
           <button
             type="button"
             onClick={() => {
-              track("hero_upload_click", { cta_placement: "sticky" });
+              track("upload_clicked", { placement: "cta" });
               fileInputRef.current?.click();
             }}
           >

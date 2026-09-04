@@ -14,9 +14,26 @@ import posthog from "posthog-js";
 export { ANALYTICS_EVENTS, type AnalyticsEventName };
 
 export type AnalyticsProps = {
-  number_of_photos?: number;
-  cta_placement?: "hero" | "sticky";
-  plan?: string;
+  generation_id?: string;
+  photo_count?: number;
+  file_type?: string;
+  mood?: string;
+  has_custom_details?: boolean;
+  has_details?: boolean;
+  skipped?: boolean;
+  is_member?: boolean;
+  placement?: "header" | "cta" | "upload_box";
+  product_type?: "digital" | "physical_digital" | "sticker_club";
+  price?: number;
+  currency?: "USD";
+  is_subscription?: boolean;
+  generation_time_ms?: number;
+  order_id?: string;
+  subscription_id?: string;
+  payment_intent_id?: string;
+  sticker_count?: number;
+  mood_count?: number;
+  account_variant?: string;
   source?: "home" | "hero" | "wizard" | "reference";
 };
 
@@ -60,8 +77,8 @@ export function track(event: AnalyticsEventName, props: AnalyticsProps = {}) {
   if (typeof window === "undefined") return;
   try {
     if (event === "landing_view") landingViewAt = Date.now();
-    if (event !== "landing_view" && process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
-      posthog.capture(event, props);
+    if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+      posthog.capture(event, { ...attribution(), ...props });
     }
     const payload = {
       event,
@@ -94,4 +111,8 @@ export function trackOnce(event: AnalyticsEventName, props: AnalyticsProps = {},
   if (firedOnce.has(key)) return;
   firedOnce.add(key);
   track(event, props);
+}
+
+export function resetAnalytics() {
+  if (typeof window !== "undefined") posthog.reset();
 }

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MemberStickerCreator } from "@/components/member-sticker-creator";
 import { StickerDownloadLink } from "@/components/sticker-download-link";
-import posthog from "posthog-js";
+import { resetAnalytics, track } from "@/lib/analytics";
 
 type DropStatus = "submitted" | "printing" | "shipped" | "delivered";
 
@@ -114,7 +114,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
       const data = await response.json() as MembershipDrop & { error?: string };
       if (!response.ok) throw new Error(data.error || "Unable to submit this month’s stickers.");
       if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
-        posthog.capture("membership_drop_submitted", { sticker_count: selectedIds.length });
+        track("membership_drop_submitted", { sticker_count: selectedIds.length });
       }
       setCurrentDrop(data);
       setShipDialogStage("confirmed");
@@ -154,7 +154,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <form action="/api/auth/signout" method="post" onSubmit={() => posthog.reset()}>
+          <form action="/api/auth/signout" method="post" onSubmit={resetAnalytics}>
             <button type="submit">Sign Out</button>
           </form>
         </div>
@@ -210,15 +210,17 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
           </div>
           <div className="club-gallery-actions">
             <button type="button" className="club-primary-link" onClick={() => setCreatorOpen(true)}>Create a sticker</button>
-            {canShip ? (
-              <Button className="club-ship-button" onClick={() => setShipDialogOpen(true)}>
-                Ship selected stickers
-              </Button>
-            ) : canPickForDrop ? (
-              <span className="club-ship-hint">Select {2 - selectedIds.length} more to ship</span>
-            ) : null}
           </div>
         </div>
+        {canPickForDrop && selectedIds.length > 0 && (
+          <div className="club-selection-bar">
+            <div className="club-selection-bar-track"><span style={{ width: selectionProgress }} /></div>
+            <span className="club-selection-bar-label">{selectedIds.length}/2 selected</span>
+            <Button className="club-ship-button" disabled={!canShip} onClick={() => setShipDialogOpen(true)}>
+              Ship selected stickers
+            </Button>
+          </div>
+        )}
         {stickers.length === 0 ? (
           <div className="club-empty-gallery">
             <Sparkles size={18} />

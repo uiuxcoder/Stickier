@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LandingV2 } from "@/components/landing-v2";
 import { StickerDownloadLink } from "@/components/sticker-download-link";
-import { setLandingVariant, track, trackOnce } from "@/lib/analytics";
+import { resetAnalytics, setLandingVariant, track, trackOnce } from "@/lib/analytics";
 import { normalizePhoto, UnsupportedPhotoError } from "@/lib/photo-normalize";
 import posthog from "posthog-js";
 
@@ -62,7 +62,7 @@ function Progress({ n, total }: { n: number; total: number }) {
 }
 function UploadBox({ previews, pet=false, onChange, onRemove }: { previews:string[]; pet?:boolean; onChange:(f:FileList|null)=>void; onRemove:(index:number)=>void }) {
   const drop=(e:DragEvent<HTMLLabelElement>)=>{e.preventDefault();e.currentTarget.classList.remove("dragging");onChange(e.dataTransfer.files)};
-  return <label className="upload-zone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("dragging")}} onDragLeave={e=>e.currentTarget.classList.remove("dragging")} onDrop={drop}><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif" multiple disabled={previews.length>=MAX_PHOTOS} onChange={(e:ChangeEvent<HTMLInputElement>)=>{onChange(e.target.files);e.currentTarget.value=""}}/><div className="upload-icon">{pet?<PawPrint/>:<ImagePlus/>}</div><b>{previews.length?`✓ ${previews.length} PHOTO${previews.length>1?"S":""} ADDED`:"DROP YOUR PHOTOS HERE"}</b><span><Upload size={15}/>{previews.length===0?"CHOOSE A PHOTO":previews.length<MAX_PHOTOS?"ADD ANOTHER PHOTO":"3 PHOTO LIMIT"}</span>{previews.length>0&&<div className="preview-row">{previews.map((src,index)=><div className="preview-item" key={src}><img src={src} alt={`Upload ${index+1}`}/><button type="button" aria-label={`Delete photo ${index+1}`} onClick={event=>{event.preventDefault();event.stopPropagation();onRemove(index)}}><Trash2/></button></div>)}</div>}</label>;
+    return <label className="upload-zone" onClick={e=>{if((e.target as HTMLElement).tagName!=="INPUT"&&!((e.target as HTMLElement).closest("button")))track("upload_clicked",{placement:"upload_box"})}} onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("dragging")}} onDragLeave={e=>e.currentTarget.classList.remove("dragging")} onDrop={drop}><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image.heic,image.heif,.heic,.heif" multiple disabled={previews.length>=MAX_PHOTOS} onChange={(e:ChangeEvent<HTMLInputElement>)=>{onChange(e.target.files);e.currentTarget.value=""}}/><div className="upload-icon">{pet?<PawPrint/>:<ImagePlus/>}</div><b>{previews.length?`✓ ${previews.length} PHOTO${previews.length>1?"S":""} ADDED`:"DROP YOUR PHOTOS HERE"}</b><span><Upload size={15}/>{previews.length===0?"CHOOSE A PHOTO":previews.length<MAX_PHOTOS?"ADD ANOTHER PHOTO":"3 PHOTO LIMIT"}</span>{previews.length>0&&<div className="preview-row">{previews.map((src,index)=><div className="preview-item" key={src}><img src={src} alt={`Upload ${index+1}`}/><button type="button" aria-label={`Delete photo ${index+1}`} onClick={event=>{event.preventDefault();event.stopPropagation();onRemove(index)}}><Trash2/></button></div>)}</div>}</label>;
 }
 function GenericStickerSheet() {
   return <div className="printer-placeholder-grid" aria-label="Ten empty sticker placeholders">{Array.from({length:10},(_,index)=><span key={index}/>)}</div>;
@@ -288,6 +288,12 @@ export default function Home(){
 
   useEffect(()=>{if(stage!=="generating")return;const a=window.setInterval(()=>setTick(current=>current<loadingSteps.length-1?current+1:current),LOADING_STEP_INTERVAL_MS);return()=>clearInterval(a)},[stage]);
   useEffect(()=>{
+    if(stage==="details") trackOnce("onboarding_add_details_step_viewed");
+    if(stage==="mood") trackOnce("onboarding_select_mood_step_viewed");
+    if(stage==="generating") trackOnce("generation_loading_viewed", { generation_id: generationJobId || undefined });
+    if(stage==="reveal" && generatedImageKey) trackOnce("sticker_preview_viewed", { generation_id: generationJobId || undefined, is_member: isActiveMember });
+  },[stage,generatedImageKey,generationJobId,isActiveMember]);
+  useEffect(()=>{
     setGeneratedSlices([]);
     setGeneratedSlicesSource("");
     if(!generatedImage)return;
@@ -432,7 +438,7 @@ export default function Home(){
           window.history.replaceState({},"",window.location.pathname);
           return;
         }
-        startTransition(()=>{setStage("confirmation");setCheckoutSessionId(sessionId);if(raw.email)setEmail(raw.email);if(raw.plan)setPurchasedPlan(raw.plan);if(raw.downloadUrl)setDownloadUrl(raw.downloadUrl);trackOnce("purchase_completed",{plan:raw.plan},`purchase_completed:${sessionId}`)});
+        startTransition(()=>{setStage("confirmation");setCheckoutSessionId(sessionId);if(raw.email)setEmail(raw.email);if(raw.plan)setPurchasedPlan(raw.plan);if(raw.downloadUrl)setDownloadUrl(raw.downloadUrl);trackOnce("purchase_completed",{order_id:sessionId,product_type:raw.plan==="physical"?"physical_digital":"digital",price:raw.plan==="physical"?9.99:4.99,currency:"USD",is_subscription:false},`purchase_completed:${sessionId}`)});
         window.history.replaceState({},"",window.location.pathname);
       }catch{
         setCheckoutNotice("We could not confirm that payment.");
@@ -451,7 +457,7 @@ export default function Home(){
     setPhotoError("");
     const chosen=Array.from(files).slice(0,MAX_PHOTOS-current.length);
     if(!chosen.length)return;
-    track("photo_selected",{number_of_photos:chosen.length,source});
+    track("photo_selected",{photo_count:chosen.length,file_type:Array.from(chosen).map(file=>file.type).filter(Boolean).join(",")||undefined,source});
     setPhotoBusy(true);
     let selected:File[];
     try{
@@ -464,14 +470,19 @@ export default function Home(){
     if(!selected.length)return;
     const previews=await Promise.all(selected.map(file=>new Promise<string>(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(file)})));
     setter(prev=>[...prev,...previews]);
-    track("upload_started",{number_of_photos:selected.length,source});
     let uploaded=0;
-    for(const file of selected){
-      const result=await uploadPhoto(file);
-      if(result.key){setKeys(prev=>[...prev,result.key!]);uploaded++}
-      else if(result.dataUrl){setData(prev=>[...prev,result.dataUrl!]);uploaded++}
+    try {
+      for(const file of selected){
+        const result=await uploadPhoto(file);
+        if(result.key){setKeys(prev=>[...prev,result.key!]);uploaded++}
+        else if(result.dataUrl){setData(prev=>[...prev,result.dataUrl!]);uploaded++}
+      }
+    } catch {
+      track("photo_upload_failed",{photo_count:selected.length,source});
+      return;
     }
-    track("upload_completed",{number_of_photos:uploaded,source});
+    if(uploaded) track("photo_uploaded",{photo_count:uploaded,source});
+    if(uploaded !== selected.length) track("photo_upload_failed",{photo_count:selected.length-uploaded,source});
   };
   const removeMainPhoto=(index:number)=>{const remaining=photos.filter((_,i)=>i!==index);setPhotos(remaining);setPhotoKeys([]);setPhotoDataUrls(remaining)};
   const removeReferencePhoto=(index:number)=>{const remaining=referencePhotos.filter((_,i)=>i!==index);setReferencePhotos(remaining);setReferencePhotoKeys([]);setReferencePhotoDataUrls(remaining)};
@@ -479,8 +490,9 @@ export default function Home(){
   // Submit the generation job, then poll for completion instead of holding the
   // connection open for the full OpenAI call.
   const generate=async()=>{
+    const startedAt=Date.now();
     setTick(0);setGenerationError("");setStage("generating");
-    track("preview_started");
+    track("generation_started",{photo_count:photos.length+referencePhotos.length,is_member:isActiveMember});
     try{
       const keys=[...photoKeys,...referencePhotoKeys];
       const dataUrls=[...photoDataUrls,...referencePhotoDataUrls];
@@ -494,18 +506,18 @@ export default function Home(){
         try{
           const status=await fetch(`/api/generation-status?jobId=${encodeURIComponent(jobId)}`).then(r=>r.json()) as {status?:string;imageKey?:string;previewUrl?:string;saved?:boolean;error?:string};
           if(status.status==="succeeded"&&status.imageKey&&status.previewUrl){
-            if(!status.saved)setIsActiveMember(false);setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setGenerationSaved(Boolean(status.saved));setStage("reveal");track("preview_rendered");return;
+            if(!status.saved)setIsActiveMember(false);setGeneratedImage(status.previewUrl);setGeneratedImageKey(status.imageKey);setGenerationSaved(Boolean(status.saved));setStage("reveal");track("generation_completed",{generation_id:jobId,generation_time_ms:Date.now()-startedAt});return;
           }
           if(status.status==="failed")throw new Error(status.error||"Generation failed.");
           if(attempts++<180){pollTimer.current=window.setTimeout(poll,2000);return}
           throw new Error("Generation is taking longer than expected. Please try again.");
         }catch(error){
-          setGenerationError(error instanceof Error?error.message:"Unable to generate stickers.");setStage("reveal");
+          track("generation_failed",{generation_id:jobId});setGenerationError(error instanceof Error?error.message:"Unable to generate stickers.");setStage("reveal");
         }
       };
       void poll();
     }catch(error){
-      setGenerationError(error instanceof Error?error.message:"Unable to generate stickers.");setStage("reveal");
+      track("generation_failed");setGenerationError(error instanceof Error?error.message:"Unable to generate stickers.");setStage("reveal");
     }
   };
 
@@ -515,9 +527,10 @@ export default function Home(){
   const tryAgainAfterModeration=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGenerationJobId("");setGeneratedSlices([]);setGeneratedSlicesSource("");setGenerationError("");setSkipPhotoStep(false);setStage("photos")};
   const beginAnotherSheet=()=>{try{sessionStorage.removeItem("stickier-reveal")}catch{}setPhotos([]);setPhotoKeys([]);setPhotoDataUrls([]);setReferencePhotos([]);setReferencePhotoKeys([]);setReferencePhotoDataUrls([]);setSpecialRequest("");setMoods([]);setGeneratedImage("");setGeneratedImageKey("");setGenerationJobId("");setGeneratedSlices([]);setGeneratedSlicesSource("");setGenerationError("");setCheckoutSessionId("");setDownloadUrl("");setCheckoutNotice("");setCheckoutError("");setPaymentOpen(false);setSkipPhotoStep(false);setProduct("me");setName("");setGroupName("");setPet({name:"",species:"Dog"});setTheme("Classic");setStage("photos")};
   const toggleMood=(mood:string)=>setMoods(current=>current.includes(mood)?current.filter(item=>item!==mood):[...current,mood]);
-  const openPayment=()=>{if(isActiveMember)return;setPaymentPlan(null);setCheckoutError("");setPaymentOpen(true)};
-  const startCheckout=async()=>{if(paymentPlan!=="digital"&&paymentPlan!=="physical"){setCheckoutError("Choose a sticker option first.");return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setCheckoutLoading(true);setCheckoutError("");track("checkout_started",{plan:paymentPlan});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan})});const data=await readCheckoutResponse(response);if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
-  const startSubscription=()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_started",{plan:"membership"});const params=new URLSearchParams({image_key:generatedImageKey,subject,source:"purchase-modal"});window.location.assign(`/membership/checkout?${params}`)};
+  const openPayment=()=>{if(isActiveMember)return;setPaymentPlan(null);setCheckoutError("");setPaymentOpen(true);track("purchase_options_opened")};
+  const selectPaymentPlan=(plan:"digital"|"physical"|"membership")=>{setPaymentPlan(plan);track("purchase_option_selected",{product_type:plan==="physical"?"physical_digital":plan==="membership"?"sticker_club":"digital",price:plan==="physical"?9.99:plan==="membership"?11.99:4.99,currency:"USD",is_subscription:plan==="membership"})};
+  const startCheckout=async()=>{if(paymentPlan!=="digital"&&paymentPlan!=="physical"){setCheckoutError("Choose a sticker option first.");return}if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setCheckoutLoading(true);setCheckoutError("");track("checkout_clicked",{product_type:paymentPlan==="physical"?"physical_digital":"digital",price:paymentPlan==="physical"?9.99:4.99,currency:"USD",is_subscription:false});try{const response=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,imageKey:generatedImageKey,plan:paymentPlan})});const data=await readCheckoutResponse(response);if(!response.ok||!data.url)throw new Error(data.error||"Unable to start checkout.");track("checkout_opened",{product_type:paymentPlan==="physical"?"physical_digital":"digital",price:paymentPlan==="physical"?9.99:4.99,currency:"USD",is_subscription:false});window.location.assign(data.url)}catch(error){setCheckoutError(error instanceof Error?error.message:"Unable to start checkout.");setCheckoutLoading(false)}};
+  const startSubscription=()=>{if(!generatedImageKey){setCheckoutError("Generate a sticker sheet first.");return}setSubscriptionLoading(true);setCheckoutError("");track("checkout_clicked",{product_type:"sticker_club",price:11.99,currency:"USD",is_subscription:true});const params=new URLSearchParams({image_key:generatedImageKey,subject,source:"purchase-modal"});window.location.assign(`/membership/checkout?${params}`)};
   const back:Partial<Record<Stage,Stage>>={photos:"home",details:skipPhotoStep?"home":"photos",mood:"details",reveal:"mood"};
   const confirmationSheetSrc = checkoutSessionId
     ? `/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`
@@ -530,13 +543,13 @@ export default function Home(){
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="nav-account-menu">
         <a className="nav-account-menu-item" href="/account">Portal</a>
-        <form action="/api/auth/signout" method="post" className="nav-account-signout-form" onSubmit={()=>posthog.reset()}>
+        <form action="/api/auth/signout" method="post" className="nav-account-signout-form" onSubmit={resetAnalytics}>
           <button type="submit" className="nav-account-menu-item nav-account-signout-button">Sign out</button>
         </form>
       </DropdownMenuContent>
     </DropdownMenu>
   ) : <a className="nav-account" href="/signin?return_to=/account">LOGIN</a>}<button className="nav-cta" onClick={()=>{
-    if(stage==="home"&&landingVariant==="v2"){track("header_upload_click");if(heroFileInputRef.current){heroFileInputRef.current.click();return}}
+    if(stage==="home"){track("upload_clicked",{placement:"header"});if(landingVariant==="v2"&&heroFileInputRef.current){heroFileInputRef.current.click();return}}
     if(stage==="home"||stage==="samples"){setSkipPhotoStep(false);setStage("photos")}else{restart()}
   }}>{stage==="home"||stage==="samples"?(landingVariant==="v2"?"MAKE STICKERS":"CREATE MY STICKERS"):"EXIT STUDIO"}</button></div></nav>}
   {checkoutNotice&&<p className="checkout-notice" role="status">{checkoutNotice}</p>}
@@ -548,8 +561,8 @@ export default function Home(){
 
   {["photos","details","mood"].includes(stage)&&<section className="wizard enter"><aside><div className="wizard-visual" aria-hidden="true"><div className="wizard-photo-stack">{photos.length ? photos.slice(0,3).map((photo,index,array)=><figure key={`${photo}-${index}`} className={`wizard-photo-card wizard-photo-${index} ${array.length>1?"stacked":""}`}><img src={photo} alt=""/></figure>) : <figure className="wizard-photo-card wizard-photo-empty"><span>YOUR PHOTO</span></figure>}</div><svg className="wizard-arrow" viewBox="0 0 140 120" role="presentation" aria-hidden="true"><path d="M12 96C31 78 49 83 54 98C61 119 25 116 30 91C38 51 88 56 126 20"/><path d="M110 20L127 19L123 37"/></svg><div className="wizard-sheet-mock"><header><b>SALTY STICKER™</b><span>01 / 01</span></header><div className="wizard-sheet-silhouettes">{Array.from({length:10},(_,index)=><span className={`shape-${index+1}`} key={index}/>)}</div><footer>ONE OF ONE · MADE FOR YOU</footer></div></div></aside><div className="wizard-main"><div className="wizard-rail">{back[stage]&&<button className="back" onClick={()=>back[stage]==="home"?restart():setStage(back[stage]!)}><ArrowLeft/> BACK</button>}<Progress n={currentStep} total={total}/></div>
   {stage==="photos"&&<div className="wizard-content"><Progress n={1} total={total}/><h3>Add your photos.</h3><p>Choose up to 3 clear photos of whoever belongs in your sticker pack.</p><UploadBox previews={photos} onChange={files=>load(files,setPhotos,setPhotoKeys,setPhotoDataUrls,photos,"wizard")} onRemove={removeMainPhoto}/>{photoBusy&&<p className="upload-status">Converting your photo…</p>}{photoError&&<p className="upload-error">{photoError}</p>}<div className="wizard-actions"><span/><Button className="red-btn" disabled={photos.length===0} onClick={()=>{setSkipPhotoStep(false);setStage("details")}}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos,"reference")} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>setStage("mood")}>NEXT <ArrowRight/></Button></div></div>}
-  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div><div className="wizard-actions"><span/><Button className="red-btn" onClick={generate}>GENERATE <Sparkles/></Button></div></div>}
+  {stage==="details"&&<div className="wizard-content details"><Progress n={2} total={total}/><h3>Any details you want us to include?</h3><label className="request-box"><textarea value={specialRequest} onChange={e=>setSpecialRequest(e.target.value)} maxLength={500} placeholder="Tell us anything you want included…"/><small>{requestExample}</small></label><ReferencePhotos previews={referencePhotos} onChange={files=>load(files,setReferencePhotos,setReferencePhotoKeys,setReferencePhotoDataUrls,referencePhotos,"reference")} onRemove={removeReferencePhoto}/><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>{track("onboarding_add_details_step_completed",{has_details:Boolean(specialRequest.trim()),has_custom_details:Boolean(specialRequest.trim()),skipped:!specialRequest.trim()});setStage("mood")}}>NEXT <ArrowRight/></Button></div></div>}
+  {stage==="mood"&&<div className="wizard-content mood-content"><Progress n={3} total={total}/><h3>What&apos;s the mood?</h3><div className="mood-options">{moodOptions.map(mood=><button className={moods.includes(mood)?"selected":""} aria-pressed={moods.includes(mood)} key={mood} onClick={()=>toggleMood(mood)}><b>{mood}</b>{moods.includes(mood)&&<Check/>}</button>)}</div><div className="wizard-actions"><span/><Button className="red-btn" onClick={()=>{track("onboarding_select_mood_step_completed",{mood:moods.join(",")||undefined,skipped:moods.length===0});generate()}}>GENERATE <Sparkles/></Button></div></div>}
   </div></section>}
 
   {stage==="generating"&&<section className="generate loading-state enter"><div className="printer" aria-label="Blank sticker sheet printing"><div className="printer-top"><span/><span/><span/></div><div className="paper"><GenericStickerSheet/></div><div className="printer-slot"/></div><div className="generate-copy loading-copy"><h2>Your stickers are coming to life.</h2><strong>Usually ready in about 1 minute</strong><ol className="loading-steps">{loadingSteps.map((step,index)=><li className={index<tick?"complete":index===tick?"active":"upcoming"} key={step}>{index<tick?<span>✓</span>:index===tick?<span className="loading-spinner"/>:<span>○</span>}{index===tick?<b>{step}</b>:step}</li>)}</ol><b className="hang-tight">Hang tight — don&apos;t refresh.</b></div></section>}
@@ -557,8 +570,8 @@ export default function Home(){
   {stage==="reveal"&&!moderationBlocked&&<section className="reveal-page enter"><div className="reveal-head"><div><h2 className={isActiveMember?"member-reveal-heading":undefined}>{isActiveMember?"We've added them to your creations!":<>Your sticker<br/>sheet <span className="reveal-ready-line">is ready!</span></>}</h2>{isActiveMember?<p>These are included in your subscription.</p>:null}{generationError&&<p role="alert">{generationError}</p>}{checkoutError&&<p role="alert">{checkoutError}</p>}</div><div className="reveal-side">{isActiveMember?<div className="member-reveal-saved"><StickerDownloadLink className="member-download-primary" href={`/api/download-stickers?image_key=${encodeURIComponent(generatedImageKey)}`}> DOWNLOAD STICKERS</StickerDownloadLink><a className="member-portal-secondary" href="/account">RETURN TO PORTAL <ArrowRight/></a></div>:<><div className="reveal-actions"><Button className="red-btn" onClick={openPayment} disabled={Boolean(generationError)}>GET MY STICKERS <ArrowRight/></Button></div>{paymentOpen&&turnstileSiteKey&&!generationError&&generatedImageKey?<div ref={mountTurnstile} className="turnstile-widget reveal-turnstile"/>:null}</>}</div></div><div className="reveal-body"><div className="sticker-grid">{positions.map((pos,i)=><div className={`sticker-tile ${i===9?"sticker-tile-last":""}`} key={i}><span>{String(i+1).padStart(2,"0")}</span><div className="sticker-image" style={generatedSlices[i]?{backgroundImage:`url(${generatedSlices[i]})`,backgroundSize:"contain",backgroundPosition:"center",backgroundRepeat:"no-repeat"}:{backgroundImage:`url(${generatedImage||"/sticker-sheet.png"})`,backgroundPosition:pos,backgroundSize:"300% 400%",backgroundRepeat:"no-repeat"}}/><small className="cell-watermark cell-watermark-one" aria-hidden="true">SALTY STICKER · PREVIEW</small><small className="cell-watermark cell-watermark-two" aria-hidden="true">SALTY STICKER · PREVIEW</small><small className="cell-watermark cell-watermark-three" aria-hidden="true">SALTY STICKER · PREVIEW</small></div>)}</div><aside className="full-sheet-preview"><article className="reveal-sheet-card"><header><span>SALTY STICKER™</span><b>01 / 01</b></header><img src={generatedImage||"/sticker-sheet.png"} alt={`${subject}'s full sticker sheet`} onError={event=>{event.currentTarget.src="/sticker-sheet.png"}}/><footer>ONE OF ONE · MADE FOR YOU</footer></article></aside></div></section>}
   {stage==="confirmation"&&<section className="confirmation enter"><div className="check"><Check/></div><div className="eyebrow">PURCHASE COMPLETE</div><h2>{purchasedPlan==="physical"?"Your stickers are officially yours":"They’re yours"}</h2>{purchasedPlan==="physical"?<><p><b>Your physical sticker pack is being made.</b></p><p>Your digital stickers are ready now, and we sent a copy to <b>{email||"your email"}</b>. You can also download your sticker sheet now.</p></>:<p>We sent a copy to <b>{email||"your email"}</b>. You can also download your sticker sheet now.</p>}<Sheet name={subject} className="confirmation-sheet" clean src={confirmationSheetSrc}/><div className="confirmation-actions"><StickerDownloadLink className="download-btn" href={checkoutSessionId?`/api/download-stickers?session_id=${encodeURIComponent(checkoutSessionId)}`:downloadUrl||"#"} aria-disabled={!checkoutSessionId&&!downloadUrl}> DOWNLOAD STICKERS</StickerDownloadLink><Button className="link" onClick={beginAnotherSheet}>MAKE ANOTHER <ArrowRight/></Button></div></section>}
 
-  <Dialog open={!isActiveMember&&paymentOpen} onOpenChange={setPaymentOpen}><DialogContent className="payment-modal">
-    <><DialogHeader><DialogTitle>How do you want your stickers?</DialogTitle></DialogHeader><div className="purchase-options"><button type="button" className={paymentPlan==="digital"?"selected":""} onClick={()=>setPaymentPlan("digital")}><span className="purchase-card-top"><span className="purchase-icon"><Download/></span></span><b>DIGITAL</b><strong className="purchase-price">$4.99</strong><ul><li>10 transparent PNG stickers</li><li>Full sticker-sheet PNG</li><li><strong>Instant download</strong></li></ul></button><button type="button" className={paymentPlan==="physical"?"selected":""} onClick={()=>setPaymentPlan("physical")}><span className="purchase-card-top"><span className="purchase-icon"><Package/></span><em>★ MOST POPULAR</em></span><b>PHYSICAL + DIGITAL</b><strong className="purchase-price">$9.99</strong><ul><li>10 waterproof die-cut stickers</li><li>Digital pack included</li><li><strong>Free shipping</strong></li></ul></button><button type="button" className={`membership-upsell ${paymentPlan==="membership"?"selected":""}`} onClick={()=>setPaymentPlan("membership")}><span className="purchase-card-top"><span className="purchase-icon"><Sparkles/></span><span className="membership-free">Today's physical + digital sticker sheet free</span></span><b>SALTY STICKER CLUB</b><strong className="purchase-price"><s className="purchase-price-was">$19.99</s> $11.99/mo</strong><ul><li>20 sticker generations, unlimited downloads</li><li>1 regeneration per sticker</li><li>Pick 2 to receive at your doorstep every month</li><li>Free shipping</li><li><strong>Cancel anytime</strong></li></ul></button></div>{checkoutError&&<p role="alert">{checkoutError}</p>}<Button className="black-btn pay-card" disabled={!paymentPlan||paymentPlan==="membership"?(subscriptionLoading||!canVerify||!paymentPlan):(checkoutLoading||!canVerify)} onClick={()=>paymentPlan==="membership"?void startSubscription():void startCheckout()}>{!paymentPlan?"CHOOSE A STICKER OPTION":(subscriptionLoading||checkoutLoading)?"OPENING…":"CHECKOUT"} <ArrowRight/></Button></>
+  <Dialog open={!isActiveMember&&paymentOpen} onOpenChange={open=>{if(!open&&paymentOpen)track("purchase_options_closed");setPaymentOpen(open)}}><DialogContent className="payment-modal">
+    <><DialogHeader><DialogTitle>How do you want your stickers?</DialogTitle></DialogHeader><div className="purchase-options"><button type="button" className={paymentPlan==="digital"?"selected":""} onClick={()=>selectPaymentPlan("digital")}><span className="purchase-card-top"><span className="purchase-icon"><Download/></span></span><b>DIGITAL</b><strong className="purchase-price">$4.99</strong><ul><li>10 transparent PNG stickers</li><li>Full sticker-sheet PNG</li><li><strong>Instant download</strong></li></ul></button><button type="button" className={paymentPlan==="physical"?"selected":""} onClick={()=>selectPaymentPlan("physical")}><span className="purchase-card-top"><span className="purchase-icon"><Package/></span><em>★ MOST POPULAR</em></span><b>PHYSICAL + DIGITAL</b><strong className="purchase-price">$9.99</strong><ul><li>10 waterproof die-cut stickers</li><li>Digital pack included</li><li><strong>Free shipping</strong></li></ul></button><button type="button" className={`membership-upsell ${paymentPlan==="membership"?"selected":""}`} onClick={()=>selectPaymentPlan("membership")}><span className="purchase-card-top"><span className="purchase-icon"><Sparkles/></span><span className="membership-free">Today's physical + digital sticker sheet free</span></span><b>SALTY STICKER CLUB</b><strong className="purchase-price"><s className="purchase-price-was">$19.99</s> $11.99/mo</strong><ul><li>20 sticker generations, unlimited downloads</li><li>1 regeneration per sticker</li><li>Pick 2 to receive at your doorstep every month</li><li>Free shipping</li><li><strong>Cancel anytime</strong></li></ul></button></div>{checkoutError&&<p role="alert">{checkoutError}</p>}<Button className="black-btn pay-card" disabled={!paymentPlan||paymentPlan==="membership"?(subscriptionLoading||!canVerify||!paymentPlan):(checkoutLoading||!canVerify)} onClick={()=>paymentPlan==="membership"?void startSubscription():void startCheckout()}>{!paymentPlan?"CHOOSE A STICKER OPTION":(subscriptionLoading||checkoutLoading)?"OPENING…":"CHECKOUT"} <ArrowRight/></Button></>
   </DialogContent></Dialog>
   </main>;
 }

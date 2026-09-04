@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MemberStickerCreator } from "@/components/member-sticker-creator";
 import { StickerDownloadLink } from "@/components/sticker-download-link";
-import posthog from "posthog-js";
+import { resetAnalytics, track } from "@/lib/analytics";
 
 type DropStatus = "submitted" | "printing" | "shipped" | "delivered";
 
@@ -174,7 +174,7 @@ export function MemberDashboardV2({
       const data = await response.json() as MembershipDrop & { error?: string };
       if (!response.ok) throw new Error(data.error || "Unable to submit this month’s stickers.");
       if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
-        posthog.capture("membership_drop_submitted", { sticker_count: selectedIds.length, account_variant: "v2" });
+        track("membership_drop_submitted", { sticker_count: selectedIds.length, account_variant: "v2" });
       }
       setCurrentDrop(data);
       setShipDialogStage("confirmed");
@@ -209,7 +209,7 @@ export function MemberDashboardV2({
               <DropdownMenuItem variant={isActive ? "destructive" : undefined} onSelect={() => setMembershipAction(isActive ? "cancel" : "restart")}>
                 <XCircle /> {isActive ? "Cancel membership" : "Restart membership"}
               </DropdownMenuItem>
-              <form action="/api/auth/signout" method="post" onSubmit={() => posthog.reset()}>
+              <form action="/api/auth/signout" method="post" onSubmit={resetAnalytics}>
                 <button type="submit">Sign out</button>
               </form>
             </DropdownMenuContent>

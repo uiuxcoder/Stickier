@@ -3,6 +3,7 @@ import { Download, LockKeyhole, Mail, MapPin, PackageCheck, Sparkles } from "luc
 import { SUBSCRIPTION_AMOUNT_CENTS } from "@/lib/constants";
 import { checkoutShippingLines, getStripe, isPaidCheckout } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
+import { VerifiedCheckoutTracker } from "@/components/verified-checkout-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function MembershipWelcomePage({
   let currency = "usd";
   let isConfirmed = process.env.NODE_ENV !== "production" && preview === "1";
   let includesStickerBundle = false;
+  let subscriptionId: string | undefined;
 
   if (isConfirmed) imageUrl = "/sticker-sheet.png";
 
@@ -45,6 +47,7 @@ export default async function MembershipWelcomePage({
     try {
       const session = await getStripe().checkout.sessions.retrieve(sessionId);
       isConfirmed = session.mode === "subscription" && isPaidCheckout(session);
+      subscriptionId = typeof session.subscription === "string" ? session.subscription : undefined;
       email = session.customer_details?.email || session.customer_email || email;
       orderNumber = session.id.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase();
       if (session.created) orderDate = formatDate(session.created * 1000);
@@ -78,6 +81,7 @@ export default async function MembershipWelcomePage({
 
   return (
     <main className="membership-welcome-page">
+      {subscriptionId ? <VerifiedCheckoutTracker kind="subscription_started" stableId={subscriptionId} properties={{ subscription_id: subscriptionId, product_type: "sticker_club", price: total / 100, currency: "USD", is_subscription: true }} /> : null}
       <header className="membership-welcome-nav">
         <Link href="/">SALTY STICKER<sup>™</sup></Link>
         <span><LockKeyhole size={15} /> Secure checkout</span>
