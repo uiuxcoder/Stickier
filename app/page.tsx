@@ -529,7 +529,7 @@ export default function Home(){
         <button type="button" className="nav-account-trigger">SALTY STICKER CLUB <ChevronDown size={12} /></button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="nav-account-menu">
-        <a className="nav-account-menu-item" href="/account">Dashboard</a>
+        <a className="nav-account-menu-item" href="/account">Portal</a>
         <form action="/api/auth/signout" method="post" className="nav-account-signout-form" onSubmit={()=>posthog.reset()}>
           <button type="submit" className="nav-account-menu-item nav-account-signout-button">Sign out</button>
         </form>

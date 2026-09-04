@@ -210,9 +210,13 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
           </div>
           <div className="club-gallery-actions">
             <button type="button" className="club-primary-link" onClick={() => setCreatorOpen(true)}>Create a sticker</button>
-            <Button className="club-ship-button" disabled={!canShip} onClick={() => setShipDialogOpen(true)}>
-              Ship selected stickers
-            </Button>
+            {canShip ? (
+              <Button className="club-ship-button" onClick={() => setShipDialogOpen(true)}>
+                Ship selected stickers
+              </Button>
+            ) : canPickForDrop ? (
+              <span className="club-ship-hint">Select {2 - selectedIds.length} more to ship</span>
+            ) : null}
           </div>
         </div>
         {stickers.length === 0 ? (
