@@ -32,7 +32,8 @@ export async function GET(request: Request) {
   const stateParam = requestUrl.searchParams.get("state");
   const stateCookie = readCookie(request, GOOGLE_OAUTH_COOKIE);
   const secret = process.env.SESSION_SECRET;
-  if (!stateParam || !stateCookie || stateParam !== stateCookie || !secret) {
+  const stateCookies = stateCookie?.split(",") || [];
+  if (!stateParam || !stateCookies.includes(stateParam) || !secret) {
     return authError(request, "google_state");
   }
 

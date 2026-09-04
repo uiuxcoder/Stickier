@@ -3,6 +3,7 @@ import { safeRelativeReturnPath } from "./auth-utils.ts";
 
 export const GOOGLE_OAUTH_COOKIE = "stickier_google_oauth";
 const GOOGLE_OAUTH_TTL_MS = 10 * 60 * 1000;
+const MAX_GOOGLE_OAUTH_STATES = 3;
 
 export function googleOAuthOrigin(request: Request) {
   const configured = process.env.APP_ORIGIN?.replace(/\/$/, "");
@@ -61,9 +62,11 @@ export async function verifyGoogleOAuthState(token: string, secret: string, now 
   return { ...state, returnTo: safeRelativeReturnPath(state.returnTo) };
 }
 
-export function googleOAuthCookie(token: string, request: Request) {
+export function googleOAuthCookie(token: string, request: Request, previousCookie?: string | null) {
   const secure = googleOAuthOrigin(request).startsWith("https://") ? "; Secure" : "";
-  return `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(token)}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
+  const previous = previousCookie ? previousCookie.split(",").filter(Boolean) : [];
+  const states = [token, ...previous.filter((value) => value !== token)].slice(0, MAX_GOOGLE_OAUTH_STATES);
+  return `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(states.join(","))}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
 }
 
 export function clearGoogleOAuthCookie(request: Request) {

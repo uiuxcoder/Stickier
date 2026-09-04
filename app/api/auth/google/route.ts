@@ -1,5 +1,5 @@
 import { safeRelativeReturnPath } from "@/lib/auth-utils";
-import { createGoogleOAuthState, googleOAuthCookie, googleOAuthOrigin, verifyGoogleOAuthState } from "@/lib/google-oauth";
+import { createGoogleOAuthState, googleOAuthCookie, googleOAuthOrigin, readCookie, verifyGoogleOAuthState } from "@/lib/google-oauth";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     status: 302,
     headers: {
       Location: authorizationUrl.toString(),
-      "Set-Cookie": googleOAuthCookie(state, request),
+      "Set-Cookie": googleOAuthCookie(state, request, readCookie(request, "stickier_google_oauth")),
     },
   });
 }

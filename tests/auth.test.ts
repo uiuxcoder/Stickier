@@ -44,6 +44,16 @@ test("Google OAuth uses the browser-facing local development origin", () => {
   }
 });
 
+test("Google OAuth keeps recent states for overlapping sign-in attempts", async () => {
+  const request = new Request("https://saltysticker.com/api/auth/google");
+  const first = await createGoogleOAuthState("/account", "test-secret", 1_800_000_000_000);
+  const second = await createGoogleOAuthState("/account", "test-secret", 1_800_000_000_001);
+  const firstCookie = googleOAuthCookie(first, request);
+  const cookieValue = firstCookie.split(";")[0].split("=").slice(1).join("=");
+  const secondCookie = googleOAuthCookie(second, request, decodeURIComponent(cookieValue));
+  assert.match(secondCookie, new RegExp(`${encodeURIComponent(second)}%2C${encodeURIComponent(first)}`));
+});
+
 test("rejects weak passwords", () => {
   assert.equal(passwordIssue("short"), "too-short");
   assert.equal(passwordIssue("password"), "too-common");
