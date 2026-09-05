@@ -31,13 +31,42 @@ async function notifySlack(session: Stripe.Checkout.Session) {
     : session.metadata?.plan === "physical"
       ? "Digital + physical sticker pack"
       : "Digital sticker pack";
+  const email = session.customer_details?.email || session.customer_email || "Not provided";
+  const subject = session.metadata?.subject || "Your";
+  const stripeUrl = `https://dashboard.stripe.com/${session.livemode ? "payments" : "test/payments"}/${session.payment_intent || session.id}`;
 
   try {
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: `New Salty Sticker order: ${plan} - ${amount} - Stripe session ${session.id}`,
+        text: `New Salty Sticker order: ${plan} - ${amount}`,
+        blocks: [
+          {
+            type: "header",
+            text: { type: "plain_text", text: "New Salty Sticker order", emoji: true },
+          },
+          {
+            type: "section",
+            text: { type: "mrkdwn", text: `*${amount}*\n${plan}` },
+            accessory: {
+              type: "button",
+              text: { type: "plain_text", text: "View in Stripe", emoji: true },
+              url: stripeUrl,
+              action_id: "view_stripe_order",
+            },
+          },
+          { type: "divider" },
+          {
+            type: "section",
+            fields: [
+              { type: "mrkdwn", text: `*Customer*\n${email}` },
+              { type: "mrkdwn", text: `*Sticker subject*\n${subject}` },
+              { type: "mrkdwn", text: `*Stripe session*\n\`${session.id}\`` },
+              { type: "mrkdwn", text: `*Payment mode*\n${session.mode === "subscription" ? "Monthly subscription" : "One-time purchase"}` },
+            ],
+          },
+        ],
       }),
       signal: AbortSignal.timeout(10_000),
     });
