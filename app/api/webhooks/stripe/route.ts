@@ -18,6 +18,35 @@ import { and, eq, inArray, lt, sql } from "drizzle-orm";
 
 const STALE_EVENT_CLAIM_MS = 5 * 60 * 1000;
 
+async function notifySlack(session: Stripe.Checkout.Session) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const amount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: (session.currency || "usd").toUpperCase(),
+  }).format((session.amount_total || 0) / 100);
+  const plan = session.mode === "subscription"
+    ? "Sticker Club subscription"
+    : session.metadata?.plan === "physical"
+      ? "Digital + physical sticker pack"
+      : "Digital sticker pack";
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: `New Salty Sticker order: ${plan} - ${amount} - Stripe session ${session.id}`,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) console.error("Slack order notification failed", response.status);
+  } catch (error) {
+    console.error("Slack order notification error", error);
+  }
+}
+
 async function claimEvent(event: Stripe.Event): Promise<"claimed" | "processed" | "busy"> {
   const db = getDb();
   const now = Date.now();
@@ -144,6 +173,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
         set: { status: "active", email, ...(userId ? { userId } : {}) },
       });
   }
+  await notifySlack(session);
 
   if (includesStickerBundle) {
     const existing = await db
