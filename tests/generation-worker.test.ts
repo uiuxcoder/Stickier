@@ -7,7 +7,6 @@ import {
   GENERATION_IMAGE_SIZE,
 } from "../lib/openai-image.ts";
 import { promptFor } from "../lib/prompt.ts";
-import { shouldUseTwoPassReferenceFlow } from "../lib/reference-flow.ts";
 
 test("generation uses the economical portrait settings", () => {
   assert.equal(GENERATION_IMAGE_SIZE, "1024x1536");
@@ -66,20 +65,4 @@ test("reference photos only guide expression and pose without changing the origi
   assert.match(prompt, /first uploaded customer image is the identity anchor/i);
   assert.match(prompt, /keep the original face shape.*skin tone.*age.*distinctive features/i);
   assert.match(prompt, /do not copy the reference person's facial structure, identity/i);
-});
-
-test("meme text enables the two-pass reference flow", () => {
-  const input = {
-    photoKeys: [],
-    photos: [],
-    subject: "You",
-    product: "me" as const,
-    companion: "skip" as const,
-    moods: [],
-    specialRequest: "Turn me into this MEME",
-  };
-
-  assert.equal(shouldUseTwoPassReferenceFlow(input.specialRequest, 1, 1), true);
-  assert.equal(shouldUseTwoPassReferenceFlow("Match this pose", 1, 1), false);
-  assert.equal(shouldUseTwoPassReferenceFlow(input.specialRequest, 1, 0), false);
 });

@@ -5,7 +5,6 @@ import { generationJobs, generations, users } from "@/db/schema";
 import { promptFor, type GenerationInput } from "@/lib/prompt";
 import { IMAGE_KEY_PATTERN } from "@/lib/constants";
 import { CONTENT_POLICY_MESSAGE } from "@/lib/moderation";
-import { shouldUseTwoPassReferenceFlow } from "@/lib/reference-flow";
 import {
   buildOpenAIImageEditBody,
   GENERATION_IMAGE_QUALITY,
@@ -196,7 +195,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
-    if (shouldUseTwoPassReferenceFlow(input.specialRequest, identityPhotos.length, referencePhotos.length)) {
+    if (referencePhotos.length > 0 && identityPhotos.length > 0) {
       const baseBody = buildOpenAIImageEditBody({
         model,
         prompt: basePrompt,
