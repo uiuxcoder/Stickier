@@ -142,7 +142,6 @@ export default async function MembershipWelcomePage({
           <div className="membership-welcome-benefits">
             {includesStickerBundle ? <div><Download size={18} /><span><strong>Digital stickers</strong> ready to download</span></div> : null}
             {includesStickerBundle ? <div><PackageCheck size={18} /><span><strong>First printed sheet</strong> included on us</span></div> : null}
-            <div><Sparkles size={18} /><span><strong>Sticker Club active</strong> 20 creations + 3 prints monthly</span></div>
           </div>
         </section>
       </div>
