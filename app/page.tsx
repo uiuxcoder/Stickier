@@ -494,13 +494,9 @@ export default function Home(){
     setTick(0);setGenerationError("");setStage("generating");
     track("generation_started",{photo_count:photos.length+referencePhotos.length,is_member:isActiveMember});
     try{
-      // The identity image(s) are the only ones that should be sent to the edit
-      // endpoint. Reference photos and meme uploads are UI references only and
-      // must not be merged into the actual generation payload or the model will
-      // replace the customer's face with the reference subject.
       const keys=[...photoKeys];
       const dataUrls=[...photoDataUrls];
-      const response=await fetch("/api/generate-stickers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoKeys:keys,photos:dataUrls,subject,product,companion:"skip",species:pet.species,theme,moods,specialRequest})});
+      const response=await fetch("/api/generate-stickers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoKeys:keys,photos:dataUrls,referencePhotoKeys:referencePhotoKeys,referencePhotos:referencePhotoDataUrls,subject,product,companion:"skip",species:pet.species,theme,moods,specialRequest})});
       const data=await response.json() as {jobId?:string;error?:string};
       if(!response.ok||!data.jobId)throw new Error(data.error||"Unable to start generation.");
       const jobId=data.jobId;

@@ -25,6 +25,8 @@ export const generationRequestSchema = z.object({
   // inline data URLs are still accepted for backward compatibility.
   photoKeys: z.array(uploadKeySchema).max(MAX_REFERENCE_PHOTOS).default([]),
   photos: z.array(dataUrlSchema).max(MAX_REFERENCE_PHOTOS).default([]),
+  referencePhotoKeys: z.array(uploadKeySchema).max(MAX_REFERENCE_PHOTOS).default([]),
+  referencePhotos: z.array(dataUrlSchema).max(MAX_REFERENCE_PHOTOS).default([]),
   subject: z.string().trim().min(1).max(80).default("Your"),
   product: z.enum(PRODUCTS).default("me"),
   companion: z.enum(["pet", "person", "skip"]).optional(),

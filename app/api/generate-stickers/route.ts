@@ -113,6 +113,20 @@ export async function POST(request: Request) {
       photoKeys.push(key);
     }
 
+    const referencePhotoKeys: string[] = [...input.referencePhotoKeys];
+    for (const [index, dataUrl] of input.referencePhotos.entries()) {
+      const file = dataUrlToFile(dataUrl, index);
+      if (!file) continue;
+      const key = `uploads/${crypto.randomUUID()}/${crypto.randomUUID()}.${extensionForImageType(file.type)}`;
+      await bucket.put(key, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type },
+      });
+      uploadedKeys.push(key);
+      referencePhotoKeys.push(key);
+    }
+    input.referencePhotoKeys = referencePhotoKeys;
+    input.referencePhotos = [];
+
     const now = Date.now();
     await db.insert(generationJobs).values({
       id: jobId,

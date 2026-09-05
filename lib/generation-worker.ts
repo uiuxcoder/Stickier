@@ -158,39 +158,88 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     return;
   }
 
-  const photoKeys: string[] = JSON.parse(job.photoKeys || "[]");
-  const photos: File[] = [];
-  for (const [index, key] of photoKeys.entries()) {
-    const object = await env.STICKER_ASSETS.get(key);
-    if (!object) continue;
-    const stored = await object.arrayBuffer();
-    // The edits endpoint validates the format against both the part's MIME type
-    // and its filename extension, so both are derived from the actual bytes.
-    const storedType = sniffImageType(stored);
-    if (!isOpenAIImageType(storedType)) {
-      console.error("Skipping reference photo with unsupported format", key);
-      continue;
+  const identityKeys: string[] = JSON.parse(job.photoKeys || "[]");
+  const referenceKeys: string[] = Array.isArray(input.referencePhotoKeys) ? input.referencePhotoKeys : [];
+
+  async function loadFiles(keys: string[], inline: string[] = []): Promise<File[]> {
+    const files: File[] = [];
+    for (const [index, key] of keys.entries()) {
+      const object = await env.STICKER_ASSETS.get(key);
+      if (!object) continue;
+      const stored = await object.arrayBuffer();
+      const storedType = sniffImageType(stored);
+      if (!isOpenAIImageType(storedType)) {
+        console.error("Skipping image with unsupported format", key);
+        continue;
+      }
+      const { bytes, contentType } = await sanitizeReferencePhoto(env, stored, storedType);
+      files.push(new File([bytes], imageFileName(`image-${index}`, contentType), { type: contentType }));
     }
-    const { bytes, contentType } = await sanitizeReferencePhoto(env, stored, storedType);
-    photos.push(new File([bytes], imageFileName(`reference-${index}`, contentType), { type: contentType }));
+    for (const [index, dataUrl] of inline.entries()) {
+      const match = dataUrl.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+      if (!match) continue;
+      const contentType = match[1] as OpenAIImageType;
+      if (!isOpenAIImageType(contentType)) continue;
+      const bytes = Uint8Array.from(Buffer.from(match[2], "base64")).buffer;
+      files.push(new File([bytes], imageFileName(`inline-${index}`, contentType), { type: contentType }));
+    }
+    return files;
   }
-  // Do not send the bundled style-reference asset here. It is a whole-face
-  // sample and can override the user's original identity when they also upload
-  // a reference meme or expression photo. The prompt text already defines the
-  // sticker style; the uploaded customer photo remains the identity anchor.
+
+  const identityPhotos = await loadFiles(identityKeys, input.photos ?? []);
+  const referencePhotos = await loadFiles(referenceKeys, input.referencePhotos ?? []);
+
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
-  const prompt = promptFor(input, false);
+  const basePrompt = promptFor(input, false);
+  const expressionPrompt = "Use the original customer's face and identity exactly from the first uploaded image. Apply only the expression, mouth shape, eye squint, eyebrow angle, head tilt, and pose from the reference photo(s); do not change the subject's face shape, eye shape, nose, lips, skin tone, hair, age, gender presentation, or distinctive features. Keep the exact same person, while matching the meme/reference expression and framing.";
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
-    if (photos.length) {
-      const body = buildOpenAIImageEditBody({
+    if (referencePhotos.length > 0 && identityPhotos.length > 0) {
+      const baseBody = buildOpenAIImageEditBody({
         model,
-        prompt,
+        prompt: basePrompt,
         quality: GENERATION_IMAGE_QUALITY,
         size: GENERATION_IMAGE_SIZE,
         background: "opaque",
-        photos,
+        photos: identityPhotos,
+      });
+      const baseResponse = await fetch(OPENAI_EDITS_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: baseBody,
+        signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+      });
+      const baseJson = await baseResponse.json();
+      if (!baseResponse.ok || (!baseJson.data?.[0]?.b64_json && !baseJson.data?.[0]?.url)) {
+        throw new Error(baseJson.error?.message || `OpenAI returned ${baseResponse.status}`);
+      }
+      const baseImage = baseJson.data[0];
+      const baseBytes = baseImage.url
+        ? await (await fetch(baseImage.url, { signal: AbortSignal.timeout(30_000) })).arrayBuffer()
+        : Uint8Array.from(Buffer.from(baseImage.b64_json!, "base64"));
+      const finalBody = buildOpenAIImageEditBody({
+        model,
+        prompt: expressionPrompt,
+        quality: GENERATION_IMAGE_QUALITY,
+        size: GENERATION_IMAGE_SIZE,
+        background: "opaque",
+        photos: [new File([baseBytes], "identity-base.png", { type: "image/png" }), ...referencePhotos],
+      });
+      response = await fetch(OPENAI_EDITS_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: finalBody,
+        signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+      });
+    } else if (identityPhotos.length) {
+      const body = buildOpenAIImageEditBody({
+        model,
+        prompt: basePrompt,
+        quality: GENERATION_IMAGE_QUALITY,
+        size: GENERATION_IMAGE_SIZE,
+        background: "opaque",
+        photos: identityPhotos,
       });
 
       response = await fetch(OPENAI_EDITS_URL, {
@@ -202,7 +251,7 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     } else {
       const jsonBody = JSON.stringify({
         model,
-        prompt,
+        prompt: basePrompt,
         size: GENERATION_IMAGE_SIZE,
         quality: GENERATION_IMAGE_QUALITY,
         background: "opaque",
