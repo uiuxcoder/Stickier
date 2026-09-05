@@ -87,7 +87,7 @@ the same 3-column by 4-row grid as the prompt asks for; a reference with a
 different layout, aspect ratio, or background tint will drag the output away from
 the written instructions.
 
-Point Stripe webhooks at `/api/webhooks/stripe` for `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, and `customer.subscription.deleted`.
+Point Stripe webhooks at `/api/webhooks/stripe` for `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, and `charge.dispute.created`. The last two send cancellation and dispute alerts to the configured Slack webhook.
 Purchase confirmations are sent through Resend from `checkout.session.completed` for digital, digital + physical, membership bundles, and membership top-ups. In Resend, verify the sending domain and set `RESEND_FROM_EMAIL` to an address on that domain (for example, `Salty Sticker <orders@saltysticker.com>`).
 
 `install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.

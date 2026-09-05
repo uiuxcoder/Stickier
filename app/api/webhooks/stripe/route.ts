@@ -79,6 +79,85 @@ async function notifySlack(session: Stripe.Checkout.Session, monthlyTotalCents: 
   }
 }
 
+async function notifySlackAlert({
+  title,
+  detail,
+  email,
+  stripeUrl,
+}: {
+  title: string;
+  detail: string;
+  email: string;
+  stripeUrl: string;
+}) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: `${title}: ${detail}`,
+        blocks: [
+          {
+            type: "header",
+            text: { type: "plain_text", text: title, emoji: true },
+          },
+          {
+            type: "section",
+            text: { type: "mrkdwn", text: detail },
+            accessory: {
+              type: "button",
+              text: { type: "plain_text", text: "View in Stripe", emoji: true },
+              url: stripeUrl,
+              action_id: "view_stripe_alert",
+            },
+          },
+          {
+            type: "section",
+            fields: [{ type: "mrkdwn", text: `*Customer*\n${email}` }],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) console.error("Slack payment alert failed", response.status);
+  } catch (error) {
+    console.error("Slack payment alert error", error);
+  }
+}
+
+function formatCurrency(amountCents: number, currency: string | null) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: (currency || "usd").toUpperCase(),
+  }).format(amountCents / 100);
+}
+
+async function notifyChargeDispute(dispute: Stripe.Dispute) {
+  const amount = formatCurrency(dispute.amount, dispute.currency);
+  const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+  const email = dispute.billing_details?.email || "Not provided";
+  const stripeUrl = `https://dashboard.stripe.com/${dispute.livemode ? "payments" : "test/payments"}/${chargeId}`;
+  await notifySlackAlert({
+    title: "🚨 Chargeback/dispute opened",
+    detail: `*${amount}* dispute opened`,
+    email,
+    stripeUrl,
+  });
+}
+
+async function notifySubscriptionCanceled(subscription: Stripe.Subscription, email: string) {
+  const stripeUrl = `https://dashboard.stripe.com/${subscription.livemode ? "subscriptions" : "test/subscriptions"}/${subscription.id}`;
+  await notifySlackAlert({
+    title: "❌ Subscription canceled",
+    detail: "A Sticker Club subscription was canceled.",
+    email,
+    stripeUrl,
+  });
+}
+
 async function claimEvent(event: Stripe.Event): Promise<"claimed" | "processed" | "busy"> {
   const db = getDb();
   const now = Date.now();
@@ -314,6 +393,8 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
       await db.update(users).set({ regenerationsRemaining: 0 }).where(eq(users.email, owner));
     }
   }
+
+  return resolvedEmail;
 }
 
 export async function POST(request: Request) {
@@ -345,7 +426,12 @@ export async function POST(request: Request) {
     } else if (event.type === "invoice.paid") {
       await handleInvoicePaid(event.data.object);
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
-      await handleSubscriptionChange(event.data.object);
+      const email = await handleSubscriptionChange(event.data.object);
+      if (event.type === "customer.subscription.deleted") {
+        await notifySubscriptionCanceled(event.data.object, email || "Not provided");
+      }
+    } else if (event.type === "charge.dispute.created") {
+      await notifyChargeDispute(event.data.object);
     }
 
     await markProcessed(event.id);
