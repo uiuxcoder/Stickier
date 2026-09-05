@@ -63,9 +63,9 @@ export default async function MembershipSuccessPage({
   let isSubscription = false;
   let subscriptionId: string | undefined;
   let productName = "Physical Sticker Sheet";
-  let subtotal = 999;
+  let subtotal = 1299;
   let tax = 0;
-  let total = 999;
+  let total = 1299;
   let currency = "usd";
   let checkoutConfirmed = isDevelopmentPreview;
 
@@ -174,8 +174,8 @@ export default async function MembershipSuccessPage({
               <div>
                 <small>Make it a monthly thing</small>
                 <h2>Sticker Club</h2>
-                <strong>$11.99/month</strong>
-                <p>20 sticker generations, unlimited downloads<br />1 regeneration per sticker<br />Pick 2 to receive at your doorstep every month</p>
+                <strong>$16.99/month</strong>
+                <p>20 sticker generations, unlimited downloads<br />Pick 2 to receive at your doorstep every month</p>
               </div>
               <div className="order-confirmation-club-action">
                 <JoinStickerClubButton imageKey={purchasedImageKey} subject={subject} />

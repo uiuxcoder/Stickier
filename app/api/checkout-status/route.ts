@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
 import { generations, orders } from "@/db/schema";
-import { ONE_TIME_AMOUNT_CENTS } from "@/lib/constants";
+import { ONE_TIME_AMOUNT_CENTS, PHYSICAL_AMOUNT_CENTS } from "@/lib/constants";
 import { getStripe } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
 import { eq } from "drizzle-orm";
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
       email: order[0].email,
       subject: order[0].subject,
       imageKey: order[0].imageKey,
-      plan: order[0].amount >= 999 ? "physical" : "digital",
+      plan: order[0].amount >= PHYSICAL_AMOUNT_CENTS ? "physical" : "digital",
       downloadUrl: `/api/download-stickers?session_id=${encodeURIComponent(sessionId)}`,
     });
   } catch (error) {

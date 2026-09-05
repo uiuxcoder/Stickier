@@ -50,7 +50,7 @@ test("classifies and renders purchase confirmation emails", () => {
 
   const physical = fulfillmentEmailContent({
     ...session("payment", { plan: "physical", imageKey: "stickers/11111111-1111-1111-1111-111111111111.png" }),
-    amount_total: 999,
+    amount_total: 1299,
     currency: "usd",
     collected_information: {
       shipping_details: {
@@ -62,7 +62,7 @@ test("classifies and renders purchase confirmation emails", () => {
   assert.match(physical.html, /123 Sticker Lane/);
   assert.match(physical.html, /api\/preview-stickers\?key=stickers%2F11111111-1111-1111-1111-111111111111\.png/);
   assert.match(physical.html, /Digital \+ physical/);
-  assert.match(physical.html, /Price: \$9\.99/);
+  assert.match(physical.html, /Price: \$12\.99/);
 
   const clubWithFirstSticker = fulfillmentEmailContent(
     session("subscription", { source: "purchase-modal", imageKey: "stickers/11111111-1111-1111-1111-111111111111.png" }),

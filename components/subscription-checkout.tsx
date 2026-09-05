@@ -70,7 +70,7 @@ export function SubscriptionCheckout() {
       const result = await createSubscriptionCheckout(requestFromLocation());
       if (!result) return;
       if ("url" in result) {
-        track("checkout_opened", { product_type: "sticker_club", price: 11.99, currency: "USD", is_subscription: true });
+        track("checkout_opened", { product_type: "sticker_club", price: 16.99, currency: "USD", is_subscription: true });
         window.location.assign(result.url);
       } else if ("resumable" in result) {
         setResumable({ endDate: result.endDate });
@@ -100,7 +100,7 @@ export function SubscriptionCheckout() {
       .then((result) => {
         if (!result) return;
         if ("url" in result) {
-          track("checkout_opened", { product_type: "sticker_club", price: 11.99, currency: "USD", is_subscription: true });
+          track("checkout_opened", { product_type: "sticker_club", price: 16.99, currency: "USD", is_subscription: true });
           window.location.assign(result.url);
         } else if ("resumable" in result) {
           setResumable({ endDate: result.endDate });
@@ -115,7 +115,7 @@ export function SubscriptionCheckout() {
     <main className="membership-shell">
       <section className="membership-card">
         <p className="membership-kicker">Sticker Club</p>
-        <h1>$11.99/month</h1>
+        <h1>$16.99/month</h1>
         {resumable ? (
           <>
             <p className="membership-summary">Your membership is still active through {resumable.endDate}. Would you like to resume it?</p>

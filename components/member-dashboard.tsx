@@ -415,7 +415,7 @@ export function MemberDashboard({ isActive, currentPeriodEnd, remainingCreations
                 : membershipAction === "payment"
                   ? "Update the payment method Stripe will use for future monthly charges."
                   : membershipAction === "restart"
-                    ? "Restart your Sticker Club membership for $11.99/month and get access to unlimited digital downloads and 2 sticker sheets each month."
+                    ? "Restart your Sticker Club membership for $16.99/month and get access to unlimited digital downloads and 2 sticker sheets each month."
                     : "Your membership will remain active through the end of your current billing period, and you will not be charged next month. You can still use this month's 20-generation allowance and submit your 2 stickers for shipping if you haven't already."}
             </DialogDescription>
           </DialogHeader>

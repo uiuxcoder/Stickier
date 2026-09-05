@@ -1,7 +1,7 @@
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { generations } from "@/db/schema";
-import { CHECKOUT_HOURLY_CAP, ONE_TIME_AMOUNT_CENTS } from "@/lib/constants";
+import { CHECKOUT_HOURLY_CAP, ONE_TIME_AMOUNT_CENTS, PHYSICAL_AMOUNT_CENTS } from "@/lib/constants";
 import { consumeRateLimit, hashIp, rateLimitResponse, rateLimiters } from "@/lib/rate-limit";
 import { automaticTaxEnabled, getStripe } from "@/lib/stripe";
 import { checkoutRequestSchema } from "@/lib/validation";
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const user = await getSessionUser(request);
     const checkoutEmail = email || user?.email || undefined;
     const origin = new URL(request.url).origin;
-    const amount = plan === "physical" ? 999 : ONE_TIME_AMOUNT_CENTS;
+    const amount = plan === "physical" ? PHYSICAL_AMOUNT_CENTS : ONE_TIME_AMOUNT_CENTS;
     const baseParams = {
       mode: "payment",
       ...(checkoutEmail ? { customer_email: checkoutEmail } : {}),

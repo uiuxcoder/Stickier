@@ -16,14 +16,11 @@ export default function MembershipPage() {
   return (
     <main className="membership-shell">
       <section className="membership-card">
-        <h1>$11.99/month</h1>
-        <p className="membership-summary">20 sticker generations, unlimited downloads. 1 regeneration per sticker. Pick 2 to receive at your doorstep every month. Free shipping.</p>
+        <h1>$16.99/month</h1>
+        <p className="membership-summary">20 sticker generations, unlimited downloads. Pick 2 to receive at your doorstep every month. Free shipping.</p>
         <ul>
           <li>
             <Check size={14} /> 20 sticker generations, unlimited downloads
-          </li>
-          <li>
-            <Check size={14} /> 1 regeneration per sticker
           </li>
           <li>
             <Check size={14} /> Pick 2 to receive at your doorstep every month

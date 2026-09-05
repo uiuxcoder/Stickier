@@ -70,7 +70,7 @@ const FAQ: [string, string][] = [
   ],
   [
     "How much does it cost?",
-    "Every sheet is 10 custom stickers. The digital pack is $4.99 with instant download; physical + digital is $9.99 with free shipping.",
+    "Every sheet is 10 custom stickers. The digital pack is $4.99 with instant download; physical + digital is $12.99 with free shipping.",
   ],
   [
     "What file format and resolution do I receive?",

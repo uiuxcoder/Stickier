@@ -469,7 +469,7 @@ export function MemberDashboardV2({
                 : membershipAction === "payment"
                   ? "Update the payment method used for future monthly charges."
                   : membershipAction === "restart"
-                    ? "Restart your Sticker Club membership for $11.99/month and receive two sticker sheets each month."
+                    ? "Restart your Sticker Club membership for $16.99/month and receive two sticker sheets each month."
                   : "Your membership will remain active through the end of the current billing period."}
             </DialogDescription>
           </DialogHeader>
