@@ -14,11 +14,11 @@ import {
   subscriptionIdFromInvoice,
 } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 const STALE_EVENT_CLAIM_MS = 5 * 60 * 1000;
 
-async function notifySlack(session: Stripe.Checkout.Session) {
+async function notifySlack(session: Stripe.Checkout.Session, monthlyTotalCents: number) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
   if (!webhookUrl) return;
 
@@ -32,7 +32,10 @@ async function notifySlack(session: Stripe.Checkout.Session) {
       ? "Digital + physical sticker pack"
       : "Digital sticker pack";
   const email = session.customer_details?.email || session.customer_email || "Not provided";
-  const subject = session.metadata?.subject || "Your";
+  const monthlyTotal = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: (session.currency || "usd").toUpperCase(),
+  }).format(monthlyTotalCents / 100);
   const stripeUrl = `https://dashboard.stripe.com/${session.livemode ? "payments" : "test/payments"}/${session.payment_intent || session.id}`;
 
   try {
@@ -61,7 +64,7 @@ async function notifySlack(session: Stripe.Checkout.Session) {
             type: "section",
             fields: [
               { type: "mrkdwn", text: `*Customer*\n${email}` },
-              { type: "mrkdwn", text: `*Sticker subject*\n${subject}` },
+              { type: "mrkdwn", text: `*Month-to-date sales*\n${monthlyTotal}` },
               { type: "mrkdwn", text: `*Stripe session*\n\`${session.id}\`` },
               { type: "mrkdwn", text: `*Payment mode*\n${session.mode === "subscription" ? "Monthly subscription" : "One-time purchase"}` },
             ],
@@ -146,6 +149,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
   const includesStickerBundle = isSubscription ? session.metadata?.source === "purchase-modal" && hasImageKey : hasImageKey;
   const metadataUserId = session.metadata?.userId ?? null;
   const now = Date.now();
+  let monthlyTotalCents = 0;
 
   // Upsert the user keyed on email, then link the stable surrogate ID.
   await db
@@ -191,6 +195,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
     if (isSubscription || session.metadata?.plan === "physical") {
       await ensurePrintAssets(imageKey);
     }
+
+    const monthStart = new Date(now);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    monthStart.setUTCDate(1);
+    const monthlyTotal = await db
+      .select({ total: sql<number>`coalesce(sum(${orders.amount}), 0)` })
+      .from(orders)
+      .where(gte(orders.createdAt, monthStart.getTime()));
+    monthlyTotalCents = Number(monthlyTotal[0]?.total || 0);
   }
 
   if (isSubscription && typeof session.subscription === "string") {
@@ -202,7 +215,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, origin:
         set: { status: "active", email, ...(userId ? { userId } : {}) },
       });
   }
-  await notifySlack(session);
+  await notifySlack(session, monthlyTotalCents);
 
   if (includesStickerBundle) {
     const existing = await db
