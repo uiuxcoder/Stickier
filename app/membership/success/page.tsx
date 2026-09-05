@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { Check, Download, LockKeyhole, Mail, MapPin } from "lucide-react";
+import { Check, LockKeyhole, Mail, MapPin } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { checkoutShippingLines, getStripe, isPaidCheckout } from "@/lib/stripe";
 import { JoinStickerClubButton } from "@/components/join-sticker-club-button";
+import { StickerDownloadLink } from "@/components/sticker-download-link";
 import { VerifiedCheckoutTracker } from "@/components/verified-checkout-tracker";
 
 export const dynamic = "force-dynamic";
@@ -160,9 +161,7 @@ export default async function MembershipSuccessPage({
 
           <div className="order-confirmation-actions">
             {canDownload ? (
-              <a className="order-confirmation-primary" href={downloadUrl}>
-                <Download size={17} /> Download my stickers
-              </a>
+              <StickerDownloadLink className="order-confirmation-primary" href={downloadUrl} iconSize={17}>Download my stickers</StickerDownloadLink>
             ) : (
               <Link className="order-confirmation-primary" href="/account">View my order</Link>
             )}

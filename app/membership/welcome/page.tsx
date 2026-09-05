@@ -3,6 +3,7 @@ import { Download, LockKeyhole, Mail, MapPin, PackageCheck, Sparkles } from "luc
 import { SUBSCRIPTION_AMOUNT_CENTS } from "@/lib/constants";
 import { checkoutShippingLines, getStripe, isPaidCheckout } from "@/lib/stripe";
 import { isImageKey } from "@/lib/validation";
+import { StickerDownloadLink } from "@/components/sticker-download-link";
 import { VerifiedCheckoutTracker } from "@/components/verified-checkout-tracker";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +93,7 @@ export default async function MembershipWelcomePage({
           <h1>You&apos;re in the<br />Sticker Club<span>✦</span></h1>
           <p>{includesStickerBundle ? <>Your membership is active, and your first sticker sheet is included in both digital and physical form. Your digital copy is ready, and we&apos;ll print and send your first physical sheet on us. A confirmation was sent to {email}.</> : <>Your membership is active. A confirmation was sent to {email}.</>}</p>
           <div className="membership-welcome-actions">
-            {includesStickerBundle && downloadUrl ? <a className="membership-welcome-primary" href={downloadUrl}><Download size={16} /> Download digital stickers</a> : null}
+            {includesStickerBundle && downloadUrl ? <StickerDownloadLink className="membership-welcome-primary" href={downloadUrl} iconSize={16}>Download digital stickers</StickerDownloadLink> : null}
             <Link className={downloadUrl ? "membership-welcome-secondary" : "membership-welcome-primary"} href="/account">Go to membership dashboard</Link>
           </div>
           <div className="order-confirmation-meta membership-welcome-meta">
