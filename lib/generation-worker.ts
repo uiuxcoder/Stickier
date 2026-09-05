@@ -191,55 +191,17 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
 
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const basePrompt = promptFor(input, false);
-  const expressionPrompt = "Use the original customer's face and identity exactly from the first uploaded image. Apply only the expression, mouth shape, eye squint, eyebrow angle, head tilt, and pose from the reference photo(s); do not change the subject's face shape, eye shape, nose, lips, skin tone, hair, age, gender presentation, or distinctive features. Keep the exact same person, while matching the meme/reference expression and framing.";
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
-    if (referencePhotos.length > 0 && identityPhotos.length > 0) {
-      const baseBody = buildOpenAIImageEditBody({
-        model,
-        prompt: basePrompt,
-        quality: GENERATION_IMAGE_QUALITY,
-        size: GENERATION_IMAGE_SIZE,
-        background: "opaque",
-        photos: identityPhotos,
-      });
-      const baseResponse = await fetch(OPENAI_EDITS_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}` },
-        body: baseBody,
-        signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-      });
-      const baseJson = await baseResponse.json();
-      if (!baseResponse.ok || (!baseJson.data?.[0]?.b64_json && !baseJson.data?.[0]?.url)) {
-        throw new Error(baseJson.error?.message || `OpenAI returned ${baseResponse.status}`);
-      }
-      const baseImage = baseJson.data[0];
-      const baseBytes = baseImage.url
-        ? await (await fetch(baseImage.url, { signal: AbortSignal.timeout(30_000) })).arrayBuffer()
-        : Uint8Array.from(Buffer.from(baseImage.b64_json!, "base64"));
-      const finalBody = buildOpenAIImageEditBody({
-        model,
-        prompt: expressionPrompt,
-        quality: GENERATION_IMAGE_QUALITY,
-        size: GENERATION_IMAGE_SIZE,
-        background: "opaque",
-        photos: [new File([baseBytes], "identity-base.png", { type: "image/png" }), ...referencePhotos],
-      });
-      response = await fetch(OPENAI_EDITS_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}` },
-        body: finalBody,
-        signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-      });
-    } else if (identityPhotos.length) {
+    if (identityPhotos.length) {
       const body = buildOpenAIImageEditBody({
         model,
         prompt: basePrompt,
         quality: GENERATION_IMAGE_QUALITY,
         size: GENERATION_IMAGE_SIZE,
         background: "opaque",
-        photos: identityPhotos,
+        photos: [...identityPhotos, ...referencePhotos],
       });
 
       response = await fetch(OPENAI_EDITS_URL, {
