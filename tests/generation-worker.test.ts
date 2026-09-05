@@ -62,6 +62,7 @@ test("reference photos only guide expression and pose without changing the origi
   });
 
   assert.match(prompt, /reference photos? are for expression, pose, and framing only/i);
+  assert.match(prompt, /first uploaded customer image is the identity anchor/i);
   assert.match(prompt, /keep the original face shape.*skin tone.*age.*distinctive features/i);
   assert.match(prompt, /do not copy the reference person's facial structure, identity/i);
 });

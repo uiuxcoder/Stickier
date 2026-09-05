@@ -174,11 +174,12 @@ export async function processGenerationJob(env: QueueEnv, message: GenerationJob
     const { bytes, contentType } = await sanitizeReferencePhoto(env, stored, storedType);
     photos.push(new File([bytes], imageFileName(`reference-${index}`, contentType), { type: contentType }));
   }
-  const styleReference = await loadStyleReference(env);
-  if (styleReference) photos.push(styleReference);
-
+  // Do not send the bundled style-reference asset here. It is a whole-face
+  // sample and can override the user's original identity when they also upload
+  // a reference meme or expression photo. The prompt text already defines the
+  // sticker style; the uploaded customer photo remains the identity anchor.
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
-  const prompt = promptFor(input, Boolean(styleReference));
+  const prompt = promptFor(input, false);
   let result: { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
   try {
     let response: Response;
