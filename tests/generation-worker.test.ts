@@ -49,3 +49,19 @@ test("animal-only photos stay animals when the default subject label is used", (
   assert.match(prompt, /show only an animal.*no human person, face, hands, or body/i);
   assert.match(prompt, /costume changes clothing only, never the subject's species/i);
 });
+
+test("reference photos only guide expression and pose without changing the original face", () => {
+  const prompt = promptFor({
+    photoKeys: ["reference.png"],
+    photos: ["data:image/png;base64,abc123"],
+    subject: "You",
+    product: "me",
+    companion: "skip",
+    moods: [],
+    specialRequest: "Turn me into this meme.",
+  });
+
+  assert.match(prompt, /reference photos? are for expression, pose, and framing only/i);
+  assert.match(prompt, /keep the original face shape.*skin tone.*age.*distinctive features/i);
+  assert.match(prompt, /do not copy the reference person's facial structure, identity/i);
+});
