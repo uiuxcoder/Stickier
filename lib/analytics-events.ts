@@ -17,6 +17,7 @@ export const ANALYTICS_EVENTS = [
   "generation_completed",
   "sticker_preview_viewed",
   "purchase_options_opened",
+  "get_my_stickers_clicked",
   "purchase_option_selected",
   "checkout_clicked",
   "checkout_opened",
